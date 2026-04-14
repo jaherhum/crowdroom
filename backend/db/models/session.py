@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 from sqlmodel import SQLModel, Field, Relationship
 
-from db.models.enum import StreamingPlatforms, PlaybackStatus
+from backend.db.models.enum import StreamingPlatforms, PlaybackStatus
 
 
 class Session(SQLModel, table=True):

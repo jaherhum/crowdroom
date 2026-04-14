@@ -4,3 +4,5 @@ uvicorn
 pydantic
 pydantic-settings
 sqlmodel
+pyjwt
+pwdlib[argon2]
