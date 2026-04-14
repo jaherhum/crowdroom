@@ -2,7 +2,7 @@ from uuid import UUID, uuid4
 from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship
 
-from db.models.enum import StreamingPlatforms
+from backend.db.models.enum import StreamingPlatforms
 
 
 class Song(SQLModel, table=True):
