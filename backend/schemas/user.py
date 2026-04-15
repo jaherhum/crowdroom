@@ -1,24 +1,78 @@
+from pydantic import BaseModel, EmailStr, Field, SecretStr, ConfigDict
 from uuid import UUID
 from typing import Optional
-from pydantic import BaseModel, EmailStr
-
-from typing import Optional, List
-from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field, Relationship
 
 
-class User(SQLModel, table=True):
+class UserBase(BaseModel):
     """
-    Database model representing a user.
-    Supports both local (anonymous/temporary) and online (authenticated) users.
+    Base schema for User attributes.
+
+    Attributes:
+        username (Optional[str]): The unique username for the user.
+        email (Optional[EmailStr]): The user's email address.
     """
-    __tablename__ = "users"
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    username: str = Field(default_factory=str, max_length=32, unique=True, nullable=False)
-    email: Optional[str] = Field(default=None, max_length=255, unique=True, nullable=True)
-    hashed_password: Optional[str] = Field(default=None, max_length=255, nullable=True)
+    username: Optional[str] = Field(
+        default=None, max_length=32, description="The unique username for the user."
+    )
+    email: Optional[EmailStr] = Field(
+        default=None, description="The user's email address."
+    )
 
-    # Relations
-    room: Optional["Room"] = Relationship(back_populates="user")
-    queue_items: List["QueueItem"] = Relationship(back_populates="added_by")
+
+class UserCreate(UserBase):
+    """
+    Schema for creating a new User.
+
+    Attributes:
+        username (Optional[str]): The unique username for the user.
+        email (Optional[EmailStr]): The user's email address.
+        password (Optional[SecretStr]): Plain text password to be hashed before storage.
+    """
+
+    password: Optional[SecretStr] = Field(
+        default=None,
+        min_length=8,
+        max_length=255,
+        description="Plain text password. Will be hashed before storage.",
+    )
+
+
+class UserUpdate(BaseModel):
+    """
+    Schema for updating an existing User. All fields are optional.
+
+    Attributes:
+        username (Optional[str]): The new username for the user.
+        email (Optional[EmailStr]): The new email address.
+        password (Optional[SecretStr]): The new plain text password to be hashed.
+    """
+
+    username: Optional[str] = Field(
+        None,
+        max_length=32,
+        description="The new username for the user.",
+    )
+    email: Optional[EmailStr] = Field(None, description="The new email address.")
+    password: Optional[SecretStr] = Field(
+        None,
+        min_length=8,
+        max_length=255,
+        description="The new plain text password. Will be hashed before storage.",
+    )
+
+
+class UserRead(UserBase):
+    """
+    Schema for reading User data.
+
+    Attributes:
+        id (UUID): The unique identifier of the user.
+        username (str): The unique username for the user.
+        email (Optional[EmailStr]): The user's email address.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID = Field(
+        description="The unique identifier of the user.",
+    )

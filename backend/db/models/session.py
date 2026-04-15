@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, JSON
 
 from backend.db.models.enum import StreamingPlatforms, PlaybackStatus
 
@@ -22,15 +23,20 @@ class Session(SQLModel, table=True):
         room (Room): Relationship to the parent Room.
         queue_items (list[QueueItem]): List of items currently in the session's queue.
     """
+
     __tablename__ = "sessions"
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    room_id: UUID = Field(foreign_key="rooms.id", nullable=False)
-    current_platform: StreamingPlatforms = Field(default=StreamingPlatforms.SPOTIFY, nullable=False)
-    current_song_id: str = Field(default=None, nullable=True)
-    playback_status: PlaybackStatus = Field(default=PlaybackStatus.STOPPED, nullable=True)
+    room_id: UUID = Field(foreign_key="rooms.id", nullable=False, unique=True)
+    current_platform: StreamingPlatforms = Field(
+        default=StreamingPlatforms.SPOTIFY, nullable=False
+    )
+    current_song_id: Optional[str] = Field(default=None, nullable=True)
+    playback_status: PlaybackStatus = Field(
+        default=PlaybackStatus.STOPPED, nullable=False
+    )
 
-    last_updated: datetime = Field(default=datetime.now, nullable=False) # Is the session working properly?
+    last_updated: datetime = Field(default_factory=datetime.now, nullable=False)
 
     # Relations
-    room: "Room" = Relationship(back_populates="room")
+    room: "Room" = Relationship(back_populates="session")
     queue_items: list["QueueItem"] = Relationship(back_populates="session")
