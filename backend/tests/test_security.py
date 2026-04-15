@@ -1,6 +1,7 @@
 from backend.core.config import settings
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
+import jwt
 
 
 def test_security():
@@ -27,7 +28,20 @@ def test_security():
     # Test decode JWT
     decoded = service.decode_token(token)
     assert decoded["sub"] == "hello@jaherhum.dev"
+    assert decoded["type"] == TokenType.ACCESS.value
     print("JWT Decoded & Verified.")
+
+    # Test expected_type validation
+    decoded_typed = service.decode_token(token, expected_type=TokenType.ACCESS)
+    assert decoded_typed["sub"] == "hello@jaherhum.dev"
+    print("Token type validation verified.")
+
+    # Test wrong expected_type raises
+    try:
+        service.decode_token(token, expected_type=TokenType.REFRESH)
+        assert False, "Should have raised InvalidTokenError"
+    except jwt.InvalidTokenError:
+        print("Wrong token type correctly rejected.")
 
 
 if __name__ == "__main__":
