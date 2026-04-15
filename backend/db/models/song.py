@@ -1,6 +1,7 @@
 from uuid import UUID, uuid4
 from typing import Optional
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+from sqlalchemy import Column
 
 from backend.db.models.enum import StreamingPlatforms
 
@@ -9,13 +10,13 @@ class Song(SQLModel, table=True):
     """
     Database model representing a musical track in the catalog.
 
-    This model stores metadata about songs retrieved from external streaming 
-    platforms. It acts as a persistent cache to avoid redundant metadata 
+    This model stores metadata about songs retrieved from external streaming
+    platforms. It acts as a persistent cache to avoid redundant metadata
     fetching.
 
     Attributes:
         id (UUID): Primary key, internal unique identifier.
-        external_id (str): Unique identifier from the streaming platform 
+        external_id (str): Unique identifier from the streaming platform
             (e.g., Spotify Track ID).
         title (str): Title of the song.
         artist (str): Name of the performing artist(s).
@@ -25,14 +26,22 @@ class Song(SQLModel, table=True):
         is_explicit (bool, optional): Flag indicating explicit content.
         queue_items (list[QueueItem]): List of queue entries referencing this song.
     """
+
     __tablename__ = "songs"
+    __table_args__ = (
+        UniqueConstraint(
+            "external_id", "platform", name="uq_song_external_id_platform"
+        ),
+    )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    external_id: str = Field(default=None, nullable=False, unique=True)
-    title: str = Field(default=None, nullable=False)
-    artist: str = Field(default=None, nullable=False)
-    platform: StreamingPlatforms = Field(default=StreamingPlatforms.SPOTIFY, nullable=False)
-    duration: float = Field(default=None, nullable=False)
+    external_id: str = Field(..., nullable=False)
+    title: str = Field(..., nullable=False)
+    artist: str = Field(..., nullable=False)
+    platform: StreamingPlatforms = Field(
+        default=StreamingPlatforms.SPOTIFY, nullable=False
+    )
+    duration: float = Field(..., nullable=False)
     album_art_url: Optional[str] = Field(default=None, nullable=True)
     is_explicit: Optional[bool] = Field(default=None, nullable=True)
 
