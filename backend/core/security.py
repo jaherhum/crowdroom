@@ -2,7 +2,6 @@ from datetime import timedelta, timezone, datetime
 
 import jwt
 from pwdlib import PasswordHash
-from pydantic import BaseModel
 
 from backend.core.config import Settings
 from backend.db.models.enum import TokenType
@@ -13,6 +12,7 @@ class SecurityService:
     Service responsible for JWT token lifecycle management
     and secure password hashing.
     """
+
     def __init__(self, settings: Settings):
         """
         Initializes the security service with system-wide security configurations.
@@ -41,7 +41,7 @@ class SecurityService:
             ValueError: If the "sub" key is missing or an invalid token type is provided.
         """
         if data.get("sub") is None:
-            raise ValueError("Missing sub")
+            raise ValueError("Missing 'sub' claim in token data")
 
         to_encode = data.copy()
 
@@ -52,9 +52,11 @@ class SecurityService:
         else:
             raise ValueError(f"Unknown token type: {token_type}")
 
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, self._secret_key, algorithm=self._algorithm)
-        return encoded_jwt
+        to_encode["type"] = token_type.value
+        to_encode["iat"] = datetime.now(timezone.utc)
+        to_encode["exp"] = expire
+
+        return jwt.encode(to_encode, self._secret_key, algorithm=self._algorithm)
 
     def verify_password(self, password: str, hashed_password: str) -> bool:
         """
@@ -81,17 +83,28 @@ class SecurityService:
         """
         return self._pass_hash.hash(password)
 
-    def decode_token(self, token: str) -> dict:
+    def decode_token(self, token: str, expected_type: TokenType | None = None) -> dict:
         """
         Decodes and validates a JWT, ensuring signature integrity and expiration.
 
         Args:
             token (str): The JWT string to decode.
+            expected_type (TokenType | None): If provided, validates that the token
+                matches the expected type (ACCESS or REFRESH).
 
         Returns:
             dict: The decoded payload.
 
         Raises:
-            jwt.exceptions.DecodeError: If the token is invalid, tampered with, or expired.
+            jwt.ExpiredSignatureError: If the token has expired.
+            jwt.InvalidTokenError: If the token is malformed, tampered with,
+                or does not match the expected type.
         """
-        return jwt.decode(token, self._secret_key, algorithms=[self._algorithm])
+        payload = jwt.decode(token, self._secret_key, algorithms=[self._algorithm])
+
+        if expected_type is not None and payload.get("type") != expected_type.value:
+            raise jwt.InvalidTokenError(
+                f"Expected '{expected_type.value}' token, got '{payload.get('type')}'"
+            )
+
+        return payload
