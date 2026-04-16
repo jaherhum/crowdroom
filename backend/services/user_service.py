@@ -1,3 +1,4 @@
+from typing import List, Optional
 from uuid import UUID
 
 from sqlmodel import Session
@@ -6,7 +7,7 @@ from core.exceptions import EntityNotFoundException
 from core.security import SecurityService
 from db.models.user import User
 from repositories.user_repo import UserRepository
-from schemas.user import UserCreate, UserUpdate
+from schemas.user import UserCreate, UserRead, UserUpdate
 
 
 class UserService:
@@ -24,14 +25,66 @@ class UserService:
         self._user_repo: UserRepository = user_repo
         self._security_service: SecurityService = security_service
 
-    def create_user(self, user_data: UserCreate) -> User:
+    def get_all_users(self) -> List[UserRead]:
+        """Retrieves all users.
+
+        Returns:
+            List[UserRead]: A list of user schemas.
+        """
+        users = self._user_repo.get_all()
+        return [UserRead.model_validate(user) for user in users]
+
+    def get_by_id(self, user_id: UUID) -> Optional[User]:
+        """Retrieves a user by their unique ID.
+
+        Args:
+            user_id (UUID): The unique identifier of the user.
+
+        Returns:
+            Optional[User]: The user model if found, otherwise None.
+        """
+        return self._user_repo.get_by_id(user_id)
+
+    def get_by_email(self, email: str) -> Optional[User]:
+        """Retrieves a user by their email.
+
+        Args:
+            email (str): The email address to search for.
+
+        Returns:
+            Optional[User]: The user model if found, otherwise None.
+        """
+        return self._user_repo.get_by_email(email)
+
+    def get_by_username(self, username: str) -> Optional[User]:
+        """Retrieves a user by their username.
+
+        Args:
+            username (str): The username to search for.
+
+        Returns:
+            Optional[User]: The user model if found, otherwise None.
+        """
+        return self._user_repo.get_by_username(username)
+
+    def get_by_identifier(self, identifier: str) -> Optional[User]:
+        """Retrieves a user by either username or email.
+        Args:
+            identifier (str): The username or email to search for.
+        Returns:
+            Optional[User]: The user model if found, otherwise None.
+        """
+        user = self._user_repo.get_by_identifier(identifier)
+        return UserRead.model_validate(user) if user else None
+
+    def create_user(self, user_data: UserCreate) -> UserRead:
         """Creates a new user in the system.
 
         Args:
             user_data (UserCreate): The schema containing user creation details.
 
         Returns:
-            User: The newly created user model.
+            UserRead: The newly created user schema.
         """
         data = user_data.model_dump()
         plain_password = data.pop("password")
@@ -45,9 +98,10 @@ class UserService:
             data["username"] = data["username"].lower()
 
         user_model = User(**data)
-        return self._user_repo.save(user_model)
+        new_user = self._user_repo.save(user_model)
+        return UserRead.model_validate(new_user)
 
-    def update_user(self, user_id: UUID, user_data: UserUpdate) -> User:
+    def update_user(self, user_id: UUID, user_data: UserUpdate) -> UserRead:
         """Updates an existing user's information.
 
         Args:
@@ -55,7 +109,7 @@ class UserService:
             user_data (UserUpdate): The schema containing the fields to update.
 
         Returns:
-            User: The updated user model.
+            UserRead: The updated user schema.
 
         Raises:
             EntityNotFoundException: If no user is found with the given ID.
@@ -73,7 +127,8 @@ class UserService:
         for k, v in update_dict.items():
             setattr(db_user, k, v)
 
-        return self._user_repo.save(db_user)
+        updated_user = self._user_repo.save(db_user)
+        return UserRead.model_validate(updated_user)
 
     def delete_user(self, user_id: UUID) -> None:
         """Deletes a user from the system.

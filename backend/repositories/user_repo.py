@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 
 from db.models.user import User
 from schemas.user import UserCreate, UserUpdate
@@ -24,6 +24,14 @@ class UserRepository:
         """
         self._db_session = db_session
 
+    def get_all(self) -> List[User]:
+        """Retrieves all users from the database.
+
+        Returns:
+            List[User]: A list containing all User entities.
+        """
+        return list(self._db_session.exec(select(User)).all())
+
     def get_by_id(self, user_id: UUID) -> Optional[User]:
         """Retrieves a user by their unique ID.
 
@@ -44,9 +52,7 @@ class UserRepository:
         Returns:
             Optional[User]: The User object if found, otherwise None.
         """
-        return self._db_session.exec(
-            select(User).where(User.email == email.lower())
-        ).first()
+        return self._db_session.exec(select(User).where(User.email == email.lower())).first()
 
     def get_by_username(self, username: str) -> Optional[User]:
         """Retrieves a user by their username.
@@ -57,9 +63,15 @@ class UserRepository:
         Returns:
             Optional[User]: The User object if found, otherwise None.
         """
+        return self._db_session.exec(select(User).where(User.username == username.lower())).first()
+
+    def get_by_identifier(self, identifier: str) -> User | None:
         return self._db_session.exec(
-            select(User).where(User.username == username.lower())
-        ).first()
+            select(User).where(
+                or_(
+                    User.email == identifier.lower(),
+                    User.username == identifier.lower()
+                ))).first()
 
     def save(self, user: User) -> User:
         """Saves a user entity to the database.
