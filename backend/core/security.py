@@ -71,7 +71,7 @@ class SecurityService:
         """
         return self._pass_hash.verify(password, hashed_password)
 
-    def get_password_hash(self, password: str) -> str:
+    def generate_password_hash(self, password: str) -> str:
         """
         Generates a secure hash for a plain-text password.
 
