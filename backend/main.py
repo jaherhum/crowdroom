@@ -21,8 +21,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
+app.include_router(auth_router)
 app.include_router(queue_router, prefix=f"{settings.API_V1_STR}/queue", tags=["queue"])
-app.include_router(search_router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
-app.include_router(session_router, prefix=f"{settings.API_V1_STR}/session", tags=["session"])
+app.include_router(
+    search_router, prefix=f"{settings.API_V1_STR}/search", tags=["search"]
+)
+app.include_router(
+    session_router, prefix=f"{settings.API_V1_STR}/session", tags=["session"]
+)
 app.include_router(user_router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
