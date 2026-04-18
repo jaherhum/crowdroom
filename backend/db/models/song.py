@@ -1,7 +1,6 @@
 from uuid import UUID, uuid4
 from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
-from sqlalchemy import Column
 
 from backend.db.models.enum import StreamingPlatforms
 
