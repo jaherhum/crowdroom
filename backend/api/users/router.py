@@ -1,7 +1,6 @@
-from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status
 
 from backend.api.users.dependencies import get_user_service
 from backend.schemas.user import UserCreate, UserRead, UserUpdate
