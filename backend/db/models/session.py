@@ -1,7 +1,6 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, JSON
 
 from backend.db.models.enum import StreamingPlatforms, PlaybackStatus
 
