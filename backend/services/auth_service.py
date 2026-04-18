@@ -1,11 +1,9 @@
-from core.exceptions import EntityExistsException, InvalidCredentialsException
-from core.security import SecurityService
-from db.models.enum import TokenType
-from db.models.user import User
-from repositories.user_repo import UserRepository
-from schemas.auth import LoginRequest, RegisterRequest, TokenResponse
-from schemas.user import UserCreate, UserRead
-from services.user_service import UserService
+from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
+from backend.core.security import SecurityService
+from backend.db.models.enum import TokenType
+from backend.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from backend.schemas.user import UserCreate, UserRead
+from backend.services.user_service import UserService
 
 
 class AuthService:
@@ -30,7 +28,8 @@ class AuthService:
         user_to_create = UserCreate(
             username=user_data.username,
             email=user_data.email,
-            password=user_data.password)
+            password=user_data.password,
+        )
         return self._user_service.create_user(user_to_create)
 
     def login_user(self, user_data: LoginRequest) -> TokenResponse:
@@ -53,6 +52,3 @@ class AuthService:
         )
 
         return TokenResponse(access_token=token, token_type="bearer")
-
-
-
