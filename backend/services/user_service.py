@@ -1,13 +1,12 @@
 from typing import List, Optional
 from uuid import UUID
 
-from sqlmodel import Session
 
-from core.exceptions import EntityNotFoundException
-from core.security import SecurityService
-from db.models.user import User
-from repositories.user_repo import UserRepository
-from schemas.user import UserCreate, UserRead, UserUpdate
+from backend.core.exceptions import EntityNotFoundException
+from backend.core.security import SecurityService
+from backend.db.models.user import User
+from backend.repositories.user_repo import UserRepository
+from backend.schemas.user import UserCreate, UserRead, UserUpdate
 
 
 class UserService:
