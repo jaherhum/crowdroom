@@ -1,4 +1,4 @@
-from core.config import settings
+from backend.core.config import settings
 from sqlmodel import create_engine, SQLModel, Session
 
 db_url = settings.DATABASE_URL
@@ -12,4 +12,3 @@ def create_db_and_tables():
 def get_session():
     with Session(engine) as session:
         yield session
-
