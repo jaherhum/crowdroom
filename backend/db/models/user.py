@@ -1,4 +1,5 @@
 from typing import Optional
+
 from sqlmodel import SQLModel, Field, Relationship
 from uuid import uuid4, UUID
 
