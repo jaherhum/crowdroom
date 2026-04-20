@@ -1,9 +1,10 @@
 from pathlib import Path
 from typing import Literal
-
-from pydantic import ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Base directory for the backend (the folder where config.py resides is backend/core/)
+# So parent.parent is the 'backend' directory itself.
+BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     """
@@ -23,7 +24,8 @@ class Settings(BaseSettings):
     AUTH_MODE: Literal["LOCAL", "ONLINE"] = "LOCAL"
 
     # Database
-    DATABASE_URL: str = "sqlite:///./crowdroom.db"
+    # Default to an absolute path inside the backend directory
+    DATABASE_URL: str = f"sqlite:///{BACKEND_DIR}/crowdroom.db"
 
     # Security
     SECRET_KEY: str
@@ -34,7 +36,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).parent.parent / ".env",
+        env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
