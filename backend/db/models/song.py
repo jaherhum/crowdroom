@@ -1,13 +1,19 @@
+"""Database model representing a musical track in the catalog."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
-from typing import Optional
-from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from backend.db.models.enum import StreamingPlatforms
 
+if TYPE_CHECKING:
+    from backend.db.models.queue_item import QueueItem
+
 
 class Song(SQLModel, table=True):
-    """
-    Database model representing a musical track in the catalog.
+    """Database model representing a musical track in the catalog.
 
     This model stores metadata about songs retrieved from external streaming
     platforms. It acts as a persistent cache to avoid redundant metadata

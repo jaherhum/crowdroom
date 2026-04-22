@@ -1,14 +1,17 @@
+"""Application configuration management."""
+
 from pathlib import Path
 from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Base directory for the backend (the folder where config.py resides is backend/core/)
 # So parent.parent is the 'backend' directory itself.
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+
 class Settings(BaseSettings):
-    """
-    Manages global application configuration via environment variables.
+    """Manages global application configuration via environment variables.
 
     Uses pydantic-settings to automatically load and validate settings
     from a .env file.
