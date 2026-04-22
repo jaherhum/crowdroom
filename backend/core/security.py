@@ -1,4 +1,4 @@
-from datetime import timedelta, timezone, datetime
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from pwdlib import PasswordHash
@@ -8,14 +8,12 @@ from backend.db.models.enum import TokenType
 
 
 class SecurityService:
-    """
-    Service responsible for JWT token lifecycle management
+    """Service responsible for JWT token lifecycle management
     and secure password hashing.
     """
 
     def __init__(self, settings: Settings):
-        """
-        Initializes the security service with system-wide security configurations.
+        """Initializes the security service with system-wide security configurations.
 
         Args:
             settings (Settings): Global application settings containing security parameters.
@@ -27,8 +25,7 @@ class SecurityService:
         self._pass_hash = PasswordHash.recommended()
 
     def create_token(self, token_type: TokenType, data: dict) -> str:
-        """
-        Generates a signed JWT (Access or Refresh token) with a calculated expiration.
+        """Generates a signed JWT (Access or Refresh token) with a calculated expiration.
 
         Args:
             token_type (TokenType): The category of token to be issued.
@@ -59,8 +56,7 @@ class SecurityService:
         return jwt.encode(to_encode, self._secret_key, algorithm=self._algorithm)
 
     def verify_password(self, password: str, hashed_password: str) -> bool:
-        """
-        Verifies a plain-text password against its stored hash.
+        """Verifies a plain-text password against its stored hash.
 
         Args:
             password (str): The plain-text password to verify.
@@ -72,8 +68,7 @@ class SecurityService:
         return self._pass_hash.verify(password, hashed_password)
 
     def generate_password_hash(self, password: str) -> str:
-        """
-        Generates a secure hash for a plain-text password.
+        """Generates a secure hash for a plain-text password.
 
         Args:
             password (str): The plain-text password to hash.
@@ -84,8 +79,7 @@ class SecurityService:
         return self._pass_hash.hash(password)
 
     def decode_token(self, token: str, expected_type: TokenType | None = None) -> dict:
-        """
-        Decodes and validates a JWT, ensuring signature integrity and expiration.
+        """Decodes and validates a JWT, ensuring signature integrity and expiration.
 
         Args:
             token (str): The JWT string to decode.

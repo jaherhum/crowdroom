@@ -1,12 +1,11 @@
 from typing import Optional
+from uuid import UUID, uuid4
 
-from sqlmodel import SQLModel, Field, Relationship
-from uuid import uuid4, UUID
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class User(SQLModel, table=True):
-    """
-    Database model representing a User in the system.
+    """Database model representing a User in the system.
 
     This model defines the persistent storage for user identities, supporting
     both authenticated users (with email/password) and anonymous/local users

@@ -1,12 +1,12 @@
+import jwt
+
 from backend.core.config import settings
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
-import jwt
 
 
 def test_security():
-    """
-    Manual test to verify the integrity of the SecurityService.
+    """Manual test to verify the integrity of the SecurityService.
     Covers password hashing, token generation, and JWT decoding.
     """
     service = SecurityService(settings)

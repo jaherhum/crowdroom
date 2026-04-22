@@ -2,14 +2,12 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
+from db.models.enum import PlaybackStatus, StreamingPlatforms
 from pydantic import BaseModel, Field
-
-from db.models.enum import StreamingPlatforms, PlaybackStatus
 
 
 class CreateSession(BaseModel):
-    """
-    Schema for creating a new active session within a room.
+    """Schema for creating a new active session within a room.
 
     Attributes:
         room_id (UUID): The unique identifier of the room where the session starts.
@@ -27,8 +25,7 @@ class CreateSession(BaseModel):
 
 
 class ReadSession(BaseModel):
-    """
-    Schema for the session data returned by the API.
+    """Schema for the session data returned by the API.
 
     Attributes:
         id (UUID): The unique identifier of the session.
@@ -58,8 +55,7 @@ class ReadSession(BaseModel):
 
 
 class UpdateSession(BaseModel):
-    """
-    Schema for updating an existing session's state. All fields are optional.
+    """Schema for updating an existing session's state. All fields are optional.
 
     Attributes:
         current_song_id (Optional[str]): The new song ID to be played.

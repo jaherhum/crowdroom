@@ -1,7 +1,7 @@
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
 
-from sqlmodel import Session, select, or_
+from sqlmodel import Session, or_, select
 
 from backend.db.models.user import User
 

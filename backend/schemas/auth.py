@@ -1,11 +1,10 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field, SecretStr, EmailStr
+from pydantic import BaseModel, EmailStr, Field, SecretStr
 
 
 class RegisterRequest(BaseModel):
-    """
-    Request schema for user registration.
+    """Request schema for user registration.
 
     Attributes:
         username (str): The unique username for the user.
@@ -18,8 +17,7 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """
-    Request schema for user authentication.
+    """Request schema for user authentication.
 
     Attributes:
         identifier (str): The user identifier, which can be either a username or an email.
@@ -30,8 +28,7 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """
-    Response schema for successful authentication.
+    """Response schema for successful authentication.
 
     Attributes:
         access_token (str): The generated JWT access token.

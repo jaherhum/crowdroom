@@ -5,8 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateQueueItem(BaseModel):
-    """
-    Schema for validating the creation of a new queue item.
+    """Schema for validating the creation of a new queue item.
 
     Attributes:
         session_id: Unique identifier of the session.
@@ -21,8 +20,7 @@ class CreateQueueItem(BaseModel):
 
 
 class ReadQueueItem(BaseModel):
-    """
-    Schema for the queue item data returned by the API.
+    """Schema for the queue item data returned by the API.
 
     Attributes:
         id: Unique identifier of the queue item.
@@ -43,8 +41,7 @@ class ReadQueueItem(BaseModel):
 
 
 class MoveQueueItem(BaseModel):
-    """
-    Schema for moving a queue item to a new position.
+    """Schema for moving a queue item to a new position.
 
     Attributes:
         new_position: New target position in the queue.

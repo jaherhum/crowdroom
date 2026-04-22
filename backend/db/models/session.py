@@ -1,14 +1,14 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field, Relationship
 
-from backend.db.models.enum import StreamingPlatforms, PlaybackStatus
+from sqlmodel import Field, Relationship, SQLModel
+
+from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
 
 
 class Session(SQLModel, table=True):
-    """
-    Database model representing an active music playback session.
+    """Database model representing an active music playback session.
 
     A Session is tied to a Room and tracks the current state of playback,
     including the platform being used and the song currently playing.

@@ -1,11 +1,11 @@
 from typing import Optional
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field, Relationship
+
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class QueueItem(SQLModel, table=True):
-    """
-    Database model representing an individual item in a music queue.
+    """Database model representing an individual item in a music queue.
 
     This model links a specific song to a session and tracks its position,
     voting (skips), and the user who added it.
