@@ -40,7 +40,7 @@ exclude = [".git", ".venv", "__pycache__", "venv"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "D"]
-ignore = []
+ignore = ["B008"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
