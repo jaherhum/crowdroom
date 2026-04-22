@@ -1,6 +1,6 @@
+"""Service layer for managing user-related business logic."""
 from typing import List, Optional
 from uuid import UUID
-
 
 from backend.core.exceptions import EntityNotFoundException
 from backend.core.security import SecurityService
@@ -21,6 +21,7 @@ class UserService:
     """
 
     def __init__(self, user_repo: UserRepository, security_service: SecurityService):
+        """Initializes the UserService with required repository and security service."""
         self._user_repo: UserRepository = user_repo
         self._security_service: SecurityService = security_service
 
@@ -68,8 +69,10 @@ class UserService:
 
     def get_by_identifier(self, identifier: str) -> Optional[User]:
         """Retrieves a user by either username or email.
+
         Args:
             identifier (str): The username or email to search for.
+
         Returns:
             Optional[User]: The user model if found, otherwise None.
         """

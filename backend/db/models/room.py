@@ -1,12 +1,19 @@
-from typing import Optional, Any, Dict
+"""Database model representing a virtual meeting room."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, JSON
+
+from sqlalchemy import JSON, Column
+from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from backend.db.models.session import Session
+    from backend.db.models.user import User
 
 
 class Room(SQLModel, table=True):
-    """
-    Database model representing a virtual meeting room.
+    """Database model representing a virtual meeting room.
 
     A Room acts as the primary container for music sessions and users.
     It can be public or private and holds specific configuration settings.
@@ -15,10 +22,10 @@ class Room(SQLModel, table=True):
         id (UUID): Primary key, unique identifier for the room.
         host_user_id (UUID): Foreign key referencing the user who owns/created the room.
         room_name (str): Display name of the room.
-        is_private (bool): Flag indicating if the room is private (hidden from public list).
-        settings (dict): JSON-based dictionary for storing room-specific configurations.
+        is_private (bool): Flag indicating if the room is private.
+        settings (dict): JSON-based dictionary for storing configurations.
         user (User): Relationship to the host user.
-        session (Optional[Session]): Relationship to the current active session in this room.
+        session (Optional[Session]): Relationship to the active session.
     """
 
     __tablename__ = "rooms"

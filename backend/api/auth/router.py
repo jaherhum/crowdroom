@@ -1,14 +1,20 @@
+"""Authentication routes for the API."""
+
 from fastapi import APIRouter, Depends, status
+
+from backend.api.auth.dependencies import get_auth_service
 from backend.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from backend.schemas.user import UserRead
-from backend.api.auth.dependencies import get_auth_service
 from backend.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def register(register_request: RegisterRequest, auth_service: AuthService = Depends(get_auth_service)) -> UserRead:
+def register(
+    register_request: RegisterRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserRead:
     """Registers a new user.
 
     Args:
@@ -22,7 +28,10 @@ def register(register_request: RegisterRequest, auth_service: AuthService = Depe
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(login_request: LoginRequest, auth_service: AuthService = Depends(get_auth_service)) -> TokenResponse:
+def login(
+    login_request: LoginRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> TokenResponse:
     """Authenticates a user and returns a JWT token.
 
     Args:
