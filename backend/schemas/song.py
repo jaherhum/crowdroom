@@ -1,17 +1,11 @@
+"""Song schemas for the API."""
 from typing import Optional
 from uuid import UUID
 
-from db.models.enum import StreamingPlatforms
 from pydantic import BaseModel, Field
 
-# This class is not intended to use, may be removed in the future.
-# class CreateSong(BaseModel):
-#     title: str
-#     artist: str
-#     platform: StreamingPlatforms
-#     duration: float
-#     album_art_url: str
-#     is_explicit: bool
+from backend.db.models.enum import StreamingPlatforms
+
 
 class ReadSong(BaseModel):
     """Schema for the song data returned by the API.
@@ -30,10 +24,18 @@ class ReadSong(BaseModel):
         is_explicit (Optional[bool]): Indicates if the song contains explicit content.
     """
     id: UUID = Field(..., description="The unique internal identifier of the song.")
-    external_id: str = Field(..., description="The unique identifier provided by the external streaming platform.")
+    external_id: str = Field(
+        ..., description="The unique identifier from the streaming platform."
+    )
     title: str = Field(..., description="The full title of the song.")
     artist: str = Field(..., description="The name of the artist or band.")
-    platform: StreamingPlatforms = Field(..., description="The streaming service the song was fetched from.")
+    platform: StreamingPlatforms = Field(
+        ..., description="The streaming service the song was fetched from."
+    )
     duration: float = Field(..., description="The duration of the song in seconds.")
-    album_art_url: Optional[str] = Field(None, description="The URL pointing to the album artwork.")
-    is_explicit: Optional[bool] = Field(None, description="Flag indicating if the content is marked as explicit.")
+    album_art_url: Optional[str] = Field(
+        None, description="The URL pointing to the album artwork."
+    )
+    is_explicit: Optional[bool] = Field(
+        None, description="Flag indicating if the content is marked as explicit."
+    )

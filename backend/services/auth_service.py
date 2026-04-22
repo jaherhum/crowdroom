@@ -1,3 +1,4 @@
+"""Service for handling user authentication and registration."""
 from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
@@ -7,7 +8,9 @@ from backend.services.user_service import UserService
 
 
 class AuthService:
+    """Service for handling user authentication and registration."""
     def __init__(self, user_service: UserService, security_service: SecurityService):
+        """Initializes the AuthService with required services."""
         self._user_service = user_service
         self._security_service = security_service
 
@@ -36,6 +39,17 @@ class AuthService:
         return self._user_service.create_user(user_to_create)
 
     def login_user(self, user_data: LoginRequest) -> TokenResponse:
+        """Authenticates a user and returns a token.
+
+        Args:
+            user_data (LoginRequest): The schema containing login credentials.
+
+        Returns:
+            TokenResponse: The authentication token.
+
+        Raises:
+            InvalidCredentialsException: If authentication fails.
+        """
         identifier = user_data.identifier.strip().lower()
         user = self._user_service.get_by_identifier(identifier)
 
