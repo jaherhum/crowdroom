@@ -1,12 +1,12 @@
-from typing import Optional, Dict, Any
+"""Room schemas for the API."""
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
 class WelcomeMessage(BaseModel):
-    """
-    Represents the configuration for a room's welcome message.
+    """Represents the configuration for a room's welcome message.
 
     Attributes:
         title (str): The headline text shown to users.
@@ -20,8 +20,7 @@ class WelcomeMessage(BaseModel):
 
 
 class CreateRoom(BaseModel):
-    """
-    Schema for creating a new room.
+    """Schema for creating a new room.
 
     Attributes:
         host_user_id (UUID): The unique identifier of the user creating the room.
@@ -37,8 +36,7 @@ class CreateRoom(BaseModel):
 
 
 class ReadRoom(BaseModel):
-    """
-    Schema for the room data returned by the API.
+    """Schema for the room data returned by the API.
 
     Attributes:
         id (UUID): The unique identifier of the room.
@@ -60,8 +58,7 @@ class ReadRoom(BaseModel):
 
 
 class UpdateRoom(BaseModel):
-    """
-    Schema for updating an existing room. All fields are optional.
+    """Schema for updating an existing room. All fields are optional.
 
     Attributes:
         room_name (Optional[str]): The new name for the room.

@@ -1,10 +1,9 @@
+"""Alembic environment configuration for database migrations."""
+
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, create_engine
-from sqlalchemy import pool
-
 from alembic import context
-
+from sqlalchemy import create_engine
 from sqlmodel import SQLModel
 
 from backend.core.config import settings
@@ -20,7 +19,6 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from backend.db.models import User, Room, Session, Song, QueueItem, StreamingPlatforms, PlaybackStatus, TokenType
 # target_metadata = mymodel.Base.metadata
 target_metadata = SQLModel.metadata
 
@@ -40,7 +38,6 @@ def run_migrations_offline() -> None:
 
     Calls to context.execute() here emit the given string to the
     script output.
-
     """
     url = settings.DATABASE_URL
     context.configure(
@@ -59,7 +56,6 @@ def run_migrations_online() -> None:
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
-
     """
     connectable = create_engine(settings.DATABASE_URL)
 

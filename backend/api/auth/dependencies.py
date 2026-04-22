@@ -1,4 +1,4 @@
-from typing import Annotated
+"""Authentication dependencies for the API."""
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -9,7 +9,6 @@ from backend.db.models.enum import TokenType
 from backend.db.models.user import User
 from backend.services.auth_service import AuthService
 from backend.services.user_service import UserService
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
@@ -27,7 +26,8 @@ def get_security_service() -> SecurityService:
 
 def get_auth_service(
     user_service: UserService = Depends(get_user_service),
-    security_service: SecurityService = Depends(get_security_service)) -> AuthService:
+    security_service: SecurityService = Depends(get_security_service),
+) -> AuthService:
     """Provides the AuthService instance.
 
     Args:
@@ -43,7 +43,8 @@ def get_auth_service(
 def get_current_user(
     user_service: UserService = Depends(get_user_service),
     security_service: SecurityService = Depends(get_security_service),
-    token: str = Depends(oauth2_scheme)) -> User:
+    token: str = Depends(oauth2_scheme),
+) -> User:
     """Retrieves the current authenticated user from the JWT token.
 
     Args:

@@ -1,20 +1,20 @@
+"""Session schemas for the API."""
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from db.models.enum import StreamingPlatforms, PlaybackStatus
+from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
 
 
 class CreateSession(BaseModel):
-    """
-    Schema for creating a new active session within a room.
+    """Schema for creating a new active session within a room.
 
     Attributes:
-        room_id (UUID): The unique identifier of the room where the session starts.
-        current_platform (StreamingPlatforms): The streaming service being used (e.g., Spotify, YouTube).
-        playback_status (PlaybackStatus): The initial playback state (e.g., paused, playing).
+        room_id (UUID): The unique identifier of the room.
+        current_platform (StreamingPlatforms): The streaming service being used.
+        playback_status (PlaybackStatus): The initial playback state.
     """
 
     room_id: UUID = Field(..., description="The UUID of the room to host this session.")
@@ -27,14 +27,13 @@ class CreateSession(BaseModel):
 
 
 class ReadSession(BaseModel):
-    """
-    Schema for the session data returned by the API.
+    """Schema for the session data returned by the API.
 
     Attributes:
         id (UUID): The unique identifier of the session.
         room_id (UUID): The identifier of the room this session belongs to.
         current_platform (StreamingPlatforms): The streaming service currently active.
-        current_song_id (Optional[str]): The ID of the song currently playing, if any.
+        current_song_id (Optional[str]): The ID of the song currently playing.
         playback_status (PlaybackStatus): The current state of playback.
         last_updated (datetime): The timestamp of the last session update.
     """
@@ -53,17 +52,16 @@ class ReadSession(BaseModel):
         ..., description="The current playback status."
     )
     last_updated: datetime = Field(
-        ..., description="The timestamp of the last recorded activity in this session."
+        ..., description="The timestamp of the last recorded activity."
     )
 
 
 class UpdateSession(BaseModel):
-    """
-    Schema for updating an existing session's state. All fields are optional.
+    """Schema for updating an existing session's state. All fields are optional.
 
     Attributes:
         current_song_id (Optional[str]): The new song ID to be played.
-        playback_status (Optional[PlaybackStatus]): The new playback status (e.g., play, pause, stop).
+        playback_status (Optional[PlaybackStatus]): The new playback status.
     """
 
     current_song_id: Optional[str] = Field(

@@ -1,28 +1,32 @@
+"""Authentication schemas for the API."""
 from typing import Optional
 
-from pydantic import BaseModel, Field, SecretStr, EmailStr
+from pydantic import BaseModel, EmailStr, Field, SecretStr
 
 
 class RegisterRequest(BaseModel):
-    """
-    Request schema for user registration.
+    """Request schema for user registration.
 
     Attributes:
         username (str): The unique username for the user.
-        email (Optional[EmailStr]): The user's email address. Required if AUTH_MODE is remote.
-        password (Optional[SecretStr]): The user's plain text password. Required if AUTH_MODE is remote.
+        email (Optional[EmailStr]): The user's email address.
+            Required if AUTH_MODE is remote.
+        password (Optional[SecretStr]): The user's plain text password.
+            Required if AUTH_MODE is remote.
     """
     username: str = Field(..., description="The username.")
     email: Optional[EmailStr] = Field(None, description="The email address.")
-    password: Optional[SecretStr] = Field(None, description="The user plain text password.")
+    password: Optional[SecretStr] = Field(
+        None, description="The user plain text password."
+    )
 
 
 class LoginRequest(BaseModel):
-    """
-    Request schema for user authentication.
+    """Request schema for user authentication.
 
     Attributes:
-        identifier (str): The user identifier, which can be either a username or an email.
+        identifier (str): The user identifier, which can be either a
+            username or an email.
         password (SecretStr): The user's plain text password.
     """
     identifier: str = Field(..., description="The user identifier, username or email.")
@@ -30,8 +34,7 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """
-    Response schema for successful authentication.
+    """Response schema for successful authentication.
 
     Attributes:
         access_token (str): The generated JWT access token.

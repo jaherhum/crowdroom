@@ -1,7 +1,9 @@
-from typing import Optional, List
+"""Repository for user data access."""
+
+from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, select, or_
+from sqlmodel import Session, or_, select
 
 from backend.db.models.user import User
 
@@ -23,11 +25,11 @@ class UserRepository:
         """
         self._db_session = db_session
 
-    def get_all(self) -> List[User]:
+    def get_all(self) -> list[User]:
         """Retrieves all users from the database.
 
         Returns:
-            List[User]: A list containing all User entities.
+            list[User]: A list containing all User entities.
         """
         return list(self._db_session.exec(select(User)).all())
 
@@ -69,6 +71,14 @@ class UserRepository:
         ).first()
 
     def get_by_identifier(self, identifier: str) -> User | None:
+        """Retrieves a user by their identifier (email or username).
+
+        Args:
+            identifier (str): The identifier to search for.
+
+        Returns:
+            User | None: The User object if found, otherwise None.
+        """
         return self._db_session.exec(
             select(User).where(
                 or_(
