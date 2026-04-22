@@ -1,16 +1,16 @@
 from unittest.mock import MagicMock
-from backend.services.auth_service import AuthService
-from backend.services.user_service import UserService
+from uuid import uuid4
+
+from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
 from backend.core.security import SecurityService
 from backend.schemas.auth import LoginRequest, RegisterRequest
 from backend.schemas.user import UserRead
-from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
-from uuid import uuid4
+from backend.services.auth_service import AuthService
+from backend.services.user_service import UserService
 
 
 def test_auth_service_logic():
-    """
-    Unit tests for AuthService logic.
+    """Unit tests for AuthService logic.
     """
     # Mocking dependencies
     mock_user_service = MagicMock(spec=UserService)

@@ -1,7 +1,6 @@
 from typing import List, Optional
 from uuid import UUID
 
-
 from backend.core.exceptions import EntityNotFoundException
 from backend.core.security import SecurityService
 from backend.db.models.user import User
@@ -68,8 +67,10 @@ class UserService:
 
     def get_by_identifier(self, identifier: str) -> Optional[User]:
         """Retrieves a user by either username or email.
+
         Args:
             identifier (str): The username or email to search for.
+
         Returns:
             Optional[User]: The user model if found, otherwise None.
         """

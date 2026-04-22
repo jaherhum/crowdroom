@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from backend.db.database import create_db_and_tables
 
 from backend.api.auth.router import router as auth_router
 from backend.api.queue.router import router as queue_router
@@ -8,6 +8,7 @@ from backend.api.search.router import router as search_router
 from backend.api.session.router import router as session_router
 from backend.api.users.router import router as user_router
 from backend.core.config import settings
+from backend.db.database import create_db_and_tables
 
 
 @asynccontextmanager

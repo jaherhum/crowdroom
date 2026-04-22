@@ -1,5 +1,6 @@
+from sqlmodel import Session, SQLModel, create_engine
+
 from backend.core.config import settings
-from sqlmodel import create_engine, SQLModel, Session
 
 db_url = settings.DATABASE_URL
 

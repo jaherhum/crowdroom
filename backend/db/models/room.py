@@ -1,12 +1,12 @@
-from typing import Optional, Any, Dict
+from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, JSON
+
+from sqlalchemy import JSON, Column
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class Room(SQLModel, table=True):
-    """
-    Database model representing a virtual meeting room.
+    """Database model representing a virtual meeting room.
 
     A Room acts as the primary container for music sessions and users.
     It can be public or private and holds specific configuration settings.

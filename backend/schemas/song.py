@@ -1,9 +1,8 @@
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
 from db.models.enum import StreamingPlatforms
+from pydantic import BaseModel, Field
 
 # This class is not intended to use, may be removed in the future.
 # class CreateSong(BaseModel):
@@ -15,8 +14,7 @@ from db.models.enum import StreamingPlatforms
 #     is_explicit: bool
 
 class ReadSong(BaseModel):
-    """
-    Schema for the song data returned by the API.
+    """Schema for the song data returned by the API.
 
     Provides a complete representation of a song as it exists in the system,
     including its metadata and origin platform.
