@@ -1,3 +1,4 @@
+"""Tests for AuthService logic."""
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -10,8 +11,7 @@ from backend.services.user_service import UserService
 
 
 def test_auth_service_logic():
-    """Unit tests for AuthService logic.
-    """
+    """Unit tests for AuthService logic."""
     # Mocking dependencies
     mock_user_service = MagicMock(spec=UserService)
     mock_security_service = MagicMock(spec=SecurityService)

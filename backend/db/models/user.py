@@ -1,9 +1,14 @@
+"""Database model representing a User in the system."""
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from backend.db.models.queue_item import QueueItem
+    from backend.db.models.room import Room
 
 
 class User(SQLModel, table=True):
@@ -16,10 +21,10 @@ class User(SQLModel, table=True):
     Attributes:
         id (UUID): Primary key, universally unique identifier.
         username (str): Unique handle for the user (max 32 chars).
-        email (str, optional): Email address for authentication. Nullable for local/anonymous users.
-        hashed_password (str, optional): Argon2/Bcrypt hashed password. Nullable for local/anonymous users.
+        email (str, optional): Email address for authentication.
+        hashed_password (str, optional): Argon2/Bcrypt hashed password.
         room (Optional[Room]): Relationship to the Room the user belongs to.
-        queue_items (list[QueueItem]): List of items added to the queue by this user.
+        queue_items (list[QueueItem]): List of items added to the queue.
     """
 
     __tablename__ = "users"

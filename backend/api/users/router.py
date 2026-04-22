@@ -1,3 +1,5 @@
+"""User management routes for the API."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -11,7 +13,8 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/", response_model=list[UserRead], status_code=status.HTTP_200_OK)
 async def get_users(
-    user_service: UserService = Depends(get_user_service)) -> list[UserRead]:
+    user_service: UserService = Depends(get_user_service),
+) -> list[UserRead]:
     """Retrieves a list of all users.
 
     Args:
@@ -24,7 +27,9 @@ async def get_users(
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def create_user(user_data: UserCreate, user_service: UserService = Depends(get_user_service)) -> UserRead:
+async def create_user(
+    user_data: UserCreate, user_service: UserService = Depends(get_user_service),
+) -> UserRead:
     """Creates a new user.
 
     Args:
@@ -37,8 +42,14 @@ async def create_user(user_data: UserCreate, user_service: UserService = Depends
     return user_service.create_user(user_data)
 
 
-@router.patch("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK)
-async def update_user(user_id: UUID, user_data: UserUpdate, user_service: UserService = Depends(get_user_service)) -> UserRead:
+@router.patch(
+    "/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK
+)
+async def update_user(
+    user_id: UUID,
+    user_data: UserUpdate,
+    user_service: UserService = Depends(get_user_service),
+) -> UserRead:
     """Updates an existing user's information.
 
     Args:
@@ -53,7 +64,9 @@ async def update_user(user_id: UUID, user_data: UserUpdate, user_service: UserSe
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: UUID, user_service: UserService = Depends(get_user_service),) -> None:
+async def delete_user(
+    user_id: UUID, user_service: UserService = Depends(get_user_service),
+) -> None:
     """Deletes a user from the system.
 
     Args:

@@ -1,3 +1,4 @@
+"""Service layer for managing user-related business logic."""
 from typing import List, Optional
 from uuid import UUID
 
@@ -20,6 +21,7 @@ class UserService:
     """
 
     def __init__(self, user_repo: UserRepository, security_service: SecurityService):
+        """Initializes the UserService with required repository and security service."""
         self._user_repo: UserRepository = user_repo
         self._security_service: SecurityService = security_service
 

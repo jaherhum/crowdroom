@@ -1,3 +1,4 @@
+"""Tests for SecurityService functionality."""
 import jwt
 
 from backend.core.config import settings
@@ -7,6 +8,7 @@ from backend.db.models.enum import TokenType
 
 def test_security():
     """Manual test to verify the integrity of the SecurityService.
+
     Covers password hashing, token generation, and JWT decoding.
     """
     service = SecurityService(settings)
