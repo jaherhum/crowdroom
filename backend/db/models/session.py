@@ -1,12 +1,17 @@
+"""Database model representing an active music playback session."""
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
 
 from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
+
+if TYPE_CHECKING:
+    from backend.db.models.queue_item import QueueItem
+    from backend.db.models.room import Room
 
 
 class Session(SQLModel, table=True):
@@ -18,12 +23,12 @@ class Session(SQLModel, table=True):
     Attributes:
         id (UUID): Primary key, unique identifier for the session.
         room_id (UUID): Foreign key referencing the Room this session belongs to.
-        current_platform (StreamingPlatforms): The streaming service currently in use.
+        current_platform (StreamingPlatforms): The streaming service in use.
         current_song_id (str, optional): The external ID of the song being played.
-        playback_status (PlaybackStatus): The current state of playback (playing, paused, etc.).
+        playback_status (PlaybackStatus): The current state of playback.
         last_updated (datetime): Timestamp of the last session state update.
         room (Room): Relationship to the parent Room.
-        queue_items (list[QueueItem]): List of items currently in the session's queue.
+        queue_items (list[QueueItem]): List of items currently in the queue.
     """
 
     __tablename__ = "sessions"

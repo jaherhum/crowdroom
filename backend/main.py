@@ -1,3 +1,5 @@
+"""Main entry point for the FastAPI application."""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,6 +15,7 @@ from backend.db.database import create_db_and_tables
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manages the application lifecycle."""
     print("Creating tables in database...")
     create_db_and_tables()
     yield

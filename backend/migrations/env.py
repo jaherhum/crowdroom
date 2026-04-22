@@ -1,3 +1,5 @@
+"""Alembic environment configuration for database migrations."""
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -36,7 +38,6 @@ def run_migrations_offline() -> None:
 
     Calls to context.execute() here emit the given string to the
     script output.
-
     """
     url = settings.DATABASE_URL
     context.configure(
@@ -55,7 +56,6 @@ def run_migrations_online() -> None:
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
-
     """
     connectable = create_engine(settings.DATABASE_URL)
 

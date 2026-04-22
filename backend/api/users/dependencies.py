@@ -1,3 +1,5 @@
+"""User management dependencies for the API."""
+
 from fastapi import Depends
 from sqlmodel import Session
 
@@ -20,13 +22,16 @@ def get_user_repo(session: Session = Depends(get_session)) -> UserRepository:
     return UserRepository(session)
 
 
-def get_user_service(user_repo: UserRepository = Depends(get_user_repo)) -> UserService:
+def get_user_service(
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> UserService:
     """Dependency that provides a UserService instance.
 
     Args:
         user_repo (UserRepository): The repository provided by get_user_repo.
 
     Returns:
-        UserService: An instance of UserService, instantiating SecurityService with settings.
+        UserService: An instance of UserService, instantiating
+        SecurityService with settings.
     """
     return UserService(user_repo, SecurityService(settings))
