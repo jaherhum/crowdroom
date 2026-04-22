@@ -15,7 +15,7 @@ def test_security():
 
     # Test hashing
     password = "ILoveTL0Zbtw-!"
-    hashed = service.get_password_hash(password)
+    hashed = service.generate_password_hash(password)
     print(f"Generated hash: {hashed}")
     assert service.verify_password(password, hashed) is True
     assert service.verify_password("IHateTL0Zbtw-!", hashed) is False
