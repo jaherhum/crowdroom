@@ -1,11 +1,11 @@
-from pydantic import BaseModel, EmailStr, Field, SecretStr, ConfigDict
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 
 
 class UserBase(BaseModel):
-    """
-    Base schema for User attributes.
+    """Base schema for User attributes.
 
     Attributes:
         username (Optional[str]): The unique username for the user.
@@ -21,8 +21,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """
-    Schema for creating a new User.
+    """Schema for creating a new User.
 
     Attributes:
         username (Optional[str]): The unique username for the user.
@@ -39,8 +38,7 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    """
-    Schema for updating an existing User. All fields are optional.
+    """Schema for updating an existing User. All fields are optional.
 
     Attributes:
         username (Optional[str]): The new username for the user.
@@ -63,8 +61,7 @@ class UserUpdate(BaseModel):
 
 
 class UserRead(UserBase):
-    """
-    Schema for reading User data.
+    """Schema for reading User data.
 
     Attributes:
         id (UUID): The unique identifier of the user.

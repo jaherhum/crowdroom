@@ -1,13 +1,13 @@
-from uuid import UUID, uuid4
 from typing import Optional
-from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+from uuid import UUID, uuid4
+
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from backend.db.models.enum import StreamingPlatforms
 
 
 class Song(SQLModel, table=True):
-    """
-    Database model representing a musical track in the catalog.
+    """Database model representing a musical track in the catalog.
 
     This model stores metadata about songs retrieved from external streaming
     platforms. It acts as a persistent cache to avoid redundant metadata

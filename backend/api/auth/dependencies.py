@@ -1,4 +1,3 @@
-from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -9,7 +8,6 @@ from backend.db.models.enum import TokenType
 from backend.db.models.user import User
 from backend.services.auth_service import AuthService
 from backend.services.user_service import UserService
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 

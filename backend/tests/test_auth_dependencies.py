@@ -1,10 +1,11 @@
-import pytest
 from unittest.mock import MagicMock
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.testclient import TestClient
 from uuid import uuid4
 
-from backend.api.auth.dependencies import get_current_user, oauth2_scheme
+import pytest
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.testclient import TestClient
+
+from backend.api.auth.dependencies import get_current_user
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
 from backend.db.models.user import User
@@ -12,8 +13,7 @@ from backend.services.user_service import UserService
 
 
 def test_get_current_user_success():
-    """
-    Tests get_current_user with a valid token and existing user.
+    """Tests get_current_user with a valid token and existing user.
     """
     # Setup mocks
     mock_user_service = MagicMock(spec=UserService)
@@ -42,8 +42,7 @@ def test_get_current_user_success():
 
 
 def test_get_current_user_invalid_token():
-    """
-    Tests get_current_user when the token is invalid (decode_token raises error).
+    """Tests get_current_user when the token is invalid (decode_token raises error).
     """
     mock_user_service = MagicMock(spec=UserService)
     mock_security_service = MagicMock(spec=SecurityService)
@@ -62,8 +61,7 @@ def test_get_current_user_invalid_token():
 
 
 def test_get_current_user_user_not_found():
-    """
-    Tests get_current_user when the token is valid but the user does not exist.
+    """Tests get_current_user when the token is valid but the user does not exist.
     """
     mock_user_service = MagicMock(spec=UserService)
     mock_security_service = MagicMock(spec=SecurityService)
@@ -83,8 +81,7 @@ def test_get_current_user_user_not_found():
 
 
 def test_integration_protected_route():
-    """
-    Integration test using TestClient to verify dependency injection in a route.
+    """Integration test using TestClient to verify dependency injection in a route.
     """
     app = FastAPI()
 

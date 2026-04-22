@@ -13,10 +13,13 @@ class AuthService:
 
     def register_user(self, user_data: RegisterRequest) -> UserRead:
         """Registers a new user in the system.
+
         Args:
             user_data (RegisterRequest): The schema containing registration details.
+
         Returns:
             UserRead: The newly created user schema.
+
         Raises:
             EntityExistsException: If the username or email is already taken.
         """
