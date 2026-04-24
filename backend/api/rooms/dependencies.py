@@ -1,0 +1,19 @@
+"""Room API dependencies."""
+
+from fastapi import Depends
+from sqlmodel import Session
+
+from backend.db.database import get_session
+from backend.repositories.room_repo import RoomRepository
+from backend.services.room_service import RoomService
+
+
+def get_room_repo(session: Session = Depends(get_session)) -> RoomRepository:
+    """Dependency that provides a RoomRepository instance."""
+    return RoomRepository(session)
+
+def get_room_service(
+    room_repo: RoomRepository = Depends(get_room_repo),
+) -> RoomService:
+    """Dependency that provides a RoomService instance."""
+    return RoomService(room_repo)
