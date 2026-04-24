@@ -69,3 +69,25 @@ class RoomRepository:
         if room:
             self._session.delete(room)
             self._session.commit()
+
+    def update(self, room_id: UUID, update_data: dict) -> Room | None:
+        """Updates an existing room with the provided data.
+
+        Args:
+            room_id (UUID): The unique identifier of the room.
+            update_data (dict): A dictionary containing the fields to update.
+
+        Returns:
+            Room | None: The updated room instance if found, otherwise None.
+        """
+        room = self.get_by_id(room_id)
+        if room:
+            for key, value in update_data.items():
+                if hasattr(room, key):
+                    setattr(room, key, value)
+
+            self._session.add(room)
+            self._session.commit()
+            self._session.refresh(room)
+            return room
+        return None
