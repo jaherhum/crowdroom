@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from backend.api.auth.router import router as auth_router
 from backend.api.queue.router import router as queue_router
+from backend.api.rooms.router import router as rooms_router
 from backend.api.search.router import router as search_router
 from backend.api.session.router import router as session_router
 from backend.api.users.router import router as user_router
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+app.include_router(rooms_router, prefix=f"{settings.API_V1_STR}/rooms", tags=["rooms"])
 app.include_router(auth_router)
 app.include_router(queue_router, prefix=f"{settings.API_V1_STR}/queue", tags=["queue"])
 app.include_router(
