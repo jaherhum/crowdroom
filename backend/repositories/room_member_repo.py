@@ -1,7 +1,9 @@
 """Repository for managing RoomMember data access."""
 from uuid import UUID
+
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
 from backend.db.models.room_member import RoomMember
 
 

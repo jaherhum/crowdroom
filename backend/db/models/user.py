@@ -8,7 +8,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from backend.db.models.queue_item import QueueItem
-    from backend.db.models.room import Room
     from backend.db.models.room_member import RoomMember
 
 

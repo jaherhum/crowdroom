@@ -1,5 +1,6 @@
 """Database model representing a user's membership in a room."""
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
