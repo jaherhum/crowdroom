@@ -14,7 +14,9 @@ def get_room_repo(session: AsyncSession = Depends(get_session)) -> RoomRepositor
     return RoomRepository(session)
 
 
-def get_room_member_repo(session: AsyncSession = Depends(get_session)) -> RoomMemberRepository:
+def get_room_member_repo(
+    session: AsyncSession = Depends(get_session)
+) -> RoomMemberRepository:
     """Dependency that provides a RoomMemberRepository instance."""
     return RoomMemberRepository(session)
 

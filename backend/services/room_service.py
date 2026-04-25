@@ -6,8 +6,8 @@ from uuid import UUID
 from backend.core.exceptions import EntityNotFoundException
 from backend.db.models.room import Room
 from backend.db.models.room_member import RoomMember
-from backend.repositories.room_repo import RoomRepository
 from backend.repositories.room_member_repo import RoomMemberRepository
+from backend.repositories.room_repo import RoomRepository
 from backend.schemas.room import CreateRoom, UpdateRoom
 
 
@@ -15,15 +15,16 @@ class RoomService:
     """Service for managing chat rooms and their associated data."""
 
     def __init__(
-        self, 
-        room_repo: RoomRepository, 
+        self,
+        room_repo: RoomRepository,
         room_member_repo: RoomMemberRepository
     ) -> None:
         """Initialize the RoomService with repositories.
 
         Args:
             room_repo (RoomRepository): Repository for room operations.
-            room_member_repo (RoomMemberRepository): Repository for membership operations.
+            room_member_repo (RoomMemberRepository): Repository for
+                membership operations.
         """
         self._room_repo = room_repo
         self._room_member_repo = room_member_repo
@@ -84,7 +85,7 @@ class RoomService:
             host_user_id=room_data.host_user_id,
             room_name=room_data.room_name,
             is_private=room_data.is_private,
-            max_capacity=room_data.max_capacity if hasattr(room_data, 'max_capacity') else 0
+            max_capacity=getattr(room_data, 'max_capacity', 0)
         )
 
         return await self._room_repo.create(new_room)
@@ -138,7 +139,9 @@ class RoomService:
         room = await self.get_room(room_id)
 
         # Check if user is already a member
-        existing_member = await self._room_member_repo.get_member_by_user_and_room(user_id, room_id)
+        existing_member = await self._room_member_repo.get_member_by_user_and_room(
+            user_id, room_id
+        )
         if existing_member:
             raise ValueError("User is already in this room.")
 
