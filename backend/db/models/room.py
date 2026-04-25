@@ -8,9 +8,9 @@ from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from backend.db.models.room_member import RoomMember
     from backend.db.models.session import Session
     from backend.db.models.user import User
-    from backend.db.models.room_member import RoomMember
 
 
 class Room(SQLModel, table=True):

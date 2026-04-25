@@ -2,13 +2,13 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+
 from backend.api.auth.dependencies import get_current_user
 from backend.api.rooms.dependencies import get_room_service
 from backend.db.models.user import User
 from backend.schemas.room import CreateRoom, ReadRoom, UpdateRoom
 from backend.services.room_service import RoomService
-
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
@@ -118,7 +118,9 @@ async def join_room(
     try:
         await room_service.join_room(current_user.id, room_id)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from None
 
 
 @router.post("/{room_id}/leave", status_code=status.HTTP_200_OK)
