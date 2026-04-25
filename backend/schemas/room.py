@@ -73,3 +73,19 @@ class UpdateRoom(BaseModel):
     settings: Optional[Dict[str, Any]] = Field(
         None, description="Room's configuration settings."
     )
+
+
+class RoomStateUpdate(BaseModel):
+    """Schema for real-time room state updates."""
+
+    type: str = Field(
+        ...,
+        description=(
+            "The type of update (e.g., 'member_joined', 'member_left', "
+            "'settings_updated')."
+        ),
+    )
+    payload: Dict[str, Any] = Field(
+        ...,
+        description="The data associated with the update."
+    )

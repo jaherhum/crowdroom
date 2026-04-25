@@ -3,6 +3,7 @@
 from typing import List
 from uuid import UUID
 
+from backend.api.websocket import manager
 from backend.core.exceptions import EntityNotFoundException
 from backend.db.models.room import Room
 from backend.repositories.room_repo import RoomRepository
@@ -80,7 +81,7 @@ class RoomService:
         """Update an existing room.
 
         Args:
-            room_id (UUID): The unique identifier of the room.
+            room_id (UUID): The unique identifier of the room to update.
             room_data (UpdateRoom): The schema containing update details.
 
         Returns:
@@ -94,16 +95,89 @@ class RoomService:
         updated_room = self._room_repo.update(room_id, data)
         if not updated_room:
             raise EntityNotFoundException("Room", room_id)
+
+        # Broadcast settings update
+        await manager.broadcast(
+            {
+                "type": "settings_updated",
+                "payload": data
+            },
+            str(room_id)
+        )
+
         return updated_room
 
     def delete_room(self, room_id: UUID) -> None:
         """Delete a room from the system.
 
         Args:
-            room_id (UUID): The unique identifier of the room.
+            room_id (UUID): The unique identifier of the room to delete.
 
         Raises:
             EntityNotFoundException: If the room is not found.
         """
-        self.get_room(room_id)
-        self._room_repo.delete(room_id)
+        await self.get_room(room_id)
+        await self._room_repo.delete(room_id)
+
+    async def join_room(self, user_id: UUID, room_id: UUID) -> RoomMember:
+        """Join a room.
+
+        Args:
+            user_id (UUID): The ID of the user joining.
+            room_id (UUID): The ID of the room to join.
+
+        Returns:
+            RoomMember: The newly created membership.
+
+        Raises:
+            EntityNotFoundException: If the room is not found.
+            ValueError: If the room is full or user is already a member.
+        """
+        room = await self.get_room(room_id)
+
+        # Check if user is already a member
+        existing_member = await self._room_member_repo.get_member_by_user_and_room(
+            user_id, room_id
+        )
+        if existing_member:
+            raise ValueError("User is already in this room.")
+
+        # Check capacity
+        members = await self._room_member_repo.get_members_by_room(room_id)
+        if 0 < room.max_capacity <= len(members):
+            raise ValueError("Room is full.")
+
+        new_member = await self._room_member_repo.add_member(user_id, room_id)
+
+        # Broadcast join event
+        await manager.broadcast(
+            {
+                "type": "member_joined",
+                "payload": {"user_id": str(user_id)}
+            },
+            str(room_id)
+        )
+
+        return new_member
+
+    async def leave_room(self, user_id: UUID, room_id: UUID) -> None:
+        """Leave a room.
+
+        Args:
+            user_id (UUID): The ID of the user leaving.
+            room_id (UUID): The ID of the room to leave.
+
+        Raises:
+            EntityNotFoundException: If the room is not found.
+        """
+        await self.get_room(room_id)
+        await self._room_member_repo.remove_member(user_id, room_id)
+
+        # Broadcast leave event
+        await manager.broadcast(
+            {
+                "type": "member_left",
+                "payload": {"user_id": str(user_id)}
+            },
+            str(room_id)
+        )
