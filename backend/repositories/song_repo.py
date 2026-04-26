@@ -1,4 +1,5 @@
 """Repository for Song data access."""
+
 from uuid import UUID
 
 from sqlmodel import Session, select
@@ -60,4 +61,36 @@ class SongRepository:
         Returns:
             list[Song]: A list of all songs.
         """
-        return self._session.exec(select(Song)).all()
+        return list(self._session.exec(select(Song)).all())
+
+    def update(self, song_id: UUID, update_data: dict) -> Song | None:
+        """Updates an existing song with the provided data.
+
+        Args:
+            song_id (UUID): The unique identifier of the song.
+            update_data (dict): A dictionary containing the fields to update.
+
+        Returns:
+            Song | None: The updated song instance if found, otherwise None.
+        """
+        song = self.get_by_id(song_id)
+        if song:
+            for key, value in update_data.items():
+                if hasattr(song, key):
+                    setattr(song, key, value)
+            self._session.add(song)
+            self._session.commit()
+            self._session.refresh(song)
+            return song
+        return None
+
+    def delete(self, song_id: UUID) -> None:
+        """Deletes a song from the database.
+
+        Args:
+            song_id (UUID): The unique identifier of the song to delete.
+        """
+        song = self.get_by_id(song_id)
+        if song:
+            self._session.delete(song)
+            self._session.commit()
