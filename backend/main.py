@@ -9,6 +9,7 @@ from backend.api.queue.router import router as queue_router
 from backend.api.rooms.router import router as rooms_router
 from backend.api.search.router import router as search_router
 from backend.api.session.router import router as session_router
+from backend.api.songs.router import router as songs_router
 from backend.api.users.router import router as user_router
 from backend.core.config import settings
 from backend.db.database import create_db_and_tables
@@ -35,4 +36,5 @@ app.include_router(
 app.include_router(
     session_router, prefix=f"{settings.API_V1_STR}/session", tags=["session"]
 )
+app.include_router(songs_router, prefix=f"{settings.API_V1_STR}/songs", tags=["songs"])
 app.include_router(user_router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
