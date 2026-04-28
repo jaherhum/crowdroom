@@ -24,14 +24,14 @@ class Room(SQLModel, table=True):
         room_name (str): Display name of the room.
         is_private (bool): Flag indicating if the room is private.
         settings (dict): JSON-based dictionary for storing configurations.
-        user (User): Relationship to the host user.
+        users (list[User]): List of users currently in the room.
         session (Optional[Session]): Relationship to the active session.
     """
 
     __tablename__ = "rooms"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    host_user_id: UUID = Field(foreign_key="users.id", nullable=False, unique=True)
+    host_user_id: UUID = Field(foreign_key="users.id", nullable=False)
     room_name: str = Field(max_length=255, nullable=False)
     is_private: bool = Field(default=False, nullable=False)
     settings: Dict[str, Any] = Field(
@@ -39,5 +39,5 @@ class Room(SQLModel, table=True):
     )
 
     # Relations
-    user: "User" = Relationship(back_populates="room")
+    users: list["User"] = Relationship(back_populates="room")
     session: Optional["Session"] = Relationship(back_populates="room")

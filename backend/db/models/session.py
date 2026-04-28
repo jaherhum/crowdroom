@@ -10,6 +10,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
 
 if TYPE_CHECKING:
+    from backend.db.models.queue_history import QueueHistory
     from backend.db.models.queue_item import QueueItem
     from backend.db.models.room import Room
 
@@ -29,6 +30,7 @@ class Session(SQLModel, table=True):
         last_updated (datetime): Timestamp of the last session state update.
         room (Room): Relationship to the parent Room.
         queue_items (list[QueueItem]): List of items currently in the queue.
+        queue_histories (list[QueueHistory]): List of played/skipped songs.
     """
 
     __tablename__ = "sessions"
@@ -47,3 +49,4 @@ class Session(SQLModel, table=True):
     # Relations
     room: "Room" = Relationship(back_populates="session")
     queue_items: list["QueueItem"] = Relationship(back_populates="session")
+    queue_histories: list["QueueHistory"] = Relationship(back_populates="session")
