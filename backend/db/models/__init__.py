@@ -9,7 +9,9 @@ from backend.db.models.enum import (
     TokenType as TokenType,
 )
 
+from .queue_history import QueueHistory as QueueHistory
 from .queue_item import QueueItem as QueueItem
+from .queue_vote import QueueVote as QueueVote
 from .room import Room as Room
 from .session import Session as Session
 from .song import Song as Song

@@ -9,6 +9,7 @@ from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 from backend.db.models.enum import StreamingPlatforms
 
 if TYPE_CHECKING:
+    from backend.db.models.queue_history import QueueHistory
     from backend.db.models.queue_item import QueueItem
 
 
@@ -30,6 +31,7 @@ class Song(SQLModel, table=True):
         album_art_url (str, optional): URL to the track's cover art.
         is_explicit (bool, optional): Flag indicating explicit content.
         queue_items (list[QueueItem]): List of queue entries referencing this song.
+        queue_histories (list[QueueHistory]): History entries for this song.
     """
 
     __tablename__ = "songs"
@@ -52,3 +54,4 @@ class Song(SQLModel, table=True):
 
     # Relations
     queue_items: list["QueueItem"] = Relationship(back_populates="song")
+    queue_histories: list["QueueHistory"] = Relationship(back_populates="song")
