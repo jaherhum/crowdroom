@@ -1,12 +1,12 @@
 from uuid import UUID
 
 from sqlalchemy import func
-from sqlmodel import Session, select, update
+from sqlmodel import Session, select
 
 from backend.db.models import QueueItem
 
 
-class QueueItemRepository:
+class QueueRepository:
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -31,25 +31,6 @@ class QueueItemRepository:
             QueueItem.room_id == room_id
         ).order_by(QueueItem.position)
         return self._session.exec(stmt).all()
-
-    def shift_positions(
-            self, room_id: UUID, start_pos: int, end_pos: int | None, step: int
-    ) -> None:
-        stmt = (
-            update(QueueItem)
-            .where(
-                QueueItem.room_id == room_id,
-                QueueItem.position >= start_pos,
-            )
-        )
-
-        if end_pos is not None:
-            stmt = stmt.where(QueueItem.position <= end_pos)
-
-        stmt = stmt.values({QueueItem.position: QueueItem.position + step})
-
-        self._session.exec(stmt)
-        self._session.commit()
 
     def get_max_position(self, room_id: UUID) -> int:
         stmt = select(
