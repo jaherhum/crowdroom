@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
 
@@ -37,6 +37,8 @@ class ReadSession(BaseModel):
         playback_status (PlaybackStatus): The current state of playback.
         last_updated (datetime): The timestamp of the last session update.
     """
+
+    model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="The unique identifier of the session.")
     room_id: UUID = Field(
