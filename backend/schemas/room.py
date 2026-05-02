@@ -2,7 +2,7 @@
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WelcomeMessage(BaseModel):
@@ -45,6 +45,8 @@ class ReadRoom(BaseModel):
         is_private (bool): Privacy status of the room.
         settings (Dict[str, Any]): The current configuration settings of the room.
     """
+
+    model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="Room's ID.")
     host_user_id: UUID = Field(..., description="Host's user ID.")
