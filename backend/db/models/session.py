@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
@@ -47,5 +48,5 @@ class Session(SQLModel, table=True):
 
     # Relations
     room: "Room" = Relationship(back_populates="session")
-    queue_items: list["QueueItem"] = Relationship(back_populates="session")
-    queue_histories: list["QueueHistory"] = Relationship(back_populates="session")
+    queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="session")
+    queue_histories: Mapped[list["QueueHistory"]] = Relationship(back_populates="session")

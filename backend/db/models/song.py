@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from backend.db.models.enum import StreamingPlatforms
@@ -52,5 +53,5 @@ class Song(SQLModel, table=True):
     is_explicit: Optional[bool] = Field(default=None, nullable=True)
 
     # Relations
-    queue_items: list["QueueItem"] = Relationship(back_populates="song")
-    queue_histories: list["QueueHistory"] = Relationship(back_populates="song")
+    queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="song")
+    queue_histories: Mapped[list["QueueHistory"]] = Relationship(back_populates="song")
