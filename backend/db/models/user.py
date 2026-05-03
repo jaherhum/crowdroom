@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -41,5 +42,5 @@ class User(SQLModel, table=True):
 
     # Relations
     room: Optional["Room"] = Relationship(back_populates="users", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
-    queue_items: list["QueueItem"] = Relationship(back_populates="added_by")
-    user_votes: list["QueueVote"] = Relationship(back_populates="user")
+    queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="added_by")
+    user_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="user")
