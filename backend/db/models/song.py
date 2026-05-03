@@ -1,5 +1,4 @@
 """Database model representing a musical track in the catalog."""
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
