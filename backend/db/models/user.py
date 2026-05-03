@@ -1,5 +1,4 @@
 """Database model representing a User in the system."""
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
@@ -41,6 +40,6 @@ class User(SQLModel, table=True):
     room_id: Optional[UUID] = Field(default=None, foreign_key="rooms.id", nullable=True)
 
     # Relations
-    room: Optional["Room"] = Relationship(back_populates="users")
+    room: Optional["Room"] = Relationship(back_populates="users", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
     queue_items: list["QueueItem"] = Relationship(back_populates="added_by")
     user_votes: list["QueueVote"] = Relationship(back_populates="user")

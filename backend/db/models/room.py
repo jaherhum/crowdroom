@@ -1,5 +1,4 @@
 """Database model representing a virtual meeting room."""
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import UUID, uuid4
@@ -39,5 +38,5 @@ class Room(SQLModel, table=True):
     )
 
     # Relations
-    users: list["User"] = Relationship(back_populates="room")
+    users: list["User"] = Relationship(back_populates="room", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
     session: Optional["Session"] = Relationship(back_populates="room")
