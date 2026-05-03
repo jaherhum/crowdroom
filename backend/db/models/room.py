@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Column
+from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -38,5 +39,5 @@ class Room(SQLModel, table=True):
     )
 
     # Relations
-    users: list["User"] = Relationship(back_populates="room", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
+    users: Mapped[list["User"]] = Relationship(back_populates="room", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
     session: Optional["Session"] = Relationship(back_populates="room")

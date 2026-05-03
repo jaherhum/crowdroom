@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import Mapped
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 if TYPE_CHECKING:
     from backend.db.models.queue_vote import QueueVote
@@ -47,4 +48,4 @@ class QueueItem(SQLModel, table=True):
     song: "Song" = Relationship(back_populates="queue_items")
     session: "Session" = Relationship(back_populates="queue_items")
     added_by: Optional["User"] = Relationship(back_populates="queue_items")
-    queue_votes: list["QueueVote"] = Relationship(back_populates="queue_item")
+    queue_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="queue_item")
