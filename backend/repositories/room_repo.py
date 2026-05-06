@@ -2,7 +2,8 @@
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session as DBSession, select
+from sqlmodel import Session as DBSession
+from sqlmodel import select
 
 from backend.db.models.room import Room
 

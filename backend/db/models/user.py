@@ -41,6 +41,9 @@ class User(SQLModel, table=True):
     room_id: Optional[UUID] = Field(default=None, foreign_key="rooms.id", nullable=True)
 
     # Relations
-    room: Optional["Room"] = Relationship(back_populates="users", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
+    room: Optional["Room"] = Relationship(
+        back_populates="users",
+        sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
+    )
     queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="added_by")
     user_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="user")
