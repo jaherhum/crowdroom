@@ -3,7 +3,7 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, or_, select
+from sqlmodel import Session as DBSession, or_, select
 
 from backend.db.models.user import User
 
@@ -17,7 +17,7 @@ class UserRepository:
         _db_session (Session): The database session used for queries and transactions.
     """
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: DBSession):
         """Initializes the UserRepository with a database session.
 
         Args:

@@ -1,13 +1,18 @@
 """Tests for RoomService logic."""
-import pytest
-from unittest.mock import MagicMock, patch
+# ruff: noqa: D101, D102
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import anyio
+import pytest
+
+from backend.api.websocket import manager
 from backend.core.exceptions import EntityNotFoundException
 from backend.db.models.room import Room
 from backend.repositories.room_repo import RoomRepository
 from backend.schemas.room import CreateRoom, UpdateRoom
 from backend.services.room_service import RoomService
+
 
 class TestRoomService:
     @pytest.fixture
@@ -80,22 +85,33 @@ class TestRoomService:
         room_id = uuid4()
         existing_room = MagicMock(spec=Room)
         update_data = UpdateRoom(room_name="New Name")
-        
+
         mock_room_repo.get_by_id.return_value = existing_room
         mock_room_repo.update.return_value = existing_room
 
-        result = room_service.update_room(room_id, update_data)
+        mock_broadcast = AsyncMock()
+        results = {}
 
-        assert result == existing_room
+        async def _run():
+            with patch.object(manager, "broadcast", new=mock_broadcast):
+                results["room"] = await room_service.update_room(room_id, update_data)
+
+        anyio.run(_run)
+
+        assert results["room"] == existing_room
         mock_room_repo.update.assert_called_once()
+        mock_broadcast.assert_called_once()
 
     def test_update_room_not_found(self, room_service, mock_room_repo):
         room_id = uuid4()
         mock_room_repo.get_by_id.return_value = None
         update_data = UpdateRoom(room_name="New Name")
 
+        async def _run():
+            await room_service.update_room(room_id, update_data)
+
         with pytest.raises(EntityNotFoundException):
-            room_service.update_room(room_id, update_data)
+            anyio.run(_run)
 
     def test_delete_room_success(self, room_service, mock_room_repo):
         room_id = uuid4()

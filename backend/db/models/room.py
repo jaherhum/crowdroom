@@ -1,10 +1,10 @@
 """Database model representing a virtual meeting room."""
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Column
+from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -24,14 +24,14 @@ class Room(SQLModel, table=True):
         room_name (str): Display name of the room.
         is_private (bool): Flag indicating if the room is private.
         settings (dict): JSON-based dictionary for storing configurations.
-        user (User): Relationship to the host user.
+        users (list[User]): List of users currently in the room.
         session (Optional[Session]): Relationship to the active session.
     """
 
     __tablename__ = "rooms"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    host_user_id: UUID = Field(foreign_key="users.id", nullable=False, unique=True)
+    host_user_id: UUID = Field(foreign_key="users.id", nullable=False)
     room_name: str = Field(max_length=255, nullable=False)
     is_private: bool = Field(default=False, nullable=False)
     settings: Dict[str, Any] = Field(
@@ -39,5 +39,5 @@ class Room(SQLModel, table=True):
     )
 
     # Relations
-    user: "User" = Relationship(back_populates="room")
+    users: Mapped[list["User"]] = Relationship(back_populates="room", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
     session: Optional["Session"] = Relationship(back_populates="room")
