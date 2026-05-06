@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session as DBSession, select
 
 from backend.db.models.session import Session as SessionModel
@@ -22,11 +23,18 @@ class SessionRepository:
 
         Returns:
             SessionModel: The created session.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated (duplicate room_id).
         """
-        self._session.add(session)
-        self._session.commit()
-        self._session.refresh(session)
-        return session
+        try:
+            self._session.add(session)
+            self._session.commit()
+            self._session.refresh(session)
+            return session
+        except IntegrityError:
+            self._session.rollback()
+            raise
 
     def get_by_id(self, session_id: UUID) -> SessionModel | None:
         """Retrieves a session by its ID.
@@ -69,17 +77,23 @@ class SessionRepository:
 
         Returns:
             SessionModel | None: The updated session instance if found, otherwise None.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
         """
-        session = self.get_by_id(session_id)
+        session = self._session.get(SessionModel, session_id)
         if session:
             for key, value in update_data.items():
                 if hasattr(session, key):
                     setattr(session, key, value)
-
-            self._session.add(session)
-            self._session.commit()
-            self._session.refresh(session)
-            return session
+            try:
+                self._session.add(session)
+                self._session.commit()
+                self._session.refresh(session)
+                return session
+            except IntegrityError:
+                self._session.rollback()
+                raise
         return None
 
     def delete(self, session_id: UUID) -> None:
@@ -88,7 +102,11 @@ class SessionRepository:
         Args:
             session_id (UUID): The unique identifier of the session to delete.
         """
-        session = self.get_by_id(session_id)
+        session = self._session.get(SessionModel, session_id)
         if session:
-            self._session.delete(session)
-            self._session.commit()
+            try:
+                self._session.delete(session)
+                self._session.commit()
+            except IntegrityError:
+                self._session.rollback()
+                raise
