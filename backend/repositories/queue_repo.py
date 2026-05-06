@@ -1,9 +1,10 @@
 """Repository for QueueItem data access."""
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import case, func
-from sqlmodel import Session as DBSession, select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session as DBSession
+from sqlmodel import select
 
 from backend.db.models import QueueItem
 
@@ -45,7 +46,11 @@ class QueueRepository:
         return self._session.get(QueueItem, queue_item_id)
 
     def get_all_by_session(self, session_id: UUID) -> list[QueueItem]:
-        """Retrieve all queue items for a session, ordered by group priority then position."""
+        """Retrieve all queue items for a session.
+
+        Ordered by group priority then position.
+
+        """
         stmt = (
             select(QueueItem)
             .where(QueueItem.session_id == session_id)

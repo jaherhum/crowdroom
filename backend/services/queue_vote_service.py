@@ -18,7 +18,8 @@ class QueueVoteService:
         existing = self._repo.get_by_item_and_user(queue_item_id, user_id)
         if existing:
             raise EntityExistsException(
-                f"QueueVote: User {user_id} already voted on queue item {queue_item_id}",
+                f"QueueVote: User {user_id} already voted "
+                f"on queue item {queue_item_id}",
             )
         vote = QueueVote(queue_item_id=queue_item_id, user_id=user_id)
         return self._repo.create(vote)

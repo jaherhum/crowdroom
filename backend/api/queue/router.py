@@ -21,7 +21,11 @@ from backend.services.queue_vote_service import QueueVoteService
 router = APIRouter(prefix="/queue", tags=["queue"])
 
 
-@router.get("/current", response_model=ReadQueueItem | None, status_code=status.HTTP_200_OK)
+@router.get(
+    "/current",
+    response_model=ReadQueueItem | None,
+    status_code=status.HTTP_200_OK,
+)
 def get_current_song(
     session_id: UUID,
     queue_service: QueueService = Depends(get_queue_service),
@@ -81,7 +85,11 @@ def vote_skip(
     return ReadQueueVote.model_validate(vote)
 
 
-@router.get("/history/", response_model=list[ReadQueueHistory], status_code=status.HTTP_200_OK)
+@router.get(
+    "/history/",
+    response_model=list[ReadQueueHistory],
+    status_code=status.HTTP_200_OK,
+)
 def get_history(
     session_id: UUID,
     limit: int = 15,

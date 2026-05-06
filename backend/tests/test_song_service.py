@@ -5,12 +5,11 @@ from uuid import uuid4
 import pytest
 
 from backend.core.exceptions import EntityExistsException, EntityNotFoundException
+from backend.db.models.enum import StreamingPlatforms
 from backend.db.models.song import Song
 from backend.repositories.song_repo import SongRepository
 from backend.schemas.song import CreateSong, UpdateSong
 from backend.services.song_service import SongService
-
-from backend.db.models.enum import StreamingPlatforms
 
 
 class TestSongService:

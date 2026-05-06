@@ -1,9 +1,10 @@
 """Repository for QueueVote data access."""
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
-from sqlmodel import Session as DBSession, select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session as DBSession
+from sqlmodel import select
 
 from backend.db.models import QueueVote
 

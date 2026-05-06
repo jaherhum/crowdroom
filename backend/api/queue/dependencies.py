@@ -24,7 +24,9 @@ def get_queue_service(
     return QueueService(queue_repo)
 
 
-def get_queue_vote_repo(session: DBSession = Depends(get_session)) -> QueueVoteRepository:
+def get_queue_vote_repo(
+    session: DBSession = Depends(get_session),
+) -> QueueVoteRepository:
     """Dependency that provides a QueueVoteRepository instance."""
     return QueueVoteRepository(session)
 
@@ -36,7 +38,9 @@ def get_queue_vote_service(
     return QueueVoteService(queue_vote_repo)
 
 
-def get_queue_history_repo(session: DBSession = Depends(get_session)) -> QueueHistoryRepository:
+def get_queue_history_repo(
+    session: DBSession = Depends(get_session),
+) -> QueueHistoryRepository:
     """Dependency that provides a QueueHistoryRepository instance."""
     return QueueHistoryRepository(session)
 
