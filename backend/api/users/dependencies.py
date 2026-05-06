@@ -1,7 +1,7 @@
 """User management dependencies for the API."""
 
 from fastapi import Depends
-from sqlmodel import Session
+from sqlmodel import Session as DBSession
 
 from backend.core.config import settings
 from backend.core.security import SecurityService
@@ -10,7 +10,7 @@ from backend.repositories.user_repo import UserRepository
 from backend.services.user_service import UserService
 
 
-def get_user_repo(session: Session = Depends(get_session)) -> UserRepository:
+def get_user_repo(session: DBSession = Depends(get_session)) -> UserRepository:
     """Dependency that provides a UserRepository instance.
 
     Args:
