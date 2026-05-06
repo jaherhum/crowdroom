@@ -1,8 +1,10 @@
 """Database connection and session management."""
 
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session as DBSession, SQLModel, create_engine
 
 from backend.core.config import settings
+# Import all models so SQLAlchemy knows about them before create_all()
+from backend.db.models import *  # noqa: F401,F403
 
 db_url = settings.DATABASE_URL
 
@@ -19,7 +21,7 @@ def get_session():
     """Provides a database session for dependency injection.
 
     Yields:
-        Session: A database session instance.
+        DBSession: A database session instance.
     """
-    with Session(engine) as session:
+    with DBSession(engine) as session:
         yield session
