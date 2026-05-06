@@ -1,6 +1,7 @@
 """Repository for Room data access."""
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session as DBSession, select
 
 from backend.db.models.room import Room
@@ -21,11 +22,18 @@ class RoomRepository:
 
         Returns:
             Room: The created room.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
         """
-        self._session.add(room)
-        self._session.commit()
-        self._session.refresh(room)
-        return room
+        try:
+            self._session.add(room)
+            self._session.commit()
+            self._session.refresh(room)
+            return room
+        except IntegrityError:
+            self._session.rollback()
+            raise
 
     def get_by_id(self, room_id: UUID) -> Room | None:
         """Retrieves a room by its ID.
@@ -65,10 +73,14 @@ class RoomRepository:
         Args:
             room_id (UUID): The unique identifier of the room to delete.
         """
-        room = self.get_by_id(room_id)
+        room = self._session.get(Room, room_id)
         if room:
-            self._session.delete(room)
-            self._session.commit()
+            try:
+                self._session.delete(room)
+                self._session.commit()
+            except IntegrityError:
+                self._session.rollback()
+                raise
 
     def update(self, room_id: UUID, update_data: dict) -> Room | None:
         """Updates an existing room with the provided data.
@@ -79,15 +91,21 @@ class RoomRepository:
 
         Returns:
             Room | None: The updated room instance if found, otherwise None.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
         """
-        room = self.get_by_id(room_id)
+        room = self._session.get(Room, room_id)
         if room:
             for key, value in update_data.items():
                 if hasattr(room, key):
                     setattr(room, key, value)
-
-            self._session.add(room)
-            self._session.commit()
-            self._session.refresh(room)
-            return room
+            try:
+                self._session.add(room)
+                self._session.commit()
+                self._session.refresh(room)
+                return room
+            except IntegrityError:
+                self._session.rollback()
+                raise
         return None
