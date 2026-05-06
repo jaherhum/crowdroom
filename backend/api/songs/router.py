@@ -23,7 +23,7 @@ async def get_songs(
     Returns:
         list[ReadSong]: A list of song schemas.
     """
-    return await song_service.get_all_songs()
+    return song_service.get_all_songs()
 
 
 @router.get("/{song_id}", response_model=ReadSong, status_code=status.HTTP_200_OK)
@@ -40,7 +40,7 @@ async def get_song(
     Returns:
         ReadSong: The song schema.
     """
-    return await song_service.get_song(song_id)
+    return song_service.get_song(song_id)
 
 
 @router.post("/", response_model=ReadSong, status_code=status.HTTP_201_CREATED)
@@ -57,7 +57,7 @@ async def create_song(
     Returns:
         ReadSong: The newly created song schema.
     """
-    return await song_service.create_song(song_data)
+    return song_service.create_song(song_data)
 
 
 @router.patch("/{song_id}", response_model=ReadSong, status_code=status.HTTP_200_OK)
@@ -76,7 +76,7 @@ async def update_song(
     Returns:
         ReadSong: The updated song schema.
     """
-    return await song_service.update_song(song_id, song_data)
+    return song_service.update_song(song_id, song_data)
 
 
 @router.delete("/{song_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -90,4 +90,4 @@ async def delete_song(
         song_id (UUID): The unique identifier of the song to delete.
         song_service (SongService): The injected song service.
     """
-    await song_service.delete_song(song_id)
+    song_service.delete_song(song_id)

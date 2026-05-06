@@ -1,12 +1,13 @@
 """Database model for items in a music queue."""
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from backend.db.models.queue_vote import QueueVote
     from backend.db.models.session import Session
     from backend.db.models.song import Song
     from backend.db.models.user import User
@@ -29,6 +30,7 @@ class QueueItem(SQLModel, table=True):
         song (Song): Relationship back to the song metadata.
         session (Session): Relationship back to the parent session.
         added_by (Optional[User]): Relationship to the user who added the item.
+        queue_votes (list[QueueVote]): List of skip votes on this item.
     """
     __tablename__ = "queue_items"
 
@@ -41,8 +43,10 @@ class QueueItem(SQLModel, table=True):
 
     position: int = Field(default=0, nullable=False)
     votes_skip: int = Field(default=0, nullable=False)
+    group: str = Field(default="playlist", nullable=False, description="Queue group: 'manual' or 'playlist'")
 
     # Relations
     song: "Song" = Relationship(back_populates="queue_items")
     session: "Session" = Relationship(back_populates="queue_items")
     added_by: Optional["User"] = Relationship(back_populates="queue_items")
+    queue_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="queue_item")

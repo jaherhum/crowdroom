@@ -8,6 +8,17 @@ from sqlmodel import SQLModel
 
 from backend.core.config import settings
 
+# Import all models so SQLModel.metadata knows about all tables
+from backend.db.models import (  # noqa: F401
+    QueueHistory,
+    QueueItem,
+    QueueVote,
+    Room,
+    Session,
+    Song,
+    User,
+)
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

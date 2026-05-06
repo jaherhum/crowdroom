@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlmodel import Session, select
+from sqlmodel import Session as DBSession, select
 
 from backend.db.models.song import Song
 
@@ -10,7 +10,7 @@ from backend.db.models.song import Song
 class SongRepository:
     """Handles database operations for Songs."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: DBSession):
         """Initializes the repository with a database session."""
         self._session = session
 

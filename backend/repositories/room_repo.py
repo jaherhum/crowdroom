@@ -1,7 +1,7 @@
 """Repository for Room data access."""
 from uuid import UUID
 
-from sqlmodel import Session, select
+from sqlmodel import Session as DBSession, select
 
 from backend.db.models.room import Room
 
@@ -9,7 +9,7 @@ from backend.db.models.room import Room
 class RoomRepository:
     """Handles database operations for Rooms."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: DBSession):
         """Initializes the repository with a database session."""
         self._session = session
 
