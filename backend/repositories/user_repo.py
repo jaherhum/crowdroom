@@ -4,7 +4,8 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session as DBSession, or_, select
+from sqlmodel import Session as DBSession
+from sqlmodel import or_, select
 
 from backend.db.models.user import User
 
@@ -99,7 +100,8 @@ class UserRepository:
             User: The saved User instance, refreshed from the database.
 
         Raises:
-            IntegrityError: If a unique constraint is violated (duplicate email/username).
+            IntegrityError: If a unique constraint is violated
+                (duplicate email/username).
         """
         try:
             self._db_session.add(user)

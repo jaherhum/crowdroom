@@ -49,7 +49,8 @@ class SessionService:
         """Create a new session.
 
         Args:
-            session_data (CreateSession): The schema containing session creation details.
+            session_data (CreateSession): The schema containing
+                session creation details.
 
         Returns:
             SessionModel: The newly created session.
@@ -62,7 +63,9 @@ class SessionService:
         )
         return self._session_repo.create(new_session)
 
-    def update_session(self, session_id: UUID, session_data: UpdateSession) -> SessionModel:
+    def update_session(
+        self, session_id: UUID, session_data: UpdateSession,
+    ) -> SessionModel:
         """Update an existing session.
 
         Args:

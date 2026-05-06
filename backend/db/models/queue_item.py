@@ -43,7 +43,11 @@ class QueueItem(SQLModel, table=True):
 
     position: int = Field(default=0, nullable=False)
     votes_skip: int = Field(default=0, nullable=False)
-    group: str = Field(default="playlist", nullable=False, description="Queue group: 'manual' or 'playlist'")
+    group: str = Field(
+        default="playlist",
+        nullable=False,
+        description="Queue group: 'manual' or 'playlist'",
+    )
 
     # Relations
     song: "Song" = Relationship(back_populates="queue_items")
