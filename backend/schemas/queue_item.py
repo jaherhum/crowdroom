@@ -8,11 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class CreateQueueItem(BaseModel):
     """Schema for validating the creation of a new queue item.
 
+    Position is auto-calculated by the service (appends to end of the group).
+
     Attributes:
         session_id (UUID): Unique identifier of the session.
         song_id (UUID): Unique identifier of the song to be added.
-        added_by_user_id (Optional[UUID]): ID of the user who added the song.
-        position (int): Initial position in the queue.
+        group (str): Queue group ('manual' or 'playlist'). Defaults to 'manual'.
     """
     session_id: UUID = Field(
         ..., description="The active music session to which this item belongs."
@@ -20,11 +21,8 @@ class CreateQueueItem(BaseModel):
     song_id: UUID = Field(
         ..., description="The identifier of the song to be added to the queue."
     )
-    added_by_user_id: Optional[UUID] = Field(
-        None, description="The ID of the user who added the song."
-    )
-    position: int = Field(
-        ..., ge=0, description="The position in the queue for the song."
+    group: str = Field(
+        default="manual", description="Queue group: 'manual' or 'playlist'."
     )
 
 
@@ -57,14 +55,3 @@ class ReadQueueItem(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class MoveQueueItem(BaseModel):
-    """Schema for moving a queue item to a new position.
-
-    Attributes:
-        new_position (int): New target position in the queue.
-    """
-    new_position: int = Field(
-        ..., ge=0, description="The new target position for the queue item."
-    )
