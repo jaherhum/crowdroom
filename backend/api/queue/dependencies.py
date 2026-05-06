@@ -1,0 +1,48 @@
+"""Queue API dependencies."""
+
+from fastapi import Depends
+from sqlmodel import Session as DBSession
+
+from backend.db.database import get_session
+from backend.repositories.queue_history_repo import QueueHistoryRepository
+from backend.repositories.queue_repo import QueueRepository
+from backend.repositories.queue_vote_repo import QueueVoteRepository
+from backend.services.queue_history_service import QueueHistoryService
+from backend.services.queue_service import QueueService
+from backend.services.queue_vote_service import QueueVoteService
+
+
+def get_queue_repo(session: DBSession = Depends(get_session)) -> QueueRepository:
+    """Dependency that provides a QueueRepository instance."""
+    return QueueRepository(session)
+
+
+def get_queue_service(
+    queue_repo: QueueRepository = Depends(get_queue_repo),
+) -> QueueService:
+    """Dependency that provides a QueueService instance."""
+    return QueueService(queue_repo)
+
+
+def get_queue_vote_repo(session: DBSession = Depends(get_session)) -> QueueVoteRepository:
+    """Dependency that provides a QueueVoteRepository instance."""
+    return QueueVoteRepository(session)
+
+
+def get_queue_vote_service(
+    queue_vote_repo: QueueVoteRepository = Depends(get_queue_vote_repo),
+) -> QueueVoteService:
+    """Dependency that provides a QueueVoteService instance."""
+    return QueueVoteService(queue_vote_repo)
+
+
+def get_queue_history_repo(session: DBSession = Depends(get_session)) -> QueueHistoryRepository:
+    """Dependency that provides a QueueHistoryRepository instance."""
+    return QueueHistoryRepository(session)
+
+
+def get_queue_history_service(
+    queue_history_repo: QueueHistoryRepository = Depends(get_queue_history_repo),
+) -> QueueHistoryService:
+    """Dependency that provides a QueueHistoryService instance."""
+    return QueueHistoryService(queue_history_repo)
