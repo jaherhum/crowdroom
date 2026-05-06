@@ -1,6 +1,7 @@
 """Repository for QueueItem data access."""
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import case, func
 from sqlmodel import Session as DBSession, select
 
@@ -14,18 +15,30 @@ class QueueRepository:
         self._session = session
 
     def create(self, queue_item: QueueItem) -> QueueItem:
-        """Create a new queue item."""
-        self._session.add(queue_item)
-        self._session.commit()
-        self._session.refresh(queue_item)
-        return queue_item
+        """Create a new queue item.
+
+        Raises:
+            IntegrityError: If unique constraint violated (duplicate position).
+        """
+        try:
+            self._session.add(queue_item)
+            self._session.commit()
+            self._session.refresh(queue_item)
+            return queue_item
+        except IntegrityError:
+            self._session.rollback()
+            raise
 
     def delete(self, queue_item_id: UUID) -> None:
         """Delete a queue item by ID."""
-        queue_item = self.get_by_id(queue_item_id)
+        queue_item = self._session.get(QueueItem, queue_item_id)
         if queue_item:
-            self._session.delete(queue_item)
-            self._session.commit()
+            try:
+                self._session.delete(queue_item)
+                self._session.commit()
+            except IntegrityError:
+                self._session.rollback()
+                raise
 
     def get_by_id(self, queue_item_id: UUID) -> QueueItem | None:
         """Retrieve a queue item by its ID."""
