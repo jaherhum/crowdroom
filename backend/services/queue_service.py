@@ -17,24 +17,30 @@ class QueueService:
         self._queue_repo = queue_repo
 
     def add_to_queue(
-        self, session_id: UUID, song_id: UUID, added_by_user_id: UUID | None = None
+        self,
+        session_id: UUID,
+        song_id: UUID,
+        added_by_user_id: UUID | None = None,
+        group: str = "manual",
     ) -> QueueItem:
-        """Add a song to the end of the queue.
+        """Add a song to the end of a queue group.
 
         Args:
             session_id: The session whose queue to add to.
             song_id: The song to queue.
             added_by_user_id: The user who added the song (optional).
+            group: The queue group ('manual' or 'playlist'). Defaults to 'manual'.
 
         Returns:
             QueueItem: The newly created queue item.
         """
-        max_pos = self._queue_repo.get_max_position(session_id)
+        max_pos = self._queue_repo.get_max_position_in_group(session_id, group)
         queue_item = QueueItem(
             session_id=session_id,
             song_id=song_id,
             added_by_user_id=added_by_user_id,
             position=max_pos + 1,
+            group=group,
         )
         return self._queue_repo.create(queue_item)
 
