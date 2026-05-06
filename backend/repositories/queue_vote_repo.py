@@ -2,7 +2,7 @@
 from uuid import UUID
 
 from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session as DBSession, select
 
 from backend.db.models import QueueVote
 
@@ -10,7 +10,7 @@ from backend.db.models import QueueVote
 class QueueVoteRepository:
     """Data access layer for queue votes."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: DBSession) -> None:
         self._session = session
 
     def create(self, vote: QueueVote) -> QueueVote:

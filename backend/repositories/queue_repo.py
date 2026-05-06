@@ -1,8 +1,8 @@
 """Repository for QueueItem data access."""
 from uuid import UUID
 
-from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlalchemy import case, func
+from sqlmodel import Session as DBSession, select
 
 from backend.db.models import QueueItem
 
@@ -10,7 +10,7 @@ from backend.db.models import QueueItem
 class QueueRepository:
     """Data access layer for queue items."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: DBSession) -> None:
         self._session = session
 
     def create(self, queue_item: QueueItem) -> QueueItem:
@@ -32,22 +32,25 @@ class QueueRepository:
         return self._session.get(QueueItem, queue_item_id)
 
     def get_all_by_session(self, session_id: UUID) -> list[QueueItem]:
-        """Retrieve all queue items for a session, ordered by position."""
+        """Retrieve all queue items for a session, ordered by group priority then position."""
         stmt = (
             select(QueueItem)
             .where(QueueItem.session_id == session_id)
-            .order_by(QueueItem.position)
+            .order_by(
+                case((QueueItem.group == "manual", 0), else_=1),
+                QueueItem.position,
+            )
         )
         return self._session.exec(stmt).all()
 
-    def get_max_position(self, session_id: UUID) -> int:
-        """Get the maximum position in a session's queue.
+    def get_max_position_in_group(self, session_id: UUID, group: str) -> int:
+        """Get the maximum position within a specific group for a session.
 
-        Returns -1 if the queue is empty.
+        Returns -1 if the group is empty.
         """
         stmt = (
             select(func.coalesce(func.max(QueueItem.position), -1))
-            .where(QueueItem.session_id == session_id)
+            .where(QueueItem.session_id == session_id, QueueItem.group == group)
         )
         return self._session.exec(stmt).one()
 
