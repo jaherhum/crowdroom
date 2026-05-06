@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Mapped
-from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from backend.db.models.queue_vote import QueueVote
@@ -43,6 +43,7 @@ class QueueItem(SQLModel, table=True):
 
     position: int = Field(default=0, nullable=False)
     votes_skip: int = Field(default=0, nullable=False)
+    group: str = Field(default="playlist", nullable=False, description="Queue group: 'manual' or 'playlist'")
 
     # Relations
     song: "Song" = Relationship(back_populates="queue_items")

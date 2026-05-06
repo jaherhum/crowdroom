@@ -2,7 +2,7 @@
 from uuid import UUID
 
 from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session as DBSession, select
 
 from backend.db.models import QueueHistory
 
@@ -10,7 +10,7 @@ from backend.db.models import QueueHistory
 class QueueHistoryRepository:
     """Data access layer for playback history."""
 
-    def init(self, session: Session) -> None:
+    def __init__(self, session: DBSession) -> None:
         self._session = session
 
     def create(self, history: QueueHistory) -> QueueHistory:
