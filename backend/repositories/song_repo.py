@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session as DBSession, select
 
 from backend.db.models.song import Song
@@ -22,11 +23,18 @@ class SongRepository:
 
         Returns:
             Song: The created song.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
         """
-        self._session.add(song)
-        self._session.commit()
-        self._session.refresh(song)
-        return song
+        try:
+            self._session.add(song)
+            self._session.commit()
+            self._session.refresh(song)
+            return song
+        except IntegrityError:
+            self._session.rollback()
+            raise
 
     def get_by_id(self, song_id: UUID) -> Song | None:
         """Retrieves a song by its ID.
@@ -72,16 +80,23 @@ class SongRepository:
 
         Returns:
             Song | None: The updated song instance if found, otherwise None.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
         """
-        song = self.get_by_id(song_id)
+        song = self._session.get(Song, song_id)
         if song:
             for key, value in update_data.items():
                 if hasattr(song, key):
                     setattr(song, key, value)
-            self._session.add(song)
-            self._session.commit()
-            self._session.refresh(song)
-            return song
+            try:
+                self._session.add(song)
+                self._session.commit()
+                self._session.refresh(song)
+                return song
+            except IntegrityError:
+                self._session.rollback()
+                raise
         return None
 
     def delete(self, song_id: UUID) -> None:
@@ -90,7 +105,11 @@ class SongRepository:
         Args:
             song_id (UUID): The unique identifier of the song to delete.
         """
-        song = self.get_by_id(song_id)
+        song = self._session.get(Song, song_id)
         if song:
-            self._session.delete(song)
-            self._session.commit()
+            try:
+                self._session.delete(song)
+                self._session.commit()
+            except IntegrityError:
+                self._session.rollback()
+                raise
