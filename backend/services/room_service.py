@@ -98,11 +98,7 @@ class RoomService:
 
         # Broadcast settings update
         await manager.broadcast(
-            {
-                "type": "settings_updated",
-                "payload": data
-            },
-            str(room_id)
+            {"type": "settings_updated", "payload": data}, str(room_id)
         )
 
         return updated_room

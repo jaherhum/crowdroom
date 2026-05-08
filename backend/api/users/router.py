@@ -28,7 +28,8 @@ async def get_users(
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def create_user(
-    user_data: UserCreate, user_service: UserService = Depends(get_user_service),
+    user_data: UserCreate,
+    user_service: UserService = Depends(get_user_service),
 ) -> UserRead:
     """Creates a new user.
 
@@ -42,9 +43,7 @@ async def create_user(
     return user_service.create_user(user_data)
 
 
-@router.patch(
-    "/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK
-)
+@router.patch("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK)
 async def update_user(
     user_id: UUID,
     user_data: UserUpdate,
@@ -65,7 +64,8 @@ async def update_user(
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
-    user_id: UUID, user_service: UserService = Depends(get_user_service),
+    user_id: UUID,
+    user_service: UserService = Depends(get_user_service),
 ) -> None:
     """Deletes a user from the system.
 

@@ -32,13 +32,14 @@ class QueueItem(SQLModel, table=True):
         added_by (Optional[User]): Relationship to the user who added the item.
         queue_votes (list[QueueVote]): List of skip votes on this item.
     """
+
     __tablename__ = "queue_items"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    session_id: UUID = Field(foreign_key='sessions.id', nullable=False)
-    song_id: UUID = Field(foreign_key='songs.id', nullable=False)
+    session_id: UUID = Field(foreign_key="sessions.id", nullable=False)
+    song_id: UUID = Field(foreign_key="songs.id", nullable=False)
     added_by_user_id: Optional[UUID] = Field(
-        default=None, foreign_key='users.id', nullable=True
+        default=None, foreign_key="users.id", nullable=True
     )
 
     position: int = Field(default=0, nullable=False)

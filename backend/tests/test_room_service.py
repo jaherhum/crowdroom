@@ -1,4 +1,5 @@
 """Tests for RoomService logic."""
+
 # ruff: noqa: D101, D102
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -68,9 +69,7 @@ class TestRoomService:
 
     def test_create_room_success(self, room_service, mock_room_repo):
         room_data = CreateRoom(
-            host_user_id=uuid4(),
-            room_name="Test Room",
-            is_private=False
+            host_user_id=uuid4(), room_name="Test Room", is_private=False
         )
         mock_room = MagicMock(spec=Room)
         mock_room_repo.create.return_value = mock_room

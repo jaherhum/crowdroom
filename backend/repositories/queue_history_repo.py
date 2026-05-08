@@ -1,4 +1,5 @@
 """Repository for QueueHistory data access."""
+
 from uuid import UUID
 
 from sqlalchemy import func
@@ -31,7 +32,7 @@ class QueueHistoryRepository:
             raise
 
     def get_all_by_session(
-            self, session_id: UUID, limit: int = 15
+        self, session_id: UUID, limit: int = 15
     ) -> list[QueueHistory]:
         """Retrieve history for a session, newest first."""
         stmt = (

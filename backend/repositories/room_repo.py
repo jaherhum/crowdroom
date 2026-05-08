@@ -1,4 +1,5 @@
 """Repository for Room data access."""
+
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError

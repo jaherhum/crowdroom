@@ -1,4 +1,5 @@
 """Tests for SecurityService functionality."""
+
 import jwt
 
 from backend.core.config import settings
@@ -53,4 +54,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nERROR: {e}")
         import traceback
+
         traceback.print_exc()
