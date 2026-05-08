@@ -1,4 +1,4 @@
-"""Database connection and session management."""
+"""Database connection, session management, and dialect detection."""
 
 from sqlmodel import Session as DBSession
 from sqlmodel import SQLModel, create_engine
