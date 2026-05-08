@@ -1,15 +1,16 @@
 """SQLite driver: file-level locking via BEGIN IMMEDIATE."""
 
+from contextlib import AbstractContextManager
+from typing import Any
+
 from sqlmodel import Session as DBSession
 from sqlmodel import text
 
-from backend.services.drivers.base import BaseQueueLock
 
-
-class SQLiteQueueLock(BaseQueueLock):
+class SQLiteQueueLock(AbstractContextManager):
     """Context manager that acquires BEGIN IMMEDIATE on a SQLite session."""
 
-    def __init__(self, session: DBSession, *args, **kwargs) -> None:
+    def __init__(self, session: DBSession, *args: Any, **kwargs: Any) -> None:
         self._session = session
         self._locked = False
 
@@ -22,7 +23,7 @@ class SQLiteQueueLock(BaseQueueLock):
             pass
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Do NOT rollback — the caller manages commit/rollback."""
         self._locked = False
 
