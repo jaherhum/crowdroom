@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -34,6 +35,11 @@ class QueueItem(SQLModel, table=True):
     """
 
     __tablename__ = "queue_items"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id", "group", "position", name="uq_session_group_position"
+        ),
+    )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     session_id: UUID = Field(foreign_key="sessions.id", nullable=False)
