@@ -27,9 +27,7 @@ async def get_sessions(
     return [ReadSession.model_validate(s) for s in sessions]
 
 
-@router.get(
-    "/{session_id}", response_model=ReadSession, status_code=status.HTTP_200_OK
-)
+@router.get("/{session_id}", response_model=ReadSession, status_code=status.HTTP_200_OK)
 async def get_session(
     session_id: UUID,
     session_service: SessionService = Depends(get_session_service),
@@ -47,9 +45,7 @@ async def get_session(
     return ReadSession.model_validate(session)
 
 
-@router.post(
-    "/", response_model=ReadSession, status_code=status.HTTP_201_CREATED
-)
+@router.post("/", response_model=ReadSession, status_code=status.HTTP_201_CREATED)
 async def create_session(
     session_data: CreateSession,
     session_service: SessionService = Depends(get_session_service),

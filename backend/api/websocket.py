@@ -34,6 +34,7 @@ class ConnectionManager:
         if room_id in self.active_connections:
             # Create a list of tasks to send messages in parallel
             import asyncio
+
             connections = list(self.active_connections[room_id])
             tasks = []
             for connection in connections:

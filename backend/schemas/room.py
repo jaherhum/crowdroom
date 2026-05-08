@@ -1,4 +1,5 @@
 """Room schemas for the API."""
+
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -88,6 +89,5 @@ class RoomStateUpdate(BaseModel):
         ),
     )
     payload: Dict[str, Any] = Field(
-        ...,
-        description="The data associated with the update."
+        ..., description="The data associated with the update."
     )

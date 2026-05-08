@@ -20,8 +20,7 @@ class CreateQueueHistory(BaseModel):
 
     session_id: UUID = Field(
         ...,
-        description="The unique identifier of the session "
-        "where the song was played.",
+        description="The unique identifier of the session where the song was played.",
     )
     song_id: UUID = Field(
         ..., description="The unique identifier of the song that was played."
@@ -38,13 +37,10 @@ class ReadQueueHistory(BaseModel):
         played_at: Timestamp when the song was played or skipped.
     """
 
-    id: UUID = Field(
-        ..., description="The unique identifier of this history entry."
-    )
+    id: UUID = Field(..., description="The unique identifier of this history entry.")
     session_id: UUID = Field(
         ...,
-        description="The unique identifier of the session "
-        "where the song was played.",
+        description="The unique identifier of the session where the song was played.",
     )
     song_id: UUID = Field(
         ..., description="The unique identifier of the song that was played."

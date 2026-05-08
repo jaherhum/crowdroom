@@ -52,12 +52,12 @@ class SecurityService:
         to_encode = data.copy()
 
         if token_type == TokenType.REFRESH:
-            expire = (
-                datetime.now(timezone.utc) + timedelta(days=self._refresh_expire_days)
+            expire = datetime.now(timezone.utc) + timedelta(
+                days=self._refresh_expire_days
             )
         elif token_type == TokenType.ACCESS:
-            expire = (
-                datetime.now(timezone.utc) + timedelta(minutes=self._access_expire_min)
+            expire = datetime.now(timezone.utc) + timedelta(
+                minutes=self._access_expire_min
             )
         else:
             raise ValueError(f"Unknown token type: {token_type}")

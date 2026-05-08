@@ -64,7 +64,9 @@ class SessionService:
         return self._session_repo.create(new_session)
 
     def update_session(
-        self, session_id: UUID, session_data: UpdateSession,
+        self,
+        session_id: UUID,
+        session_data: UpdateSession,
     ) -> SessionModel:
         """Update an existing session.
 

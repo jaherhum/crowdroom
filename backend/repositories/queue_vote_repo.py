@@ -1,4 +1,5 @@
 """Repository for QueueVote data access."""
+
 from uuid import UUID
 
 from sqlalchemy import func

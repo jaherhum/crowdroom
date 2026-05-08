@@ -1,4 +1,5 @@
 """Service for managing the music queue."""
+
 from uuid import UUID
 
 from backend.core.exceptions import EntityNotFoundException
@@ -25,6 +26,9 @@ class QueueService:
     ) -> QueueItem:
         """Add a song to the end of a queue group.
 
+        Delegates to atomic repository method to prevent TOCTOU race
+        conditions between reading max position and inserting a new item.
+
         Args:
             session_id: The session whose queue to add to.
             song_id: The song to queue.
@@ -34,15 +38,9 @@ class QueueService:
         Returns:
             QueueItem: The newly created queue item.
         """
-        max_pos = self._queue_repo.get_max_position_in_group(session_id, group)
-        queue_item = QueueItem(
-            session_id=session_id,
-            song_id=song_id,
-            added_by_user_id=added_by_user_id,
-            position=max_pos + 1,
-            group=group,
+        return self._queue_repo.add_to_queue_atomic(
+            session_id, song_id, added_by_user_id, group
         )
-        return self._queue_repo.create(queue_item)
 
     def remove_from_queue(self, queue_item_id: UUID) -> None:
         """Remove a song from the queue.
@@ -54,7 +52,8 @@ class QueueService:
             EntityNotFoundException: If the queue item does not exist.
         """
         self.get_queue_item(queue_item_id)
-        self._queue_repo.delete(queue_item_id)
+        if not self._queue_repo.delete(queue_item_id):
+            raise EntityNotFoundException("QueueItem", queue_item_id)
 
     def get_queue_item(self, queue_item_id: UUID) -> QueueItem:
         """Retrieve a single queue item.
