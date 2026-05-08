@@ -1,4 +1,5 @@
 """Tests for authentication dependencies."""
+
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -38,7 +39,9 @@ def test_get_current_user_success():
     mock_security_service.decode_token.assert_called_once_with(
         "valid_token", expected_type=TokenType.ACCESS
     )
-    mock_user_service.get_by_identifier.assert_called_once_with("zelda_lover@example.com")
+    mock_user_service.get_by_identifier.assert_called_once_with(
+        "zelda_lover@example.com"
+    )
 
 
 def test_get_current_user_invalid_token():

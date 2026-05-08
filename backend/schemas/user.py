@@ -1,4 +1,5 @@
 """User schemas for the API."""
+
 from typing import Optional
 from uuid import UUID
 

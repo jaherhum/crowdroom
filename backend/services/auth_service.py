@@ -1,4 +1,5 @@
 """Service for handling user authentication and registration."""
+
 from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
@@ -9,6 +10,7 @@ from backend.services.user_service import UserService
 
 class AuthService:
     """Service for handling user authentication and registration."""
+
     def __init__(self, user_service: UserService, security_service: SecurityService):
         """Initializes the AuthService with required services."""
         self._user_service = user_service

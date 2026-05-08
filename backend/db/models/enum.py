@@ -1,4 +1,5 @@
 """Enumerations used throughout the application."""
+
 from enum import Enum
 
 

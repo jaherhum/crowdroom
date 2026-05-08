@@ -1,4 +1,5 @@
 """Service layer for managing user-related business logic."""
+
 from typing import List, Optional
 from uuid import UUID
 

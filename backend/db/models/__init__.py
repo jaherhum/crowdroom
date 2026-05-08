@@ -1,4 +1,5 @@
 """Database models for the application."""
+
 from backend.db.models.enum import (
     PlaybackStatus as PlaybackStatus,
 )
