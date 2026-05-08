@@ -26,11 +26,10 @@ async def get_rooms(
     return room_service.get_all_rooms()
 
 
-@router.get(
-    "/{room_id}", response_model=ReadRoom, status_code=status.HTTP_200_OK
-)
+@router.get("/{room_id}", response_model=ReadRoom, status_code=status.HTTP_200_OK)
 async def get_room(
-    room_id: UUID, room_service: RoomService = Depends(get_room_service),
+    room_id: UUID,
+    room_service: RoomService = Depends(get_room_service),
 ) -> ReadRoom:
     """Retrieves a specific room by its ID.
 
@@ -44,9 +43,7 @@ async def get_room(
     return room_service.get_room(room_id)
 
 
-@router.post(
-    "/", response_model=ReadRoom, status_code=status.HTTP_201_CREATED
-)
+@router.post("/", response_model=ReadRoom, status_code=status.HTTP_201_CREATED)
 async def create_room(
     room_data: CreateRoom,
     room_service: RoomService = Depends(get_room_service),
@@ -63,9 +60,7 @@ async def create_room(
     return room_service.create_room(room_data)
 
 
-@router.patch(
-    "/{room_id}", response_model=ReadRoom, status_code=status.HTTP_200_OK
-)
+@router.patch("/{room_id}", response_model=ReadRoom, status_code=status.HTTP_200_OK)
 async def update_room(
     room_id: UUID,
     room_data: UpdateRoom,
@@ -86,7 +81,8 @@ async def update_room(
 
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_room(
-    room_id: UUID, room_service: RoomService = Depends(get_room_service),
+    room_id: UUID,
+    room_service: RoomService = Depends(get_room_service),
 ) -> None:
     """Deletes a room from the system.
 

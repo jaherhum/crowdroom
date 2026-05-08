@@ -12,6 +12,7 @@ def get_room_repo(session: DBSession = Depends(get_session)) -> RoomRepository:
     """Dependency that provides a RoomRepository instance."""
     return RoomRepository(session)
 
+
 def get_room_service(
     room_repo: RoomRepository = Depends(get_room_repo),
 ) -> RoomService:

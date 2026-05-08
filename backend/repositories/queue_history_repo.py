@@ -1,8 +1,11 @@
 """Repository for QueueHistory data access."""
+
 from uuid import UUID
 
 from sqlalchemy import func
-from sqlmodel import Session as DBSession, select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session as DBSession
+from sqlmodel import select
 
 from backend.db.models import QueueHistory
 
@@ -14,14 +17,22 @@ class QueueHistoryRepository:
         self._session = session
 
     def create(self, history: QueueHistory) -> QueueHistory:
-        """Create a new playback history entry."""
-        self._session.add(history)
-        self._session.commit()
-        self._session.refresh(history)
-        return history
+        """Create a new playback history entry.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
+        """
+        try:
+            self._session.add(history)
+            self._session.commit()
+            self._session.refresh(history)
+            return history
+        except IntegrityError:
+            self._session.rollback()
+            raise
 
     def get_all_by_session(
-            self, session_id: UUID, limit: int = 15
+        self, session_id: UUID, limit: int = 15
     ) -> list[QueueHistory]:
         """Retrieve history for a session, newest first."""
         stmt = (
@@ -49,4 +60,8 @@ class QueueHistoryRepository:
         for entry in old_entries:
             self._session.delete(entry)
         if old_entries:
-            self._session.commit()
+            try:
+                self._session.commit()
+            except IntegrityError:
+                self._session.rollback()
+                raise

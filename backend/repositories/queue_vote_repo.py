@@ -1,8 +1,11 @@
 """Repository for QueueVote data access."""
+
 from uuid import UUID
 
 from sqlalchemy import func
-from sqlmodel import Session as DBSession, select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session as DBSession
+from sqlmodel import select
 
 from backend.db.models import QueueVote
 
@@ -14,11 +17,19 @@ class QueueVoteRepository:
         self._session = session
 
     def create(self, vote: QueueVote) -> QueueVote:
-        """Create a new skip vote."""
-        self._session.add(vote)
-        self._session.commit()
-        self._session.refresh(vote)
-        return vote
+        """Create a new skip vote.
+
+        Raises:
+            IntegrityError: If unique constraint violated (duplicate vote).
+        """
+        try:
+            self._session.add(vote)
+            self._session.commit()
+            self._session.refresh(vote)
+            return vote
+        except IntegrityError:
+            self._session.rollback()
+            raise
 
     def get_by_item_and_user(
         self, queue_item_id: UUID, user_id: UUID
@@ -41,4 +52,9 @@ class QueueVoteRepository:
         votes = self._session.exec(stmt).all()
         for vote in votes:
             self._session.delete(vote)
-        self._session.commit()
+        if votes:
+            try:
+                self._session.commit()
+            except IntegrityError:
+                self._session.rollback()
+                raise

@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -32,18 +33,28 @@ class QueueItem(SQLModel, table=True):
         added_by (Optional[User]): Relationship to the user who added the item.
         queue_votes (list[QueueVote]): List of skip votes on this item.
     """
+
     __tablename__ = "queue_items"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id", "group", "position", name="uq_session_group_position"
+        ),
+    )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    session_id: UUID = Field(foreign_key='sessions.id', nullable=False)
-    song_id: UUID = Field(foreign_key='songs.id', nullable=False)
+    session_id: UUID = Field(foreign_key="sessions.id", nullable=False)
+    song_id: UUID = Field(foreign_key="songs.id", nullable=False)
     added_by_user_id: Optional[UUID] = Field(
-        default=None, foreign_key='users.id', nullable=True
+        default=None, foreign_key="users.id", nullable=True
     )
 
     position: int = Field(default=0, nullable=False)
     votes_skip: int = Field(default=0, nullable=False)
-    group: str = Field(default="playlist", nullable=False, description="Queue group: 'manual' or 'playlist'")
+    group: str = Field(
+        default="playlist",
+        nullable=False,
+        description="Queue group: 'manual' or 'playlist'",
+    )
 
     # Relations
     song: "Song" = Relationship(back_populates="queue_items")

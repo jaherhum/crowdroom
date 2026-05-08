@@ -1,4 +1,5 @@
 """Queue item schemas for the API."""
+
 from typing import Optional
 from uuid import UUID
 
@@ -15,6 +16,7 @@ class CreateQueueItem(BaseModel):
         song_id (UUID): Unique identifier of the song to be added.
         group (str): Queue group ('manual' or 'playlist'). Defaults to 'manual'.
     """
+
     session_id: UUID = Field(
         ..., description="The active music session to which this item belongs."
     )
@@ -37,6 +39,7 @@ class ReadQueueItem(BaseModel):
         position (int): Current position of the song in the queue.
         votes_skip (int): Current number of skip votes accumulated for the song.
     """
+
     id: UUID = Field(..., description="The unique identifier for this queue entry.")
     session_id: UUID = Field(
         ..., description="The identifier of the session this item belongs to."
