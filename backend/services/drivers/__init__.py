@@ -1,1 +1,1 @@
-"""Services for handling driver-related operations."""
+"""Database driver abstractions for queue locking."""
