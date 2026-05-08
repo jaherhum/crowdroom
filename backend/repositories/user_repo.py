@@ -3,7 +3,9 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session as DBSession, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session as DBSession
+from sqlmodel import or_, select
 
 from backend.db.models.user import User
 
@@ -96,11 +98,19 @@ class UserRepository:
 
         Returns:
             User: The saved User instance, refreshed from the database.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated
+                (duplicate email/username).
         """
-        self._db_session.add(user)
-        self._db_session.commit()
-        self._db_session.refresh(user)
-        return user
+        try:
+            self._db_session.add(user)
+            self._db_session.commit()
+            self._db_session.refresh(user)
+            return user
+        except IntegrityError:
+            self._db_session.rollback()
+            raise
 
     def delete(self, user: User) -> None:
         """Deletes a user entity from the database.
@@ -108,5 +118,9 @@ class UserRepository:
         Args:
             user (User): The User model instance to delete.
         """
-        self._db_session.delete(user)
-        self._db_session.commit()
+        try:
+            self._db_session.delete(user)
+            self._db_session.commit()
+        except IntegrityError:
+            self._db_session.rollback()
+            raise

@@ -39,5 +39,8 @@ class Room(SQLModel, table=True):
     )
 
     # Relations
-    users: Mapped[list["User"]] = Relationship(back_populates="room", sa_relationship_kwargs={"foreign_keys": "[User.room_id]"})
+    users: Mapped[list["User"]] = Relationship(
+        back_populates="room",
+        sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
+    )
     session: Optional["Session"] = Relationship(back_populates="room")

@@ -1,16 +1,16 @@
 """Tests for SongService logic."""
+
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
 from backend.core.exceptions import EntityExistsException, EntityNotFoundException
+from backend.db.models.enum import StreamingPlatforms
 from backend.db.models.song import Song
 from backend.repositories.song_repo import SongRepository
 from backend.schemas.song import CreateSong, UpdateSong
 from backend.services.song_service import SongService
-
-from backend.db.models.enum import StreamingPlatforms
 
 
 class TestSongService:
@@ -56,9 +56,7 @@ class TestSongService:
         mock_song_repo.get_all.assert_called_once()
 
     @patch("backend.services.song_service.Song")
-    def test_create_song_success(
-        self, mock_song_cls, song_service, mock_song_repo
-    ):
+    def test_create_song_success(self, mock_song_cls, song_service, mock_song_repo):
         """Test successful song creation."""
         song_data = CreateSong(
             external_id="ext123",
@@ -150,9 +148,7 @@ class TestSongService:
         mock_song_repo.create.assert_not_called()
 
     @patch("backend.services.song_service.Song")
-    def test_get_or_create_song_new(
-        self, mock_song_cls, song_service, mock_song_repo
-    ):
+    def test_get_or_create_song_new(self, mock_song_cls, song_service, mock_song_repo):
         """Test get_or_create creates new song when not found."""
         song_data = CreateSong(
             external_id="ext123",

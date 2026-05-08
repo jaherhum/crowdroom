@@ -1,8 +1,10 @@
 """Database connection and session management."""
 
-from sqlmodel import Session as DBSession, SQLModel, create_engine
+from sqlmodel import Session as DBSession
+from sqlmodel import SQLModel, create_engine
 
 from backend.core.config import settings
+
 # Import all models so SQLAlchemy knows about them before create_all()
 from backend.db.models import *  # noqa: F401,F403
 

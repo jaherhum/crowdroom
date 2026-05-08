@@ -1,4 +1,5 @@
 """Tests for QueueService."""
+
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -22,54 +23,51 @@ class TestQueueService:
     # -- add_to_queue --
 
     def test_add_to_queue_manual(self, queue_service, mock_queue_repo):
-        session_id, song_id = uuid4(), uuid4()
-        mock_queue_repo.get_max_position_in_group.return_value = 2
+        session_id, song_id, user_id = uuid4(), uuid4(), uuid4()
         mock_item = MagicMock(spec=QueueItem)
-        mock_queue_repo.create.return_value = mock_item
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
 
-        result = queue_service.add_to_queue(session_id, song_id, group="manual")
+        result = queue_service.add_to_queue(
+            session_id, song_id, user_id, group="manual"
+        )
 
         assert result == mock_item
-        mock_queue_repo.get_max_position_in_group.assert_called_once_with(
-            session_id, "manual"
+        mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
+            session_id, song_id, user_id, "manual"
         )
-        call_args = mock_queue_repo.create.call_args[0][0]
-        assert call_args.position == 3
-        assert call_args.group == "manual"
 
     def test_add_to_queue_playlist(self, queue_service, mock_queue_repo):
         session_id, song_id = uuid4(), uuid4()
-        mock_queue_repo.get_max_position_in_group.return_value = 0
         mock_item = MagicMock(spec=QueueItem)
-        mock_queue_repo.create.return_value = mock_item
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
 
         queue_service.add_to_queue(session_id, song_id, group="playlist")
 
-        call_args = mock_queue_repo.create.call_args[0][0]
-        assert call_args.position == 1
-        assert call_args.group == "playlist"
+        mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
+            session_id, song_id, None, "playlist"
+        )
 
     def test_add_to_queue_empty_group(self, queue_service, mock_queue_repo):
         session_id, song_id = uuid4(), uuid4()
-        mock_queue_repo.get_max_position_in_group.return_value = -1
         mock_item = MagicMock(spec=QueueItem)
-        mock_queue_repo.create.return_value = mock_item
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
 
         queue_service.add_to_queue(session_id, song_id, group="manual")
 
-        call_args = mock_queue_repo.create.call_args[0][0]
-        assert call_args.position == 0
+        mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
+            session_id, song_id, None, "manual"
+        )
 
     def test_add_to_queue_default_group(self, queue_service, mock_queue_repo):
         session_id, song_id = uuid4(), uuid4()
-        mock_queue_repo.get_max_position_in_group.return_value = -1
         mock_item = MagicMock(spec=QueueItem)
-        mock_queue_repo.create.return_value = mock_item
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
 
         queue_service.add_to_queue(session_id, song_id)
 
-        call_args = mock_queue_repo.create.call_args[0][0]
-        assert call_args.group == "manual"
+        mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
+            session_id, song_id, None, "manual"
+        )
 
     # -- remove_from_queue --
 
@@ -77,15 +75,27 @@ class TestQueueService:
         item_id = uuid4()
         mock_item = MagicMock(spec=QueueItem)
         mock_queue_repo.get_by_id.return_value = mock_item
+        mock_queue_repo.delete.return_value = True
 
         queue_service.remove_from_queue(item_id)
 
         mock_queue_repo.get_by_id.assert_called_once_with(item_id)
         mock_queue_repo.delete.assert_called_once_with(item_id)
 
-    def test_remove_from_queue_not_found(self, queue_service, mock_queue_repo):
+    def test_remove_from_queue_not_found_lookup(self, queue_service, mock_queue_repo):
+        """EntityNotFoundException raised by get_queue_item lookup."""
         item_id = uuid4()
         mock_queue_repo.get_by_id.return_value = None
+
+        with pytest.raises(EntityNotFoundException):
+            queue_service.remove_from_queue(item_id)
+
+    def test_remove_from_queue_delete_fails(self, queue_service, mock_queue_repo):
+        """EntityNotFoundException raised when delete returns False."""
+        item_id = uuid4()
+        mock_item = MagicMock(spec=QueueItem)
+        mock_queue_repo.get_by_id.return_value = mock_item
+        mock_queue_repo.delete.return_value = False
 
         with pytest.raises(EntityNotFoundException):
             queue_service.remove_from_queue(item_id)
