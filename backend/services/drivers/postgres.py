@@ -1,19 +1,16 @@
 """PostgreSQL driver: advisory locking via pg_advisory_xact_lock."""
 
 import hashlib
+from contextlib import AbstractContextManager
+from typing import Any
 from uuid import UUID
 
 from sqlmodel import Session as DBSession
 from sqlmodel import text
 
-from backend.services.drivers.base import BaseQueueLock
 
-
-class PGQueueLock(BaseQueueLock):
-    """Acquires advisory lock for a queue group in PostgreSQL.
-
-    Uses ``pg_advisory_xact_lock()`` — auto-released at transaction end.
-    """
+class PGQueueLock(AbstractContextManager):
+    """Acquires advisory lock for a queue group in PostgreSQL."""
 
     def __init__(self, session: DBSession, session_id: UUID, group: str) -> None:
         self._session = session
@@ -28,7 +25,7 @@ class PGQueueLock(BaseQueueLock):
         )
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Advisory lock is auto-released at transaction end."""
         pass
 
