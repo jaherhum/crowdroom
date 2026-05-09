@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import case, func, text
+from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
@@ -10,22 +10,36 @@ from sqlmodel import select
 from backend.db.models import QueueItem
 
 
-def _immediate_begin(session: DBSession) -> None:
-    """Acquire an exclusive SQLite write lock.
+def _get_dialect_name(session: DBSession) -> str:
+    """Detect the database dialect from a session's bound engine."""
+    bind = session.get_bind()
+    if bind is not None:
+        return bind.dialect.name
+    # Fallback: try to detect from connection URL
+    from sqlalchemy import create_engine
 
-    SQLite's default transaction (BEGIN DEFERRED) allows concurrent readers,
-    which breaks atomicity when multiple threads read-then-write.
-    BEGIN IMMEDIATE acquires a reserved lock immediately, ensuring that
-    only one thread can execute read+write at a time.
+    conn_str = str(session.bind.url) if session.bind else ""
+    if conn_str:
+        tmp_engine = create_engine(conn_str)
+        return tmp_engine.dialect.name
+    return "sqlite"
 
-    For PostgreSQL this is a no-op since PG uses MVCC and all operations
-    within the session's transaction are already atomic.
-    """
-    try:
-        session.execute(text("BEGIN IMMEDIATE"))
-    except Exception:
-        # On PostgreSQL or other DBs without BEGIN IMMEDIATE, ignore
-        pass
+
+def _make_lock(
+    session: DBSession, session_id: UUID | None = None, group: str | None = None
+):
+    """Create an appropriate queue lock for the current database dialect."""
+    dialect = _get_dialect_name(session)
+
+    if dialect == "postgresql":
+        from backend.services.drivers.postgres import PGQueueLock
+
+        return PGQueueLock(session, session_id, group)  # type: ignore[arg-type]
+    else:
+        # Default: SQLite (BEGIN IMMEDIATE)
+        from backend.services.drivers.sqlite import SQLiteQueueLock
+
+        return SQLiteQueueLock(session)
 
 
 class QueueRepository:
@@ -52,23 +66,25 @@ class QueueRepository:
     def delete(self, queue_item_id: UUID) -> bool:
         """Delete a queue item by ID.
 
-        Uses BEGIN IMMEDIATE to acquire an exclusive write lock before
-        checking existence and deleting — prevents TOCTOU race where
-        multiple threads all read the item as existing simultaneously.
+        Atomic under both SQLite and PostgreSQL via the configured locker.
+        Returns True if deleted, False if item didn't exist.
 
-        Returns:
-            True if the item was deleted, False if it didn't exist.
+        Raises:
+            EntityNotFoundException: If the queue item does not exist.
         """
-        _immediate_begin(self._session)
-        queue_item = self._session.get(QueueItem, queue_item_id)
-        if queue_item:
-            try:
-                self._session.delete(queue_item)
-                self._session.commit()
-                return True
-            except IntegrityError:
-                self._session.rollback()
-                raise
+        self._session.expire_on_commit = False
+
+        with _make_lock(self._session):
+            queue_item = self._session.get(QueueItem, queue_item_id)
+            if queue_item:
+                try:
+                    self._session.delete(queue_item)
+                    self._session.commit()
+                    return True
+                except IntegrityError:
+                    self._session.rollback()
+                    raise
+
         return False
 
     def add_to_queue_atomic(
@@ -80,35 +96,37 @@ class QueueRepository:
     ) -> QueueItem:
         """Atomically read max position and create a new queue item.
 
-        Uses BEGIN IMMEDIATE to acquire an exclusive SQLite write lock
-        (or PostgreSQL's default serializable transaction), ensuring that
-        no two threads can read the same max position simultaneously.
+        Uses the configured database locker to serialize concurrent writes:
+          - SQLite: BEGIN IMMEDIATE (file-level lock)
+          - PostgreSQL: pg_advisory_xact_lock() (application-level lock)
+
+        The unique constraint on (session_id, group, position) is the final
+        safety net — if two threads somehow slip through, the database raises
+        an IntegrityError instead of silently corrupting data.
 
         Raises:
-            IntegrityError: If a unique constraint on
-                (session_id, position, group) is violated.
+            IntegrityError: If a unique constraint violation occurs.
         """
-        _immediate_begin(self._session)
+        with _make_lock(self._session, session_id, group):
+            stmt = select(func.coalesce(func.max(QueueItem.position), -1)).where(
+                QueueItem.session_id == session_id,
+                QueueItem.group == group,
+            )
+            max_pos = self._session.exec(stmt).one()
 
-        stmt = select(func.coalesce(func.max(QueueItem.position), -1)).where(
-            QueueItem.session_id == session_id,
-            QueueItem.group == group,
-        )
-        max_pos = self._session.exec(stmt).one()
+            queue_item = QueueItem(
+                session_id=session_id,
+                song_id=song_id,
+                added_by_user_id=added_by_user_id,
+                position=max_pos + 1,
+                group=group,
+            )
+            self._session.add(queue_item)
+            self._session.commit()
 
-        queue_item = QueueItem(
-            session_id=session_id,
-            song_id=song_id,
-            added_by_user_id=added_by_user_id,
-            position=max_pos + 1,
-            group=group,
-        )
-        self._session.add(queue_item)
-        self._session.commit()
-
-        # Refresh outside the transaction to get back the generated PK
-        self._session.refresh(queue_item)
-        return queue_item
+            # Refresh outside the lock to get back the generated PK
+            self._session.refresh(queue_item)
+            return queue_item
 
     def get_by_id(self, queue_item_id: UUID) -> QueueItem | None:
         """Retrieve a queue item by its ID."""
