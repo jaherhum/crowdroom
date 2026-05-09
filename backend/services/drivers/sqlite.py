@@ -26,4 +26,3 @@ class SQLiteQueueLock(AbstractContextManager):
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Do NOT rollback — the caller manages commit/rollback."""
         self._locked = False
-
