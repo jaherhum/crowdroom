@@ -28,4 +28,3 @@ class PGQueueLock(AbstractContextManager):
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Advisory lock is auto-released at transaction end."""
         pass
-
