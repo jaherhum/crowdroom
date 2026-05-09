@@ -18,6 +18,7 @@ class PlaybackStatus(str, Enum):
     PAUSED = "paused"
     STOPPED = "stopped"
     ERROR = "error"
+    FINISHED = "finished"
 
 
 class TokenType(str, Enum):
