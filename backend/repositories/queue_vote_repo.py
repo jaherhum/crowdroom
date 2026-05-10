@@ -58,3 +58,8 @@ class QueueVoteRepository:
             except IntegrityError:
                 self._session.rollback()
                 raise
+
+    def get_by_id(self, vote_id: UUID) -> QueueVote | None:
+        """Retrieve a single vote by its ID."""
+        stmt = select(QueueVote).where(QueueVote.id == vote_id)
+        return self._session.exec(stmt).first()

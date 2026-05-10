@@ -8,8 +8,8 @@ from backend.api.auth.dependencies import get_current_user
 from backend.api.queue.dependencies import (
     get_queue_history_service,
     get_queue_service,
-    get_queue_vote_service,
 )
+from backend.api.session.dependencies import get_queue_vote_service
 from backend.db.models.user import User
 from backend.schemas.queue_history import ReadQueueHistory
 from backend.schemas.queue_item import CreateQueueItem, ReadQueueItem

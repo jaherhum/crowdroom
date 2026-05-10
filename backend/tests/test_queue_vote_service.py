@@ -18,7 +18,7 @@ class TestQueueVoteService:
 
     @pytest.fixture
     def service(self, mock_repo):
-        return QueueVoteService(mock_repo)
+        return QueueVoteService(queue_vote_repo=mock_repo)
 
     # -- cast_vote --
 

@@ -1,25 +1,39 @@
 """Service for managing sessions and their playback state."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from backend.core.exceptions import EntityNotFoundException
+from backend.db.models.enum import PlaybackStatus
 from backend.db.models.session import Session as SessionModel
 from backend.repositories.session_repo import SessionRepository
 from backend.schemas.session import CreateSession, UpdateSession
+
+if TYPE_CHECKING:
+    from backend.services.queue_history_service import QueueHistoryService
+    from backend.services.queue_service import QueueService
 
 
 class SessionService:
     """Service for managing sessions and their playback state."""
 
-    def __init__(self, session_repo: SessionRepository) -> None:
+    def __init__(
+        self,
+        session_repo: SessionRepository,
+        queue_service: Optional[QueueService] = None,
+        history_service: Optional[QueueHistoryService] = None,
+    ) -> None:
         """Initialize the SessionService with a session repository.
 
         Args:
             session_repo (SessionRepository): Repository for session operations.
+            queue_service (Optional[QueueService]): Queue management service.
+            history_service (Optional[QueueHistoryService]): History service.
         """
         self._session_repo = session_repo
-
+        self._queue_service = queue_service
+        self._history_service = history_service
     def get_session(self, session_id: UUID) -> SessionModel:
         """Retrieve a specific session by its ID.
 
@@ -78,14 +92,30 @@ class SessionService:
             SessionModel: The updated session instance.
 
         Raises:
-            EntityNotFoundException: If the session is not found.
+            EntityNotFoundException: If the session does not exist.
         """
         self.get_session(session_id)
         update_data = session_data.model_dump(exclude_unset=True)
         updated_session = self._session_repo.update(session_id, update_data)
         if not updated_session:
             raise EntityNotFoundException("Session", session_id)
+
+        # Reactive state hook: trigger history/advance logic on FINISHED state
+        if updated_session.playback_status == PlaybackStatus.FINISHED:
+            self._handle_finished(session_id)
+
         return updated_session
+
+    def _handle_finished(self, session_id: UUID) -> None:
+        """Handle song completion: record history and advance the queue."""
+        if not self._queue_service or not self._history_service:
+            # Skip in tests or when services aren't injected
+            return
+
+        current = self._queue_service.get_current_song(session_id)
+        if current:
+            self._history_service.add_to_history(session_id, current.song_id)
+            self._queue_service.remove_from_queue(current.id)
 
     def delete_session(self, session_id: UUID) -> None:
         """Delete a session from the system.
