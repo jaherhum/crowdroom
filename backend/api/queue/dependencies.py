@@ -38,10 +38,3 @@ def get_queue_history_repo(
     """Dependency that provides a QueueHistoryRepository instance."""
     return QueueHistoryRepository(session)
 
-
-def get_queue_history_service(
-    queue_history_repo: QueueHistoryRepository = Depends(get_queue_history_repo),
-) -> QueueHistoryService:
-    """Dependency that provides a QueueHistoryService instance."""
-    return QueueHistoryService(queue_history_repo)
-
