@@ -4,8 +4,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from backend.api.session.dependencies import get_session_service
+from backend.api.session.dependencies import get_playback_service, get_session_service
+from backend.schemas.playback import FinishResponse
 from backend.schemas.session import CreateSession, ReadSession, UpdateSession
+from backend.services.playback_service import PlaybackService
 from backend.services.session_service import SessionService
 
 router = APIRouter(prefix="/session", tags=["session"])
@@ -97,3 +99,28 @@ async def delete_session(
         session_service (SessionService): The injected session service.
     """
     session_service.delete_session(session_id)
+
+
+@router.post(
+    "/{session_id}/finish",
+    response_model=FinishResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def finish_current_song(
+    session_id: UUID,
+    playback_service: PlaybackService = Depends(get_playback_service),
+) -> FinishResponse:
+    """Advance to the next song by finishing the current one.
+
+    Records the current song in history, removes it from the queue, and updates
+    session status to STOPPED.
+
+    Args:
+        session_id (UUID): The unique identifier of the session.
+        playback_service (PlaybackService): The injected playback service.
+
+    Returns:
+        FinishResponse: Confirmation of the finished state.
+    """
+    new_status = playback_service.finish_song(session_id)
+    return FinishResponse(status=new_status)
