@@ -65,3 +65,13 @@ class QueueHistoryRepository:
             except IntegrityError:
                 self._session.rollback()
                 raise
+
+    def get_by_session(self, session_id: UUID, limit: int = 15) -> list[QueueHistory]:
+        """Retrieve history for a session, newest first."""
+        stmt = (
+            select(QueueHistory)
+            .where(QueueHistory.session_id == session_id)
+            .order_by(QueueHistory.played_at.desc())
+            .limit(limit)
+        )
+        return self._session.exec(stmt).all()

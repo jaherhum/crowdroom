@@ -3,9 +3,13 @@
 from uuid import UUID
 
 from backend.db.models.enum import PlaybackStatus
+from backend.db.models.queue_history import QueueHistory
+from backend.repositories.queue_history_repo import QueueHistoryRepository
 from backend.repositories.session_repo import SessionRepository
-from backend.services.queue_history_service import QueueHistoryService
 from backend.services.queue_service import QueueService
+
+
+MAX_HISTORY = 15
 
 
 class PlaybackService:
@@ -19,11 +23,11 @@ class PlaybackService:
         self,
         session_repo: SessionRepository,
         queue_service: QueueService,
-        queue_history_service: QueueHistoryService,
+        queue_history_repo: QueueHistoryRepository,
     ) -> None:
         self._session_repo = session_repo
         self._queue_service = queue_service
-        self._queue_history_service = queue_history_service
+        self._queue_history_repo = queue_history_repo
 
     def finish_song(self, session_id: UUID) -> PlaybackStatus:
         """Advance to the next song after one finishes.
@@ -36,9 +40,7 @@ class PlaybackService:
         """
         current_item = self._queue_service.get_current_song(session_id)
         if current_item is not None:
-            self._queue_history_service.add_to_history(
-                session_id=session_id, song_id=current_item.song_id
-            )
+            self._record_history(session_id, current_item.song_id)
             self._queue_service.remove_from_queue(current_item.id)
 
         self._session_repo.update(
@@ -46,3 +48,9 @@ class PlaybackService:
         )
 
         return PlaybackStatus.FINISHED
+
+    def _record_history(self, session_id: UUID, song_id: UUID) -> None:
+        """Record a played song in history and prune old entries."""
+        entry = QueueHistory(session_id=session_id, song_id=song_id)
+        self._queue_history_repo.create(entry)
+        self._queue_history_repo.delete_oldest(session_id, keep=MAX_HISTORY)
