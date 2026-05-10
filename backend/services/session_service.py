@@ -11,7 +11,7 @@ from backend.repositories.session_repo import SessionRepository
 from backend.schemas.session import CreateSession, UpdateSession
 
 if TYPE_CHECKING:
-    from backend.services.queue_history_service import QueueHistoryService
+    from backend.services.playback_service import PlaybackService
     from backend.services.queue_service import QueueService
 
 
@@ -22,18 +22,18 @@ class SessionService:
         self,
         session_repo: SessionRepository,
         queue_service: Optional[QueueService] = None,
-        history_service: Optional[QueueHistoryService] = None,
+        playback_service: Optional[PlaybackService] = None,
     ) -> None:
         """Initialize the SessionService with a session repository.
 
         Args:
             session_repo (SessionRepository): Repository for session operations.
             queue_service (Optional[QueueService]): Queue management service.
-            history_service (Optional[QueueHistoryService]): History service.
+            playback_service (Optional[PlaybackService]): Playback orchestrator service.
         """
         self._session_repo = session_repo
         self._queue_service = queue_service
-        self._history_service = history_service
+        self._playback_service = playback_service
     def get_session(self, session_id: UUID) -> SessionModel:
         """Retrieve a specific session by its ID.
 
@@ -107,15 +107,12 @@ class SessionService:
         return updated_session
 
     def _handle_finished(self, session_id: UUID) -> None:
-        """Handle song completion: record history and advance the queue."""
-        if not self._queue_service or not self._history_service:
+        """Handle song completion by delegating to the playback service."""
+        if not self._playback_service:
             # Skip in tests or when services aren't injected
             return
 
-        current = self._queue_service.get_current_song(session_id)
-        if current:
-            self._history_service.add_to_history(session_id, current.song_id)
-            self._queue_service.remove_from_queue(current.id)
+        self._playback_service.finish_song(session_id)
 
     def delete_session(self, session_id: UUID) -> None:
         """Delete a session from the system.
