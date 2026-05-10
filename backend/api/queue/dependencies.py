@@ -9,7 +9,6 @@ from backend.db.database import get_session
 from backend.repositories.queue_history_repo import QueueHistoryRepository
 from backend.repositories.queue_repo import QueueRepository
 from backend.repositories.queue_vote_repo import QueueVoteRepository
-from backend.services.queue_history_service import QueueHistoryService
 from backend.services.queue_service import QueueService
 
 
