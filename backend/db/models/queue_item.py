@@ -7,6 +7,8 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
+from backend.db.models.enum import ItemStatus
+
 if TYPE_CHECKING:
     from backend.db.models.queue_vote import QueueVote
     from backend.db.models.session import Session
@@ -54,6 +56,11 @@ class QueueItem(SQLModel, table=True):
         default="playlist",
         nullable=False,
         description="Queue group: 'manual' or 'playlist'",
+    )
+    playback_status: ItemStatus = Field(
+        default=ItemStatus.QUEUED,
+        nullable=False,
+        description="Lifecycle state of this queue item",
     )
 
     # Relations

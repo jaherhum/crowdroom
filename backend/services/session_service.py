@@ -1,11 +1,12 @@
 """Service for managing sessions and their playback state."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from backend.core.exceptions import EntityNotFoundException
-from backend.db.models.enum import PlaybackStatus
 from backend.db.models.session import Session as SessionModel
 from backend.repositories.session_repo import SessionRepository
 from backend.schemas.session import CreateSession, UpdateSession
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class SessionService:
-    """Service for managing sessions and their playback state."""
+    """Service for managing sessions."""
 
     def __init__(
         self,
@@ -34,6 +35,7 @@ class SessionService:
         self._session_repo = session_repo
         self._queue_service = queue_service
         self._playback_service = playback_service
+
     def get_session(self, session_id: UUID) -> SessionModel:
         """Retrieve a specific session by its ID.
 
@@ -72,7 +74,6 @@ class SessionService:
         new_session = SessionModel(
             room_id=session_data.room_id,
             current_platform=session_data.current_platform,
-            playback_status=session_data.playback_status,
             last_updated=datetime.now(),
         )
         return self._session_repo.create(new_session)
@@ -99,20 +100,7 @@ class SessionService:
         updated_session = self._session_repo.update(session_id, update_data)
         if not updated_session:
             raise EntityNotFoundException("Session", session_id)
-
-        # Reactive state hook: trigger history/advance logic on FINISHED state
-        if updated_session.playback_status == PlaybackStatus.FINISHED:
-            self._handle_finished(session_id)
-
         return updated_session
-
-    def _handle_finished(self, session_id: UUID) -> None:
-        """Handle song completion by delegating to the playback service."""
-        if not self._playback_service:
-            # Skip in tests or when services aren't injected
-            return
-
-        self._playback_service.finish_song(session_id)
 
     def delete_session(self, session_id: UUID) -> None:
         """Delete a session from the system.

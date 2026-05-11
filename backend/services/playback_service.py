@@ -2,21 +2,20 @@
 
 from uuid import UUID
 
-from backend.db.models.enum import PlaybackStatus
+from backend.db.models.enum import ItemStatus
 from backend.db.models.queue_history import QueueHistory
 from backend.repositories.queue_history_repo import QueueHistoryRepository
 from backend.repositories.session_repo import SessionRepository
 from backend.services.queue_service import QueueService
 
-
 MAX_HISTORY = 15
 
 
 class PlaybackService:
-    """Orchestrates playback transitions between session state and queue management.
+    """Orchestrates playback transitions between queue item states and history.
 
     When a song finishes (natural end or skip), this service records it in history,
-    removes it from the queue, and updates the session state to FINISHED.
+    removes it from the queue, and updates the queue item state.
     """
 
     def __init__(
@@ -29,25 +28,28 @@ class PlaybackService:
         self._queue_service = queue_service
         self._queue_history_repo = queue_history_repo
 
-    def finish_song(self, session_id: UUID) -> PlaybackStatus:
+    def finish_song(self, session_id: UUID) -> str:
         """Advance to the next song after one finishes.
 
-        Records the current song in history, removes it from the queue, and
-        sets playback status to FINISHED.
+        Records the current song in history, updates its status to FINISHED,
+        and removes it from the queue.
+
+        Args:
+            session_id: The session whose playback is finishing.
 
         Returns:
-            PlaybackStatus: The new session playback status (always FINISHED).
+            str: "finished" to indicate the operation completed.
         """
         current_item = self._queue_service.get_current_song(session_id)
         if current_item is not None:
+            # Mark item as finished before removing from queue
+            current_item.playback_status = ItemStatus.FINISHED
+            self._session_repo.update(current_item.session_id, {})
+
             self._record_history(session_id, current_item.song_id)
             self._queue_service.remove_from_queue(current_item.id)
 
-        self._session_repo.update(
-            session_id, {"playback_status": PlaybackStatus.FINISHED}
-        )
-
-        return PlaybackStatus.FINISHED
+        return "finished"
 
     def _record_history(self, session_id: UUID, song_id: UUID) -> None:
         """Record a played song in history and prune old entries."""

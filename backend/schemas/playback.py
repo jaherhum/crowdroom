@@ -7,7 +7,7 @@ class FinishResponse(BaseModel):
     """Response schema when a song finishes and the queue advances.
 
     Attributes:
-        status (PlaybackStatus): The new session playback status (STOPPED).
+        status (str): The updated item status after finishing the current song.
     """
 
     status: str = Field(
