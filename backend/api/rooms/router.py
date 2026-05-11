@@ -4,7 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from backend.api.rooms.dependencies import get_room_service
+from backend.api.queue.dependencies import get_queue_history_repo
+from backend.api.rooms.dependencies import get_room_service, get_session_repo
+from backend.core.exceptions import EntityNotFoundException
+from backend.repositories.queue_history_repo import QueueHistoryRepository
+from backend.schemas.queue_history import ReadQueueHistory
 from backend.schemas.room import CreateRoom, ReadRoom, UpdateRoom
 from backend.services.room_service import RoomService
 
@@ -91,3 +95,36 @@ async def delete_room(
         room_service (RoomService): The injected room service.
     """
     room_service.delete_room(room_id)
+
+
+@router.get(
+    "/{room_id}/history/",
+    response_model=list[ReadQueueHistory],
+    status_code=status.HTTP_200_OK,
+)
+async def get_room_history(
+    room_id: UUID,
+    limit: int = 15,
+    session_repo=Depends(get_session_repo),
+    queue_history_repo: QueueHistoryRepository = Depends(get_queue_history_repo),
+) -> list[ReadQueueHistory]:
+    """Get playback history for a room, ordered newest first.
+
+    Resolves the unique session associated with the room and returns up to
+    ``limit`` recent history entries. Returns 404 if the room has no session.
+
+    Args:
+        room_id (UUID): The unique identifier of the room.
+        limit (int): Maximum number of history entries to return. Defaults to 15.
+        session_repo: Session repository from DI.
+        queue_history_repo: Queue history repository from DI.
+
+    Returns:
+        list[ReadQueueHistory]: The room's playback history entries.
+    """
+    session = session_repo.get_by_room(room_id)
+    if session is None:
+        raise EntityNotFoundException(entity_name="Session")
+
+    history_entries = queue_history_repo.get_by_session(session.id, limit=limit)
+    return [ReadQueueHistory.model_validate(entry) for entry in history_entries]
