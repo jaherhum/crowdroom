@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
-from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
+from backend.db.models.enum import StreamingPlatforms
 
 if TYPE_CHECKING:
     from backend.db.models.queue_history import QueueHistory
@@ -26,7 +26,6 @@ class Session(SQLModel, table=True):
         room_id (UUID): Foreign key referencing the Room this session belongs to.
         current_platform (StreamingPlatforms): The streaming service in use.
         current_song_id (str, optional): The external ID of the song being played.
-        playback_status (PlaybackStatus): The current state of playback.
         last_updated (datetime): Timestamp of the last session state update.
         room (Room): Relationship to the parent Room.
         queue_items (list[QueueItem]): List of items currently in the queue.
@@ -40,9 +39,6 @@ class Session(SQLModel, table=True):
         default=StreamingPlatforms.SPOTIFY, nullable=False
     )
     current_song_id: Optional[str] = Field(default=None, nullable=True)
-    playback_status: PlaybackStatus = Field(
-        default=PlaybackStatus.STOPPED, nullable=False
-    )
 
     last_updated: datetime = Field(default_factory=datetime.now, nullable=False)
 

@@ -24,30 +24,6 @@ def get_session_repo(session: DBSession = Depends(get_session)) -> SessionReposi
     return SessionRepository(session)
 
 
-def get_session_service(
-    session_repo: SessionRepository = Depends(get_session_repo),
-    queue_service: QueueService = Depends(get_queue_service),
-    playback_service: PlaybackService | None = None,
-) -> SessionService:
-    """Dependency that provides a SessionService instance."""
-    return SessionService(
-        session_repo=session_repo,
-        queue_service=queue_service,
-        playback_service=playback_service,
-    )
-
-
-def get_queue_vote_service(
-    queue_vote_repo: QueueVoteRepository = Depends(get_queue_vote_repo),
-    session_service: SessionService = Depends(get_session_service),
-) -> QueueVoteService:
-    """Dependency that provides a QueueVoteService instance."""
-    return QueueVoteService(
-        queue_vote_repo=queue_vote_repo,
-        session_service=session_service,
-    )
-
-
 def get_playback_service(
     session_repo: SessionRepository = Depends(get_session_repo),
     queue_service=Depends(get_queue_service),
@@ -58,4 +34,28 @@ def get_playback_service(
         session_repo=session_repo,
         queue_service=queue_service,
         queue_history_repo=queue_history_repo,
+    )
+
+
+def get_queue_vote_service(
+    queue_vote_repo: QueueVoteRepository = Depends(get_queue_vote_repo),
+    playback_service: PlaybackService = Depends(get_playback_service),
+) -> QueueVoteService:
+    """Dependency that provides a QueueVoteService instance."""
+    return QueueVoteService(
+        queue_vote_repo=queue_vote_repo,
+        playback_service=playback_service,
+    )
+
+
+def get_session_service(
+    session_repo: SessionRepository = Depends(get_session_repo),
+    queue_service: QueueService = Depends(get_queue_service),
+    playback_service: PlaybackService | None = None,
+) -> SessionService:
+    """Dependency that provides a SessionService instance."""
+    return SessionService(
+        session_repo=session_repo,
+        queue_service=queue_service,
+        playback_service=playback_service,
     )

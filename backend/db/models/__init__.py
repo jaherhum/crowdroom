@@ -1,7 +1,7 @@
 """Database models for the application."""
 
 from backend.db.models.enum import (
-    PlaybackStatus as PlaybackStatus,
+    ItemStatus as ItemStatus,
 )
 from backend.db.models.enum import (
     StreamingPlatforms as StreamingPlatforms,

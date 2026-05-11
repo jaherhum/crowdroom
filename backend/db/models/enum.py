@@ -10,13 +10,18 @@ class StreamingPlatforms(str, Enum):
     TIDAL = "tidal"
 
 
-class PlaybackStatus(str, Enum):
-    """Represents the current playback state of a music session."""
+class ItemStatus(str, Enum):
+    """Lifecycle state of a queue item and playback status in one unified enum.
 
-    BUFFERING = "buffering"
+    Transitions: QUEUED → NOW_PLAYING → PLAYING → PAUSED/STOPPED/BUFFERING/FINISHED
+    """
+
+    QUEUED = "queued"
+    NOW_PLAYING = "now_playing"
     PLAYING = "playing"
     PAUSED = "paused"
     STOPPED = "stopped"
+    BUFFERING = "buffering"
     ERROR = "error"
     FINISHED = "finished"
 

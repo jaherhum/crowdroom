@@ -6,10 +6,9 @@ from typing import Optional
 from uuid import UUID
 
 from backend.core.exceptions import EntityExistsException
-from backend.db.models.enum import PlaybackStatus
 from backend.db.models.queue_vote import QueueVote
 from backend.repositories.queue_vote_repo import QueueVoteRepository
-from backend.services.session_service import SessionService
+from backend.services.playback_service import PlaybackService
 
 
 class QueueVoteService:
@@ -18,10 +17,10 @@ class QueueVoteService:
     def __init__(
         self,
         queue_vote_repo: QueueVoteRepository,
-        session_service: Optional[SessionService] = None,
+        playback_service: Optional[PlaybackService] = None,
     ) -> None:
         self._repo = queue_vote_repo
-        self._session_service = session_service
+        self._playback_service = playback_service
 
     def cast_vote(self, queue_item_id: UUID, user_id: UUID) -> QueueVote:
         """Cast a skip vote. Raises if user already voted."""
@@ -35,7 +34,7 @@ class QueueVoteService:
         saved_vote = self._repo.create(vote)
 
         # Check threshold and trigger skip if met
-        if self._session_service:
+        if self._playback_service:
             self._check_skip_threshold(saved_vote)
 
         return saved_vote
@@ -43,10 +42,8 @@ class QueueVoteService:
     def _check_skip_threshold(self, vote_obj: QueueVote) -> None:
         """Check if votes meet the room's skip threshold.
 
-        If so, mark song as FINISHED to trigger history recording.
+        If so, trigger finish_song to record history and advance queue.
         """
-        from backend.schemas.session import UpdateSession
-
         queue_item = vote_obj.queue_item
         session_obj = queue_item.session
         if not session_obj:
@@ -59,10 +56,7 @@ class QueueVoteService:
 
         current_votes = self._repo.count_by_item(vote_obj.queue_item_id)
         if current_votes >= threshold:
-            self._session_service.update_session(
-                session_obj.id,
-                UpdateSession(playback_status=PlaybackStatus.FINISHED),
-            )
+            self._playback_service.finish_song(session_obj.id)
 
     def vote_count(self, queue_item_id: UUID) -> int:
         """Get the number of votes for a queue item."""
