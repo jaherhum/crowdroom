@@ -51,7 +51,7 @@ def get_queue_vote_service(
 def get_session_service(
     session_repo: SessionRepository = Depends(get_session_repo),
     queue_service: QueueService = Depends(get_queue_service),
-    playback_service: PlaybackService | None = None,
+    playback_service = None,  # type: ignore[assignment]
 ) -> SessionService:
     """Dependency that provides a SessionService instance."""
     return SessionService(
