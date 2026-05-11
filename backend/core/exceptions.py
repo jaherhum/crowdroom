@@ -16,55 +16,56 @@ class AppException(Exception):
 class EntityNotFoundException(AppException):
     """Exception raised when a requested entity is not found in the database.
 
+    Supports two calling patterns:
+        - Full form: EntityNotFoundException("User", user_id)
+        - Generic:   EntityNotFoundException() — no entity specified
+
     Attributes:
-        entity_name (str): The name of the entity type (e.g., 'User').
+        entity_name (str): The name of the entity type.
         entity_id (str | UUID): The unique identifier of the missing entity.
     """
 
-    def __init__(self, entity_name: str, entity_id: str | UUID):
+    def __init__(
+        self,
+        entity_name: str = "",
+        entity_id: str | UUID = "",
+    ):
         """Initializes the exception with entity name and ID.
 
         Args:
-            entity_name (str): The name of the entity type.
-            entity_id (str | UUID): The unique identifier of the missing entity.
+            entity_name: The entity type (e.g., "User"). Empty for generic 404.
+            entity_id: The missing entity's ID. Ignored if entity_name is empty.
         """
         self.entity_name = entity_name
         self.entity_id = entity_id
-        super().__init__(f"Entity {entity_name} with ID {entity_id} not found")
+        if entity_name:
+            super().__init__(f"Entity {entity_name} with ID {entity_id} not found")
+        else:
+            super().__init__("Entity not found")
 
 
 class EntityExistsException(AppException):
     """Exception raised when a requested entity already exists in the database.
 
-    Attributes:
-        entity_name (str): The name of the entity type (e.g., 'User').
-    """
-
-    def __init__(self, entity_name: str):
-        """Initializes the exception with entity name.
-
-        Args:
-            entity_name (str): The name of the entity type.
-        """
-        self.entity_name = entity_name
-        super().__init__(f"Entity {entity_name} already exists")
-
-
-class EntityDoesNotExistException(AppException):
-    """Exception raised when a requested entity does not exist in the database.
+    Supports two calling patterns:
+        - Full form: EntityExistsException("User") — entity type specified
+        - Generic:   EntityExistsException() — no entity specified
 
     Attributes:
-        entity_name (str): The name of the entity type (e.g., 'User').
+        entity_name (str): The name of the entity type.
     """
 
-    def __init__(self, entity_name: str):
-        """Initializes the exception with entity name.
+    def __init__(self, entity_name: str = ""):
+        """Initializes the exception with an optional entity name.
 
         Args:
-            entity_name (str): The name of the entity type.
+            entity_name: The entity type (e.g., "User"). Empty for generic 409.
         """
         self.entity_name = entity_name
-        super().__init__(f"Entity {entity_name} does not exist")
+        if entity_name:
+            super().__init__(f"Entity {entity_name} already exists")
+        else:
+            super().__init__("Entity already exists")
 
 
 class InvalidCredentialsException(AppException):
