@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from unittest.mock import MagicMock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
@@ -35,7 +35,9 @@ class TestPlaybackService:
 
     # -- finish_song --
 
-    def test_finish_records_history_and_removes(self, playback_service, mock_queue_service):
+    def test_finish_records_history_and_removes(
+        self, playback_service, mock_queue_service
+    ):
         """finish_song marks item as FINISHED, records history, removes from queue."""
         session_id = uuid4()
         song_id = uuid4()
@@ -70,7 +72,8 @@ class TestPlaybackService:
         playback_service._record_history(session_id, song_id)
 
         history_repo = playback_service._queue_history_repo
-        # Verify create was called with a QueueHistory having the correct session and song
+        # Verify create was called with a QueueHistory
+        # having the correct session and song
         create_call = history_repo.create.call_args
         assert create_call is not None
         actual_entry = create_call[0][0]
@@ -105,8 +108,13 @@ class TestQueueHistoryRepository:
 
     def test_get_by_session_returns_newest_first(self, repo, mock_session):
         session_id = uuid4()
-        newest = QueueHistory(session_id=session_id, song_id=uuid4(), played_at=datetime.now())
-        oldest = QueueHistory(session_id=session_id, song_id=uuid4(), played_at=datetime(2025, 1, 1))
+        now = datetime.now()
+        newest = QueueHistory(
+            session_id=session_id, song_id=uuid4(), played_at=now
+        )
+        oldest = QueueHistory(
+            session_id=session_id, song_id=uuid4(), played_at=datetime(2025, 1, 1)
+        )
 
         mock_exec = MagicMock()
         mock_exec.all.return_value = [newest, oldest]
@@ -129,9 +137,12 @@ class TestQueueHistoryRepository:
     # -- delete_oldest (FIFO eviction) --
 
     def test_delete_oldest_when_exceeds_limit(self, repo, mock_session):
-        old_entry1 = QueueHistory(session_id=uuid4(), song_id=uuid4())
-        old_entry2 = QueueHistory(session_id=old_entry1.session_id, song_id=uuid4())
-        newest = QueueHistory(session_id=old_entry1.session_id, song_id=uuid4())
+        old_entry1 = QueueHistory(
+            session_id=uuid4(), song_id=uuid4()
+        )
+        old_entry2 = QueueHistory(
+            session_id=old_entry1.session_id, song_id=uuid4()
+        )
 
         mock_exec = MagicMock()
         mock_exec.all.return_value = [old_entry1, old_entry2]
