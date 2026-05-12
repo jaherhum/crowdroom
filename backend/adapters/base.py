@@ -1,3 +1,4 @@
+import time
 from abc import ABC
 from typing import Any
 
@@ -6,6 +7,8 @@ import httpx
 
 
 class StreamingPlatformAdapter(ABC):
+    _default_headers: dict[str, str] = {}
+
     def __init__(self, cache_ttl: int = 86400, session: httpx.AsyncClient | None =
     None, rate_limit_delay: float = 0.5):
         """
@@ -21,6 +24,20 @@ class StreamingPlatformAdapter(ABC):
 
     async def _request(self, url: str, **kwargs):
         await asyncio.sleep(self.rate_limit_delay)
-        response = await self._session.get(url, **kwargs)
+        response = await self._session.get(url, headers=self._default_headers, **kwargs)
         response.raise_for_status()
         return await response.aread()
+
+    async def _cached_request(self, key: str, url: str, **kwargs):
+        entry = self._cache.get(key)
+        if entry is not None:
+            expires_at, data = entry
+            if time.time() < expires_at:
+                return data
+        expires_at = time.time() + self.cache_ttl
+        req = self._request(url, **kwargs)
+        data = await req
+        self._cache[key] = (expires_at, data)
+        return data
+
+
