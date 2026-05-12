@@ -13,21 +13,24 @@ class MusicBrainzAdapter(StreamingPlatformAdapter):
         super().__init__(session=session, rate_limit_delay=rate_limit_delay)
 
     async def search(self, query: str, limit: int = 20):
-        data = await self._request(
+        data = await self._cached_request(
+            f"search:{query}:{limit}",
             f"{self.BASE_URL}/search",
             params={"query": query, "type": "recording", "limit": limit},
         )
         return json.loads(data).get("recordings", [])
 
     async def get_by_mbid(self, mbid: str):
-        data = await self._request(
+        data = await self._cached_request(
+            f"mbid:{mbid}",
             f"{self.BASE_URL}/recording/{mbid}",
         )
         result = json.loads(data)
         return result if result.get("id") else None
 
     async def get_by_isrc(self, isrc: str):
-        xml = await self._request(
+        xml = await self._cached_request(
+            f"isrc:{isrc}",
             f"{self.BASE_URL}/isrclookup/recording",
             params={"isrc": isrc},
         )

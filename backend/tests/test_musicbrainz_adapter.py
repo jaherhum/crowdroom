@@ -138,6 +138,20 @@ class TestMusicBrainzAdapter:
 
             assert mock_get.call_count == 2
 
+    def test_caching_returns_stored_data_on_second_call(self):
+        """_cached_request() should not call _request if data is cached."""
+        adapter = MusicBrainzAdapter()
+        with patch.object(adapter, "_request", new_callable=AsyncMock) as mock_req:
+            mock_req.return_value = json.dumps({"recordings": [{"id": "x"}]}).encode()
+
+            # First call — no cache yet
+            anyio.run(adapter.search, "cached test")
+            assert mock_req.call_count == 1
+
+            # Second call with same key — should use cache
+            anyio.run(adapter.search, "cached test")
+            assert mock_req.call_count == 1  # still 1, not 2
+
 
 class TestStreamingPlatformAdapter:
     """Tests for the base StreamingPlatformAdapter class."""
