@@ -6,15 +6,14 @@ from fastapi import APIRouter, Depends, status
 
 from backend.api.auth.dependencies import get_current_user
 from backend.api.queue.dependencies import (
-    get_queue_history_service,
+    get_queue_history_repo,
     get_queue_service,
-    get_queue_vote_service,
 )
+from backend.api.session.dependencies import get_queue_vote_service
 from backend.db.models.user import User
 from backend.schemas.queue_history import ReadQueueHistory
 from backend.schemas.queue_item import CreateQueueItem, ReadQueueItem
 from backend.schemas.queue_vote import CreateQueueVote, ReadQueueVote
-from backend.services.queue_history_service import QueueHistoryService
 from backend.services.queue_service import QueueService
 from backend.services.queue_vote_service import QueueVoteService
 
@@ -93,8 +92,8 @@ def vote_skip(
 def get_history(
     session_id: UUID,
     limit: int = 15,
-    queue_history_service: QueueHistoryService = Depends(get_queue_history_service),
+    queue_history_repo=Depends(get_queue_history_repo),
 ) -> list[ReadQueueHistory]:
     """Get playback history for a session."""
-    entries = queue_history_service.get_history(session_id, limit=limit)
+    entries = queue_history_repo.get_by_session(session_id, limit=limit)
     return [ReadQueueHistory.model_validate(entry) for entry in entries]

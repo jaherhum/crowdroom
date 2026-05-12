@@ -112,7 +112,7 @@ def _ensure_seed_data(pg_engine):
     Seed 50 Songs so all add-to-queue threads have valid FK references.
     Cached globally. Returns (session_id, seed_song_ids_list).
     """
-    from backend.db.models.enum import PlaybackStatus, StreamingPlatforms
+    from backend.db.models.enum import StreamingPlatforms
     from backend.db.models.room import Room
     from backend.db.models.session import Session as SessionModel
     from backend.db.models.song import Song
@@ -134,7 +134,6 @@ def _ensure_seed_data(pg_engine):
                 id=sid,
                 room_id=room_id,
                 current_platform=StreamingPlatforms.SPOTIFY,
-                playback_status=PlaybackStatus.STOPPED,
             )
             s.add(sess)
             for i, song_uid in enumerate(seed_song_ids):
