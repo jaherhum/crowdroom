@@ -1,9 +1,11 @@
 import time
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any
 
 import asyncio
 import httpx
+
+from schemas.song_metadata import ReadSongMetadata
 
 
 class StreamingPlatformAdapter(ABC):
@@ -21,6 +23,18 @@ class StreamingPlatformAdapter(ABC):
         self._session = session or httpx.AsyncClient()
 
         self.rate_limit_delay = rate_limit_delay
+
+    @abstractmethod
+    async def search(self, isrc: str | None, query: str) -> list[ReadSongMetadata]:
+        pass
+
+    @abstractmethod
+    async def get_metadata(self, external_id: str) -> ReadSongMetadata | None:
+        pass
+
+    @abstractmethod
+    async def get_track_uri(self, external_id: str) -> str | None:
+        pass
 
     async def _request(self, url: str, **kwargs):
         await asyncio.sleep(self.rate_limit_delay)
