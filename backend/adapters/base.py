@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import asyncio
 import httpx
 
-from adapters.cache import InMemoryCache, PlatformCache
-from schemas.song_metadata import ReadSongMetadata
+from backend.adapters.cache import InMemoryCache, PlatformCache
+from backend.schemas.song_metadata import ReadSongMetadata
 
 
 class StreamingPlatformAdapter(ABC):

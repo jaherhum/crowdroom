@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from db.models import StreamingPlatforms
+from backend.db.models import StreamingPlatforms
 
 
 class ReadSongMetadata(BaseModel):
