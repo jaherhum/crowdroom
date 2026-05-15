@@ -14,10 +14,15 @@ class QueueHistoryRepository:
     """Data access layer for playback history."""
 
     def __init__(self, session: DBSession) -> None:
+        """Initialize the QueueHistoryRepository with a database session.
+
+        Args:
+            session: Database session for all CRUD operations.
+        """
         self._session = session
 
     def create(self, history: QueueHistory) -> QueueHistory:
-        """Create a new playback history entry.
+        """Persist a new playback history entry to the database.
 
         Raises:
             IntegrityError: If a unique constraint is violated.
@@ -34,7 +39,15 @@ class QueueHistoryRepository:
     def get_all_by_session(
         self, session_id: UUID, limit: int = 15
     ) -> list[QueueHistory]:
-        """Retrieve history for a session, newest first."""
+        """Retrieve playback history for a session, ordered newest first.
+
+        Args:
+            session_id: The session whose history to retrieve.
+            limit: Maximum number of entries to return (default 15).
+
+        Returns:
+            A list of QueueHistory records ordered by played_at descending.
+        """
         stmt = (
             select(QueueHistory)
             .where(QueueHistory.session_id == session_id)
@@ -44,12 +57,24 @@ class QueueHistoryRepository:
         return self._session.exec(stmt).all()
 
     def count_by_session(self, session_id: UUID) -> int:
-        """Count total history entries for a session."""
+        """Count total playback history entries for a session.
+
+        Args:
+            session_id: The session whose history to count.
+
+        Returns:
+            The number of history records for the given session.
+        """
         stmt = select(func.count()).where(QueueHistory.session_id == session_id)
         return self._session.exec(stmt).one()
 
     def delete_oldest(self, session_id: UUID, keep: int = 15) -> None:
-        """Prune old history entries, keeping the newest keep entries."""
+        """Remove excess playback history, preserving only the most recent entries.
+
+        Args:
+            session_id: The session whose history to prune.
+            keep: Number of newest entries to retain (default 15).
+        """
         stmt = (
             select(QueueHistory)
             .where(QueueHistory.session_id == session_id)
@@ -67,7 +92,15 @@ class QueueHistoryRepository:
                 raise
 
     def get_by_session(self, session_id: UUID, limit: int = 15) -> list[QueueHistory]:
-        """Retrieve history for a session, newest first."""
+        """Retrieve playback history for a session, ordered newest first.
+
+        Args:
+            session_id: The session whose history to retrieve.
+            limit: Maximum number of entries to return (default 15).
+
+        Returns:
+            A list of QueueHistory records ordered by played_at descending.
+        """
         stmt = (
             select(QueueHistory)
             .where(QueueHistory.session_id == session_id)

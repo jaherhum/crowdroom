@@ -14,7 +14,11 @@ class RoomService:
     """Service for managing chat rooms and their associated data."""
 
     def __init__(self, room_repo: RoomRepository) -> None:
-        """Initialize the RoomService with a repository."""
+        """Initialize the RoomService with its repository.
+
+        Args:
+            room_repo: Repository for all room data operations.
+        """
         self._room_repo = room_repo
 
     def get_room(self, room_id: UUID) -> Room:

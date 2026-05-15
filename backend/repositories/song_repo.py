@@ -13,7 +13,11 @@ class SongRepository:
     """Handles database operations for Songs."""
 
     def __init__(self, session: DBSession):
-        """Initializes the repository with a database session."""
+        """Initialize the SongRepository with a database session.
+
+        Args:
+            session: Database session for all CRUD operations on songs.
+        """
         self._session = session
 
     def create(self, song: Song) -> Song:
