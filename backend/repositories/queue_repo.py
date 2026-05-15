@@ -11,7 +11,18 @@ from backend.db.models import QueueItem
 
 
 def _get_dialect_name(session: DBSession) -> str:
-    """Detect the database dialect from a session's bound engine."""
+    """Determine the active database dialect (sqlite, postgresql, etc).
+
+    Inspects the session's bound engine to identify which database backend
+    is in use. Falls back to checking the connection URL string, and
+    finally to assuming SQLite.
+
+    Args:
+        session: Database session with an active engine connection.
+
+    Returns:
+        A lowercase string identifying the database dialect name.
+    """
     bind = session.get_bind()
     if bind is not None:
         return bind.dialect.name
@@ -28,7 +39,20 @@ def _get_dialect_name(session: DBSession) -> str:
 def _make_lock(
     session: DBSession, session_id: UUID | None = None, group: str | None = None
 ):
-    """Create an appropriate queue lock for the current database dialect."""
+    """Return a context-managed queue lock suitable for the active database.
+
+    SQLite uses BEGIN IMMEDIATE (file-level lock). PostgreSQL uses
+    pg_advisory_xact_lock (application-level lock) with an MD5-derived
+    key for uniqueness per session and group.
+
+    Args:
+        session: Database session for executing the lock query.
+        session_id: Optional UUID identifying the session.
+        group: Optional queue group name for lock key derivation.
+
+    Returns:
+        A context manager implementing SQLiteQueueLock or PGQueueLock.
+    """
     dialect = _get_dialect_name(session)
 
     if dialect == "postgresql":
@@ -46,10 +70,15 @@ class QueueRepository:
     """Data access layer for queue items."""
 
     def __init__(self, session: DBSession) -> None:
+        """Initialize the QueueRepository with a database session.
+
+        Args:
+            session: Database session for all CRUD operations.
+        """
         self._session = session
 
     def create(self, queue_item: QueueItem) -> QueueItem:
-        """Create a new queue item.
+        """Persist a new queue item to the database.
 
         Raises:
             IntegrityError: If unique constraint violated (duplicate position).
@@ -129,7 +158,14 @@ class QueueRepository:
             return queue_item
 
     def get_by_id(self, queue_item_id: UUID) -> QueueItem | None:
-        """Retrieve a queue item by its ID."""
+        """Fetch a single queue item by its primary key.
+
+        Args:
+            queue_item_id: The UUID of the queue item to retrieve.
+
+        Returns:
+            The QueueItem if found, otherwise None.
+        """
         return self._session.get(QueueItem, queue_item_id)
 
     def get_all_by_session(self, session_id: UUID) -> list[QueueItem]:
@@ -158,7 +194,14 @@ class QueueRepository:
         return self._session.exec(stmt).one()
 
     def get_first_item(self, session_id: UUID) -> QueueItem | None:
-        """Get the first item (position 0) in a session's queue."""
+        """Retrieve the currently playing song (position 0) for a session.
+
+        Args:
+            session_id: The session whose current song to retrieve.
+
+        Returns:
+            The QueueItem at position 0, or None if no item exists.
+        """
         stmt = select(QueueItem).where(
             QueueItem.session_id == session_id,
             QueueItem.position == 0,
@@ -168,7 +211,15 @@ class QueueRepository:
     def get_by_session_and_position(
         self, session_id: UUID, position: int
     ) -> QueueItem | None:
-        """Get a queue item at a specific position within a session."""
+        """Fetch a queue item at a specific position within a session.
+
+        Args:
+            session_id: The session to search within.
+            position: The zero-based index of the item to retrieve.
+
+        Returns:
+            The QueueItem at the given position, or None if not found.
+        """
         stmt = select(QueueItem).where(
             QueueItem.session_id == session_id,
             QueueItem.position == position,
@@ -176,6 +227,13 @@ class QueueRepository:
         return self._session.exec(stmt).first()
 
     def count_by_session(self, session_id: UUID) -> int:
-        """Count the total number of items in a session's queue."""
+        """Count all queue items belonging to a session.
+
+        Args:
+            session_id: The session whose queue to count items for.
+
+        Returns:
+            The total number of queue items in the session.
+        """
         stmt = select(func.count()).where(QueueItem.session_id == session_id)
         return self._session.exec(stmt).one()

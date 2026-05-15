@@ -24,6 +24,13 @@ class PlaybackService:
         queue_service: QueueService,
         queue_history_repo: QueueHistoryRepository,
     ) -> None:
+        """Initialize the PlaybackService with its dependencies.
+
+        Args:
+            session_repo: Repository for updating playback state.
+            queue_service: Service for retrieving and removing queue items.
+            queue_history_repo: Repository for recording finished songs.
+        """
         self._session_repo = session_repo
         self._queue_service = queue_service
         self._queue_history_repo = queue_history_repo
@@ -52,7 +59,15 @@ class PlaybackService:
         return "finished"
 
     def _record_history(self, session_id: UUID, song_id: UUID) -> None:
-        """Record a played song in history and prune old entries."""
+        """Persist a finished song to playback history and enforce size limit.
+
+        Creates a new QueueHistory entry and prunes the oldest records if
+        the total exceeds MAX_HISTORY (15 entries).
+
+        Args:
+            session_id: The session in which the song was played.
+            song_id: The song that was just finished.
+        """
         entry = QueueHistory(session_id=session_id, song_id=song_id)
         self._queue_history_repo.create(entry)
         self._queue_history_repo.delete_oldest(session_id, keep=MAX_HISTORY)

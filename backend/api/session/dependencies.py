@@ -20,7 +20,14 @@ from backend.services.session_service import SessionService
 
 
 def get_session_repo(session: DBSession = Depends(get_session)) -> SessionRepository:
-    """Dependency that provides a SessionRepository instance."""
+    """Provide a SessionRepository bound to the current database session.
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A SessionRepository instance for session data access.
+    """
     return SessionRepository(session)
 
 
@@ -29,7 +36,19 @@ def get_playback_service(
     queue_service=Depends(get_queue_service),
     queue_history_repo=Depends(get_queue_history_repo),
 ) -> PlaybackService:
-    """Dependency that provides a PlaybackService instance."""
+    """Provide a PlaybackService wired with its required dependencies.
+
+    Constructs the service with session repository, queue service for
+    song management, and queue history repository for recording playback.
+
+    Args:
+        session_repo: SessionRepository from dependency injection.
+        queue_service: QueueService from dependency injection.
+        queue_history_repo: QueueHistoryRepository from dependency injection.
+
+    Returns:
+        A fully wired PlaybackService instance.
+    """
     return PlaybackService(
         session_repo=session_repo,
         queue_service=queue_service,
@@ -41,7 +60,15 @@ def get_queue_vote_service(
     queue_vote_repo: QueueVoteRepository = Depends(get_queue_vote_repo),
     playback_service: PlaybackService = Depends(get_playback_service),
 ) -> QueueVoteService:
-    """Dependency that provides a QueueVoteService instance."""
+    """Provide a QueueVoteService wired with its required dependencies.
+
+    Args:
+        queue_vote_repo: QueueVoteRepository from dependency injection.
+        playback_service: PlaybackService for threshold-based skip checks.
+
+    Returns:
+        A fully wired QueueVoteService instance.
+    """
     return QueueVoteService(
         queue_vote_repo=queue_vote_repo,
         playback_service=playback_service,
@@ -53,7 +80,16 @@ def get_session_service(
     queue_service: QueueService = Depends(get_queue_service),
     playback_service = None,  # type: ignore[assignment]
 ) -> SessionService:
-    """Dependency that provides a SessionService instance."""
+    """Provide a SessionService wired with its required dependencies.
+
+    Args:
+        session_repo: SessionRepository from dependency injection.
+        queue_service: QueueService from dependency injection.
+        playback_service: Optional PlaybackService for playback-aware behavior.
+
+    Returns:
+        A fully wired SessionService instance.
+    """
     return SessionService(
         session_repo=session_repo,
         queue_service=queue_service,

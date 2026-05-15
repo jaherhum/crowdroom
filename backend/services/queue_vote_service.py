@@ -19,11 +19,32 @@ class QueueVoteService:
         queue_vote_repo: QueueVoteRepository,
         playback_service: Optional[PlaybackService] = None,
     ) -> None:
+        """Initialize the QueueVoteService with its dependencies.
+
+        Args:
+            queue_vote_repo: Repository for persisting and querying votes.
+            playback_service: Optional PlaybackService for threshold-based skip.
+        """
         self._repo = queue_vote_repo
         self._playback_service = playback_service
 
     def cast_vote(self, queue_item_id: UUID, user_id: UUID) -> QueueVote:
-        """Cast a skip vote. Raises if user already voted."""
+        """Cast a skip vote for a specific queue item.
+
+        Rejects duplicate votes from the same user on the same queue item.
+        If the total vote count reaches the room's skip threshold (via
+        PlaybackService), triggers the finish_song flow to advance playback.
+
+        Args:
+            queue_item_id: UUID of the queue item to vote on.
+            user_id: UUID of the user casting the vote.
+
+        Returns:
+            The newly saved QueueVote instance.
+
+        Raises:
+            EntityExistsException: If the user already voted on this item.
+        """
         existing = self._repo.get_by_item_and_user(queue_item_id, user_id)
         if existing:
             raise EntityExistsException(
@@ -40,9 +61,18 @@ class QueueVoteService:
         return saved_vote
 
     def _check_skip_threshold(self, vote_obj: QueueVote) -> None:
-        """Check if votes meet the room's skip threshold.
+        """Verify whether votes on a queue item meet the room's skip threshold.
 
-        If so, trigger finish_song to record history and advance queue.
+        Looks up the room's configured skip_threshold setting and compares
+        it against the current vote count. If the threshold is met or
+        exceeded, triggers finish_song to advance playback.
+
+        This is an internal method that safely returns without action if
+        any part of the lookup chain (queue item, session, room, settings)
+        is missing.
+
+        Args:
+            vote_obj: The QueueVote whose associated item's votes to evaluate.
         """
         queue_item = vote_obj.queue_item
         session_obj = queue_item.session
@@ -59,5 +89,12 @@ class QueueVoteService:
             self._playback_service.finish_song(session_obj.id)
 
     def vote_count(self, queue_item_id: UUID) -> int:
-        """Get the number of votes for a queue item."""
+        """Return the total number of skip votes for a queue item.
+
+        Args:
+            queue_item_id: UUID of the queue item to count votes for.
+
+        Returns:
+            The number of votes cast on this queue item.
+        """
         return self._repo.count_by_item(queue_item_id)
