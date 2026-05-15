@@ -13,7 +13,11 @@ class RoomRepository:
     """Handles database operations for Rooms."""
 
     def __init__(self, session: DBSession):
-        """Initializes the repository with a database session."""
+        """Initialize the RoomRepository with a database session.
+
+        Args:
+            session: Database session for all CRUD operations on rooms.
+        """
         self._session = session
 
     def create(self, room: Room) -> Room:

@@ -12,7 +12,12 @@ class AuthService:
     """Service for handling user authentication and registration."""
 
     def __init__(self, user_service: UserService, security_service: SecurityService):
-        """Initializes the AuthService with required services."""
+        """Initialize the AuthService with its dependencies.
+
+        Args:
+            user_service: UserService for user lookups and management.
+            security_service: SecurityService for JWT and password operations.
+        """
         self._user_service = user_service
         self._security_service = security_service
 

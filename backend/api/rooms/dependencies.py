@@ -12,17 +12,36 @@ from backend.services.room_service import RoomService
 
 
 def get_room_repo(session: DBSession = Depends(get_session)) -> RoomRepository:
-    """Dependency that provides a RoomRepository instance."""
-    return RoomRepository(session)
+    """Provide a RoomRepository bound to the current database session.
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A RoomRepository instance for room data access.
+    """
 
 
 def get_session_repo(session: DBSession = Depends(get_session)) -> SessionRepository:
-    """Dependency that provides a SessionRepository instance."""
-    return SessionRepository(session)
+    """Provide a SessionRepository bound to the current database session.
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A SessionRepository instance for session data access.
+    """
 
 
 def get_room_service(
     room_repo: RoomRepository = Depends(get_room_repo),
 ) -> RoomService:
-    """Dependency that provides a RoomService instance."""
+    """Provide a RoomService wired with its required dependencies.
+
+    Args:
+        room_repo: RoomRepository from dependency injection.
+
+    Returns:
+        A RoomService instance for room business logic.
+    """
     return RoomService(room_repo)

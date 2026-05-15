@@ -9,12 +9,25 @@ from backend.services.song_service import SongService
 
 
 def get_song_repo(session: AsyncSession = Depends(get_session)) -> SongRepository:
-    """Dependency that provides a SongRepository instance."""
-    return SongRepository(session)
+    """Provide a SongRepository bound to the current database session.
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A SongRepository instance for song data access.
+    """
 
 
 def get_song_service(
     song_repo: SongRepository = Depends(get_song_repo),
 ) -> SongService:
-    """Dependency that provides a SongService instance."""
+    """Provide a SongService wired with its required dependencies.
+
+    Args:
+        song_repo: SongRepository from dependency injection.
+
+    Returns:
+        A SongService instance for song business logic.
+    """
     return SongService(song_repo)

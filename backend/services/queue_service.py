@@ -15,6 +15,11 @@ class QueueService:
     """
 
     def __init__(self, queue_repo: QueueRepository) -> None:
+        """Initialize the QueueService with its repository.
+
+        Args:
+            queue_repo: Repository for all queue data operations.
+        """
         self._queue_repo = queue_repo
 
     def add_to_queue(

@@ -22,7 +22,12 @@ class UserService:
     """
 
     def __init__(self, user_repo: UserRepository, security_service: SecurityService):
-        """Initializes the UserService with required repository and security service."""
+        """Initialize the UserService with its dependencies.
+
+        Args:
+            user_repo: Repository for all user data operations.
+            security_service: Service for password hashing and JWT operations.
+        """
         self._user_repo: UserRepository = user_repo
         self._security_service: SecurityService = security_service
 
