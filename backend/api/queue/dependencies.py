@@ -13,26 +13,53 @@ from backend.services.queue_service import QueueService
 
 
 def get_queue_repo(session: DBSession = Depends(get_session)) -> QueueRepository:
-    """Dependency that provides a QueueRepository instance."""
+    """Provide a QueueRepository bound to the current database session.
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A QueueRepository instance for queue item data access.
+    """
     return QueueRepository(session)
 
 
 def get_queue_service(
     queue_repo: QueueRepository = Depends(get_queue_repo),
 ) -> QueueService:
-    """Dependency that provides a QueueService instance."""
+    """Provide a QueueService wired with its required dependencies.
+
+    Args:
+        queue_repo: QueueRepository from dependency injection.
+
+    Returns:
+        A QueueService instance for queue business logic.
+    """
     return QueueService(queue_repo)
 
 
 def get_queue_vote_repo(
     session: DBSession = Depends(get_session),
 ) -> QueueVoteRepository:
-    """Dependency that provides a QueueVoteRepository instance."""
-    return QueueVoteRepository(session)
+    """Provide a QueueVoteRepository bound to the current database session.
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A QueueVoteRepository instance for skip vote data access.
+    """
 
 
 def get_queue_history_repo(
     session: DBSession = Depends(get_session),
 ) -> QueueHistoryRepository:
-    """Dependency that provides a QueueHistoryRepository instance."""
+    """Provide a QueueHistoryRepository bound to the current database session.
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A QueueHistoryRepository instance for playback history data access.
+    """
     return QueueHistoryRepository(session)

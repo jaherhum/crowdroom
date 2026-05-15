@@ -10,7 +10,13 @@ class AppException(Exception):
         message (str): The error message.
     """
 
-    pass
+    def __init__(self, message: str) -> None:
+        """Base exception for all application-specific errors.
+
+        Args:
+            message: Human-readable error description.
+        """
+        super().__init__(message)
 
 
 class EntityNotFoundException(AppException):

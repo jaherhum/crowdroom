@@ -13,7 +13,11 @@ class SessionRepository:
     """Handles database operations for Sessions."""
 
     def __init__(self, db_session: DBSession):
-        """Initializes the repository with a database session."""
+        """Initialize the SessionRepository with a database session.
+
+        Args:
+            db_session: Database session for all CRUD operations on sessions.
+        """
         self._session = db_session
 
     def create(self, session: SessionModel) -> SessionModel:
