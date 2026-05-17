@@ -1,7 +1,5 @@
 """Authentication schemas for the API."""
 
-from typing import Optional
-
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
 
@@ -17,8 +15,8 @@ class RegisterRequest(BaseModel):
     """
 
     username: str = Field(..., description="The username.")
-    email: Optional[EmailStr] = Field(None, description="The email address.")
-    password: Optional[SecretStr] = Field(
+    email: EmailStr | None = Field(None, description="The email address.")
+    password: SecretStr | None = Field(
         None, description="The user plain text password."
     )
 

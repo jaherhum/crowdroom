@@ -1,6 +1,6 @@
 """Database model representing a musical track in the catalog."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Mapped
@@ -49,8 +49,8 @@ class Song(SQLModel, table=True):
         default=StreamingPlatforms.SPOTIFY, nullable=False
     )
     duration: float = Field(..., nullable=False)
-    album_art_url: Optional[str] = Field(default=None, nullable=True)
-    is_explicit: Optional[bool] = Field(default=None, nullable=True)
+    album_art_url: str | None = Field(default=None, nullable=True)
+    is_explicit: bool | None = Field(default=None, nullable=True)
 
     # Relations
     queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="song")

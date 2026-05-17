@@ -1,7 +1,7 @@
 """Database model representing an active music playback session."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Mapped
@@ -38,7 +38,7 @@ class Session(SQLModel, table=True):
     current_platform: StreamingPlatforms = Field(
         default=StreamingPlatforms.SPOTIFY, nullable=False
     )
-    current_song_id: Optional[str] = Field(default=None, nullable=True)
+    current_song_id: str | None = Field(default=None, nullable=True)
 
     last_updated: datetime = Field(default_factory=datetime.now, nullable=False)
 
