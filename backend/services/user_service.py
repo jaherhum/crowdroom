@@ -1,6 +1,5 @@
 """Service layer for managing user-related business logic."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from backend.core.exceptions import EntityNotFoundException
@@ -31,56 +30,56 @@ class UserService:
         self._user_repo: UserRepository = user_repo
         self._security_service: SecurityService = security_service
 
-    def get_all_users(self) -> List[UserRead]:
+    def get_all_users(self) -> list[UserRead]:
         """Retrieves all users.
 
         Returns:
-            List[UserRead]: A list of user schemas.
+            list[UserRead]: A list of user schemas.
         """
         users = self._user_repo.get_all()
         return [UserRead.model_validate(user) for user in users]
 
-    def get_by_id(self, user_id: UUID) -> Optional[User]:
+    def get_by_id(self, user_id: UUID) -> User | None:
         """Retrieves a user by their unique ID.
 
         Args:
             user_id (UUID): The unique identifier of the user.
 
         Returns:
-            Optional[User]: The user model if found, otherwise None.
+            User | None: The user model if found, otherwise None.
         """
         return self._user_repo.get_by_id(user_id)
 
-    def get_by_email(self, email: str) -> Optional[User]:
+    def get_by_email(self, email: str) -> User | None:
         """Retrieves a user by their email.
 
         Args:
             email (str): The email address to search for.
 
         Returns:
-            Optional[User]: The user model if found, otherwise None.
+            User | None: The user model if found, otherwise None.
         """
         return self._user_repo.get_by_email(email)
 
-    def get_by_username(self, username: str) -> Optional[User]:
+    def get_by_username(self, username: str) -> User | None:
         """Retrieves a user by their username.
 
         Args:
             username (str): The username to search for.
 
         Returns:
-            Optional[User]: The user model if found, otherwise None.
+            User | None: The user model if found, otherwise None.
         """
         return self._user_repo.get_by_username(username)
 
-    def get_by_identifier(self, identifier: str) -> Optional[User]:
+    def get_by_identifier(self, identifier: str) -> User | None:
         """Retrieves a user by either username or email.
 
         Args:
             identifier (str): The username or email to search for.
 
         Returns:
-            Optional[User]: The user model if found, otherwise None.
+            User | None: The user model if found, otherwise None.
         """
         user = self._user_repo.get_by_identifier(identifier)
         return UserRead.model_validate(user) if user else None

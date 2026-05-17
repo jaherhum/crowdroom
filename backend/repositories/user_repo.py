@@ -1,6 +1,5 @@
 """Repository for user data access."""
 
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -35,38 +34,38 @@ class UserRepository:
         """
         return list(self._db_session.exec(select(User)).all())
 
-    def get_by_id(self, user_id: UUID) -> Optional[User]:
+    def get_by_id(self, user_id: UUID) -> User | None:
         """Retrieves a user by their unique ID.
 
         Args:
             user_id (UUID): The ID of the user to retrieve.
 
         Returns:
-            Optional[User]: The User object if found, otherwise None.
+            User | None: The User object if found, otherwise None.
         """
         return self._db_session.get(User, user_id)
 
-    def get_by_email(self, email: str) -> Optional[User]:
+    def get_by_email(self, email: str) -> User | None:
         """Retrieves a user by their email address.
 
         Args:
             email (str): The email address to search for.
 
         Returns:
-            Optional[User]: The User object if found, otherwise None.
+            User | None: The User object if found, otherwise None.
         """
         return self._db_session.exec(
             select(User).where(User.email == email.lower())
         ).first()
 
-    def get_by_username(self, username: str) -> Optional[User]:
+    def get_by_username(self, username: str) -> User | None:
         """Retrieves a user by their username.
 
         Args:
             username (str): The username to search for.
 
         Returns:
-            Optional[User]: The User object if found, otherwise None.
+            User | None: The User object if found, otherwise None.
         """
         return self._db_session.exec(
             select(User).where(User.username == username.lower())

@@ -1,6 +1,5 @@
 """Song schemas for the API."""
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,8 +16,8 @@ class CreateSong(BaseModel):
         artist (str): The name of the artist or band.
         platform (StreamingPlatforms): The streaming service the song was fetched from.
         duration (float): The duration of the song in seconds.
-        album_art_url (Optional[str]): The URL pointing to the album artwork.
-        is_explicit (Optional[bool]): Flag indicating explicit content.
+        album_art_url (str | None): The URL pointing to the album artwork.
+        is_explicit (bool | None): Flag indicating explicit content.
     """
 
     external_id: str = Field(
@@ -31,10 +30,10 @@ class CreateSong(BaseModel):
         description="The streaming service the song was fetched from.",
     )
     duration: float = Field(..., description="The duration of the song in seconds.")
-    album_art_url: Optional[str] = Field(
+    album_art_url: str | None = Field(
         None, description="The URL pointing to the album artwork."
     )
-    is_explicit: Optional[bool] = Field(
+    is_explicit: bool | None = Field(
         None, description="Flag indicating if the content is marked as explicit."
     )
 
@@ -43,22 +42,22 @@ class UpdateSong(BaseModel):
     """Schema for updating an existing song.
 
     Attributes:
-        title (Optional[str]): The full title of the song.
-        artist (Optional[str]): The name of the artist or band.
-        duration (Optional[float]): The duration of the song in seconds.
-        album_art_url (Optional[str]): The URL pointing to the album artwork.
-        is_explicit (Optional[bool]): Flag indicating explicit content.
+        title (str | None): The full title of the song.
+        artist (str | None): The name of the artist or band.
+        duration (float | None): The duration of the song in seconds.
+        album_art_url (str | None): The URL pointing to the album artwork.
+        is_explicit (bool | None): Flag indicating explicit content.
     """
 
-    title: Optional[str] = Field(None, description="The full title of the song.")
-    artist: Optional[str] = Field(None, description="The name of the artist or band.")
-    duration: Optional[float] = Field(
+    title: str | None = Field(None, description="The full title of the song.")
+    artist: str | None = Field(None, description="The name of the artist or band.")
+    duration: float | None = Field(
         None, description="The duration of the song in seconds."
     )
-    album_art_url: Optional[str] = Field(
+    album_art_url: str | None = Field(
         None, description="The URL pointing to the album artwork."
     )
-    is_explicit: Optional[bool] = Field(
+    is_explicit: bool | None = Field(
         None, description="Flag indicating if the content is marked as explicit."
     )
 
@@ -73,8 +72,8 @@ class ReadSong(BaseModel):
         artist (str): The name of the performing artist or group.
         platform (StreamingPlatforms): The streaming service of origin.
         duration (float): The total length of the song in seconds.
-        album_art_url (Optional[str]): The URL to the cover art image.
-        is_explicit (Optional[bool]): Indicates explicit content.
+        album_art_url (str | None): The URL to the cover art image.
+        is_explicit (bool | None): Indicates explicit content.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -89,7 +88,7 @@ class ReadSong(BaseModel):
         ..., description="The streaming service of origin."
     )
     duration: float = Field(..., description="The total length in seconds.")
-    album_art_url: Optional[str] = Field(
+    album_art_url: str | None = Field(
         None, description="The URL to the cover art image."
     )
-    is_explicit: Optional[bool] = Field(None, description="Indicates explicit content.")
+    is_explicit: bool | None = Field(None, description="Indicates explicit content.")

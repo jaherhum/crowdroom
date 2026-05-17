@@ -1,6 +1,5 @@
 """Service for managing chat rooms and their associated data."""
 
-from typing import List
 from uuid import UUID
 
 from backend.api.websocket import manager
@@ -38,11 +37,11 @@ class RoomService:
             raise EntityNotFoundException("Room", room_id)
         return room
 
-    def get_all_rooms(self) -> List[Room]:
+    def get_all_rooms(self) -> list[Room]:
         """Retrieve all rooms.
 
         Returns:
-            List[Room]: A list of all rooms.
+            list[Room]: A list of all rooms.
         """
         rooms = self._room_repo.get_all()
         return rooms

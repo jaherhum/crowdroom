@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from backend.core.exceptions import EntityExistsException
@@ -17,7 +16,7 @@ class QueueVoteService:
     def __init__(
         self,
         queue_vote_repo: QueueVoteRepository,
-        playback_service: Optional[PlaybackService] = None,
+        playback_service: PlaybackService | None = None,
     ) -> None:
         """Initialize the QueueVoteService with its dependencies.
 
