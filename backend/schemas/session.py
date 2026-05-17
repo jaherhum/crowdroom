@@ -1,7 +1,6 @@
 """Session schemas for the API."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -30,7 +29,7 @@ class ReadSession(BaseModel):
         id (UUID): The unique identifier of the session.
         room_id (UUID): The identifier of the room this session belongs to.
         current_platform (StreamingPlatforms): The streaming service currently active.
-        current_song_id (Optional[str]): The ID of the song currently playing.
+        current_song_id (str | None): The ID of the song currently playing.
         last_updated (datetime): The timestamp of the last session update.
     """
 
@@ -43,7 +42,7 @@ class ReadSession(BaseModel):
     current_platform: StreamingPlatforms = Field(
         ..., description="The streaming platform currently in use."
     )
-    current_song_id: Optional[str] = Field(
+    current_song_id: str | None = Field(
         None, description="The ID of the song currently being played."
     )
     last_updated: datetime = Field(
@@ -55,9 +54,9 @@ class UpdateSession(BaseModel):
     """Schema for updating an existing session's state. All fields are optional.
 
     Attributes:
-        current_song_id (Optional[str]): The new song ID to be played.
+        current_song_id (str | None): The new song ID to be played.
     """
 
-    current_song_id: Optional[str] = Field(
+    current_song_id: str | None = Field(
         None, description="The ID of the new song to play."
     )

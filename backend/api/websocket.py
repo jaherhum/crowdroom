@@ -1,6 +1,6 @@
 """WebSocket communication routes for the API."""
 
-from typing import Any, Dict, Set
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -17,7 +17,7 @@ class ConnectionManager:
         connections, populated lazily as clients connect.
         """
         # Maps room_id (str) -> set of active WebSockets
-        self.active_connections: Dict[str, Set[WebSocket]] = {}
+        self.active_connections: dict[str, set[WebSocket]] = {}
 
     async def connect(
         self, websocket: WebSocket, room_id: str
@@ -54,7 +54,7 @@ class ConnectionManager:
                 del self.active_connections[room_id]
 
     async def broadcast(
-        self, message: Dict[str, Any], room_id: str
+        self, message: dict[str, Any], room_id: str
     ) -> None:
         """Send a message to every WebSocket client in a room.
 
@@ -77,7 +77,7 @@ class ConnectionManager:
                 await asyncio.gather(*tasks)
 
     async def _safe_send(
-        self, connection: WebSocket, message: Dict[str, Any]
+        self, connection: WebSocket, message: dict[str, Any]
     ) -> None:
         """Send a JSON message to a single WebSocket connection.
 

@@ -1,6 +1,6 @@
 """Room schemas for the API."""
 
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,7 +15,7 @@ class WelcomeMessage(BaseModel):
     """
 
     title: str = Field(..., description="Title of the welcome message.", max_length=50)
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None, description="Set a description for the welcome message.", max_length=100
     )
 
@@ -55,7 +55,7 @@ class ReadRoom(BaseModel):
     is_private: bool = Field(
         ..., description="Whether if the room is private or public."
     )
-    settings: Dict[str, Any] = Field(
+    settings: dict[str, Any] = Field(
         default_factory=dict, description="Room configuration settings."
     )
 
@@ -69,11 +69,11 @@ class UpdateRoom(BaseModel):
         settings (Optional[Dict[str, Any]]): The new settings for the room.
     """
 
-    room_name: Optional[str] = Field(None, description="Room's name.", max_length=255)
-    is_private: Optional[bool] = Field(
+    room_name: str | None = Field(None, description="Room's name.", max_length=255)
+    is_private: bool | None = Field(
         None, description="Whether if the room is private or public."
     )
-    settings: Optional[Dict[str, Any]] = Field(
+    settings: dict[str, Any] | None = Field(
         None, description="Room's configuration settings."
     )
 
@@ -88,6 +88,6 @@ class RoomStateUpdate(BaseModel):
             "'settings_updated')."
         ),
     )
-    payload: Dict[str, Any] = Field(
+    payload: dict[str, Any] = Field(
         ..., description="The data associated with the update."
     )

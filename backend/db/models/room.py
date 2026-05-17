@@ -1,6 +1,6 @@
 """Database model representing a virtual meeting room."""
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Column
@@ -34,7 +34,7 @@ class Room(SQLModel, table=True):
     host_user_id: UUID = Field(foreign_key="users.id", nullable=False)
     room_name: str = Field(max_length=255, nullable=False)
     is_private: bool = Field(default=False, nullable=False)
-    settings: Dict[str, Any] = Field(
+    settings: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSON, nullable=False)
     )
 
@@ -43,4 +43,4 @@ class Room(SQLModel, table=True):
         back_populates="room",
         sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
     )
-    session: Optional["Session"] = Relationship(back_populates="room")
+    session: "Session | None" = Relationship(back_populates="room")

@@ -1,6 +1,6 @@
 """Database model for items in a music queue."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import UniqueConstraint
@@ -46,7 +46,7 @@ class QueueItem(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     session_id: UUID = Field(foreign_key="sessions.id", nullable=False)
     song_id: UUID = Field(foreign_key="songs.id", nullable=False)
-    added_by_user_id: Optional[UUID] = Field(
+    added_by_user_id: UUID | None = Field(
         default=None, foreign_key="users.id", nullable=True
     )
 
@@ -66,5 +66,5 @@ class QueueItem(SQLModel, table=True):
     # Relations
     song: "Song" = Relationship(back_populates="queue_items")
     session: "Session" = Relationship(back_populates="queue_items")
-    added_by: Optional["User"] = Relationship(back_populates="queue_items")
+    added_by: "User | None" = Relationship(back_populates="queue_items")
     queue_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="queue_item")
