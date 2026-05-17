@@ -1,6 +1,6 @@
 """Database model representing a User in the system."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Mapped
@@ -34,14 +34,14 @@ class User(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     username: str = Field(max_length=32, unique=True, nullable=False)
-    email: Optional[str] = Field(
+    email: str | None = Field(
         default=None, max_length=255, unique=True, nullable=True
     )
-    hashed_password: Optional[str] = Field(default=None, max_length=255, nullable=True)
-    room_id: Optional[UUID] = Field(default=None, foreign_key="rooms.id", nullable=True)
+    hashed_password: str | None = Field(default=None, max_length=255, nullable=True)
+    room_id: UUID | None = Field(default=None, foreign_key="rooms.id", nullable=True)
 
     # Relations
-    room: Optional["Room"] = Relationship(
+    room: "Room | None" = Relationship(
         back_populates="users",
         sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
     )

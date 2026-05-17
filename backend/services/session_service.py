@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from backend.core.exceptions import EntityNotFoundException
@@ -22,8 +22,8 @@ class SessionService:
     def __init__(
         self,
         session_repo: SessionRepository,
-        queue_service: Optional[QueueService] = None,
-        playback_service: Optional[PlaybackService] = None,
+        queue_service: QueueService | None = None,
+        playback_service: PlaybackService | None = None,
     ) -> None:
         """Initialize the SessionService with a session repository.
 

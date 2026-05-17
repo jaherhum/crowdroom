@@ -1,6 +1,5 @@
 """User schemas for the API."""
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
@@ -10,14 +9,14 @@ class UserBase(BaseModel):
     """Base schema for User attributes.
 
     Attributes:
-        username (Optional[str]): The unique username for the user.
-        email (Optional[EmailStr]): The user's email address.
+        username (str | None): The unique username for the user.
+        email (EmailStr | None): The user's email address.
     """
 
-    username: Optional[str] = Field(
+    username: str | None = Field(
         default=None, max_length=32, description="The unique username for the user."
     )
-    email: Optional[EmailStr] = Field(
+    email: EmailStr | None = Field(
         default=None, description="The user's email address."
     )
 
@@ -26,12 +25,12 @@ class UserCreate(UserBase):
     """Schema for creating a new User.
 
     Attributes:
-        username (Optional[str]): The unique username for the user.
-        email (Optional[EmailStr]): The user's email address.
-        password (Optional[SecretStr]): Plain text password to be hashed before storage.
+        username (str | None): The unique username for the user.
+        email (EmailStr | None): The user's email address.
+        password (SecretStr | None): Plain text password to be hashed before storage.
     """
 
-    password: Optional[SecretStr] = Field(
+    password: SecretStr | None = Field(
         default=None,
         min_length=8,
         max_length=255,
@@ -43,18 +42,18 @@ class UserUpdate(BaseModel):
     """Schema for updating an existing User. All fields are optional.
 
     Attributes:
-        username (Optional[str]): The new username for the user.
-        email (Optional[EmailStr]): The new email address.
-        password (Optional[SecretStr]): The new plain text password to be hashed.
+        username (str | None): The new username for the user.
+        email (EmailStr | None): The new email address.
+        password (SecretStr | None): The new plain text password to be hashed.
     """
 
-    username: Optional[str] = Field(
+    username: str | None = Field(
         None,
         max_length=32,
         description="The new username for the user.",
     )
-    email: Optional[EmailStr] = Field(None, description="The new email address.")
-    password: Optional[SecretStr] = Field(
+    email: EmailStr | None = Field(None, description="The new email address.")
+    password: SecretStr | None = Field(
         None,
         min_length=8,
         max_length=255,
@@ -68,7 +67,7 @@ class UserRead(UserBase):
     Attributes:
         id (UUID): The unique identifier of the user.
         username (str): The unique username for the user.
-        email (Optional[EmailStr]): The user's email address.
+        email (EmailStr | None): The user's email address.
     """
 
     model_config = ConfigDict(from_attributes=True)

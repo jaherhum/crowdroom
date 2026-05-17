@@ -1,6 +1,5 @@
 """Queue item schemas for the API."""
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,7 +46,7 @@ class ReadQueueItem(BaseModel):
     song_id: UUID = Field(
         ..., description="The identifier of the song currently in the queue."
     )
-    added_by_user_id: Optional[UUID] = Field(
+    added_by_user_id: UUID | None = Field(
         None, description="The ID of the user who added the song."
     )
     position: int = Field(
