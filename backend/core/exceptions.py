@@ -84,3 +84,23 @@ class InvalidCredentialsException(AppException):
     def __init__(self):
         """Initializes the exception."""
         super().__init__("Invalid username/email or password.")
+
+
+class InvalidPlatformCredentialsException(AppException):
+    """Exception raised when streaming platform credentials are rejected.
+
+    Attributes:
+        platform (str): The platform that rejected the credentials.
+    """
+
+    def __init__(self, platform: str = ""):
+        """Initializes the exception.
+
+        Args:
+            platform: The platform name (e.g., "Spotify"). Empty for generic.
+        """
+        self.platform = platform
+        if platform:
+            super().__init__(f"{platform} rejected the provided credentials")
+        else:
+            super().__init__("Platform rejected the provided credentials")
