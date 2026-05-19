@@ -66,5 +66,5 @@ class QueueItem(SQLModel, table=True):
     # Relations
     song: "Song" = Relationship(back_populates="queue_items")
     session: "Session" = Relationship(back_populates="queue_items")
-    added_by: "User | None" = Relationship(back_populates="queue_items")
+    added_by: "User" = Relationship(back_populates="queue_items")
     queue_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="queue_item")

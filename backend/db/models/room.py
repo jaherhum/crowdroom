@@ -43,4 +43,4 @@ class Room(SQLModel, table=True):
         back_populates="room",
         sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
     )
-    session: "Session | None" = Relationship(back_populates="room")
+    session: "Session" = Relationship(back_populates="room")

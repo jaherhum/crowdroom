@@ -41,7 +41,7 @@ class User(SQLModel, table=True):
     room_id: UUID | None = Field(default=None, foreign_key="rooms.id", nullable=True)
 
     # Relations
-    room: "Room | None" = Relationship(
+    room: "Room" = Relationship(
         back_populates="users",
         sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
     )
