@@ -10,7 +10,10 @@ from backend.db.models import *  # noqa: F401,F403
 
 db_url = settings.DATABASE_URL
 
-connect_args = {"check_same_thread": False}
+connect_args = {}
+if settings.DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+
 engine = create_engine(db_url, connect_args=connect_args)
 
 
