@@ -17,6 +17,14 @@ class SpotifySearchAdapter(BaseAdapter):
     REQUIRED_CREDENTIALS: ClassVar[set[str]] = {"client_id", "client_secret"}
 
     def __init__(self, credentials: dict[str, str]) -> None:
+        """Initialize with Spotify app credentials.
+
+        Args:
+            credentials: Dict with ``client_id`` and ``client_secret``.
+
+        Raises:
+            ValueError: If required credential keys are missing.
+        """
         missing = self.REQUIRED_CREDENTIALS - credentials.keys()
         if missing:
             raise ValueError(f"Missing required credentials: {missing}")
@@ -27,19 +35,30 @@ class SpotifySearchAdapter(BaseAdapter):
         self._token_expiry: float = 0
 
     async def _get_access_token(self) -> str:
+        """Return a cached token or request a fresh one from Spotify."""
         if self._token and time.time() < self._token_expiry:
             return self._token
 
-        data = await request_token({
-            "client_id": self._client_id,
-            "client_secret": self._client_secret,
-        })
+        data = await request_token(
+            {
+                "client_id": self._client_id,
+                "client_secret": self._client_secret,
+            }
+        )
 
         self._token = data["access_token"]
         self._token_expiry = time.time() + data["expires_in"] - 60
         return self._token
 
     async def search(self, query: str | None = None) -> list[ReadSongMetadata]:
+        """Search Spotify for tracks matching the query.
+
+        Args:
+            query: Free-text search string.
+
+        Returns:
+            Up to 10 matching tracks as ReadSongMetadata.
+        """
         if not query:
             return []
 
@@ -59,6 +78,14 @@ class SpotifySearchAdapter(BaseAdapter):
         return [self._map_track(track) for track in tracks]
 
     async def get_metadata(self, external_id: str) -> ReadSongMetadata | None:
+        """Fetch full track metadata from Spotify by track ID.
+
+        Args:
+            external_id: Spotify track ID.
+
+        Returns:
+            Track metadata if found, None on non-200 response.
+        """
         token = await self._get_access_token()
 
         async with httpx.AsyncClient() as client:
@@ -73,10 +100,19 @@ class SpotifySearchAdapter(BaseAdapter):
         return self._map_track(response.json())
 
     async def get_track_uri(self, external_id: str) -> str | None:
+        """Resolve Spotify playback URI for a track.
+
+        Args:
+            external_id: Spotify track ID.
+
+        Returns:
+            URI in format ``spotify:track:{id}``.
+        """
         return f"spotify:track:{external_id}"
 
     @staticmethod
     def _map_track(track: dict) -> ReadSongMetadata:
+        """Convert a Spotify track JSON object to ReadSongMetadata."""
         images = track.get("album", {}).get("images", [])
         return ReadSongMetadata(
             title=track["name"],
