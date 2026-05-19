@@ -29,5 +29,5 @@ class SpotifyAuthAdapter:
                 data={"grant_type": "client_credentials"},
             )
             if response.status_code != 200:
-                raise InvalidPlatformCredentialsException("Spotify authorization failed")
+                raise InvalidPlatformCredentialsException("Spotify")
             return None
