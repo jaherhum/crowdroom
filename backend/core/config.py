@@ -39,9 +39,6 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # MusicBrainz API URL
-    MUSICBRAINZ_API_URL: str = "https://musicbrainz.org/ws/2"
-
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",
