@@ -1,4 +1,5 @@
-"""Utils for Spotify Adapter"""
+"""Shared utilities for Spotify API communication."""
+
 import base64
 
 import httpx
@@ -7,6 +8,18 @@ from backend.core.exceptions import InvalidPlatformCredentialsException
 
 
 async def request_token(credentials: dict[str, str]) -> dict:
+    """Request an access token via Spotify Client Credentials flow.
+
+    Args:
+        credentials: Dict with ``client_id`` and ``client_secret`` keys.
+
+    Returns:
+        Parsed JSON response containing ``access_token`` and ``expires_in``.
+
+    Raises:
+        InvalidPlatformCredentialsException: If keys are missing or Spotify
+            rejects the credentials.
+    """
     required = {"client_id", "client_secret"}
     missing = required - credentials.keys()
     if missing:
