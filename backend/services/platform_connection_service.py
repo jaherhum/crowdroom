@@ -1,12 +1,12 @@
 from uuid import UUID
 
-from adapters.spotify_auth_adapter import SpotifyAuthAdapter
+from backend.adapters.spotify_auth_adapter import SpotifyAuthAdapter
 from backend.repositories.platform_connection_repo import PlatformConnectionRepo
 from backend.schemas.platform_connection import CreatePlatformConnection
 from backend.db.models import PlatformConnection
-from core.encryption import encrypt_data, decrypt_data
-from core.exceptions import EntityNotFoundException
-from db.models import StreamingPlatforms
+from backend.core.encryption import encrypt_data, decrypt_data
+from backend.core.exceptions import EntityNotFoundException
+from backend.db.models import StreamingPlatforms
 
 
 class PlatformConnectionService:
