@@ -47,3 +47,4 @@ class User(SQLModel, table=True):
     )
     queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="added_by")
     user_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="user")
+    platform_connections: Mapped[list["PlatformConnection"]] = Relationship(back_populates="user")
