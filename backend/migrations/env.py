@@ -17,6 +17,7 @@ from backend.db.models import (  # noqa: F401
     Session,
     Song,
     User,
+    PlatformConnection,
 )
 
 # this is the Alembic Config object, which provides
