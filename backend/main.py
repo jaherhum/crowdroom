@@ -5,6 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from backend.api.auth.router import router as auth_router
+from backend.api.platform_connections.router import (
+    router as platform_connections_router,
+)
 from backend.api.queue.router import router as queue_router
 from backend.api.rooms.router import router as rooms_router
 from backend.api.search.router import router as search_router
@@ -27,6 +30,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+app.include_router(
+    platform_connections_router,
+    prefix=settings.API_V1_STR,
+    tags=["platform_connections"],
+)
 app.include_router(rooms_router, prefix=settings.API_V1_STR, tags=["rooms"])
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(queue_router, prefix=settings.API_V1_STR, tags=["queue"])
