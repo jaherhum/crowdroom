@@ -32,7 +32,7 @@ class MusicService:
         Returns:
             Configured adapter for the session's current platform.
         """
-        session = self._session_repo.get_by_id(room_id)
+        session = self._session_repo.get_by_room(room_id)
         room = self._room_repo.get_by_id(room_id)
         credentials = self._platform_connection_service.get_decrypted_credentials(
             room.host_user_id, session.current_platform
