@@ -10,6 +10,7 @@ from backend.core.config import settings
 
 # Import all models so SQLModel.metadata knows about all tables
 from backend.db.models import (  # noqa: F401
+    PlatformConnection,
     QueueHistory,
     QueueItem,
     QueueVote,
@@ -17,7 +18,6 @@ from backend.db.models import (  # noqa: F401
     Session,
     Song,
     User,
-    PlatformConnection,
 )
 
 # this is the Alembic Config object, which provides
