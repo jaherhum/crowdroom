@@ -3,7 +3,12 @@
 from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
-from backend.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from backend.schemas.auth import (
+    LocalLoginRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+)
 from backend.schemas.user import UserCreate, UserRead
 from backend.services.user_service import UserService
 
@@ -44,6 +49,29 @@ class AuthService:
             password=user_data.password,
         )
         return self._user_service.create_user(user_to_create)
+
+    def local_login(self, user_data: LocalLoginRequest) -> TokenResponse:
+        """Authenticate or auto-register a user by username only.
+
+        Args:
+            user_data: The schema containing the username.
+
+        Returns:
+            TokenResponse with access token.
+        """
+        username = user_data.username.strip().lower()
+        user = self._user_service.get_by_username(username)
+
+        if not user:
+            user_to_create = UserCreate(username=username, email=None, password=None)
+            user = self._user_service.create_user(user_to_create)
+
+        token = self._security_service.create_token(
+            token_type=TokenType.ACCESS,
+            data={"sub": str(user.id)},
+        )
+
+        return TokenResponse(access_token=token, token_type="bearer")
 
     def login_user(self, user_data: LoginRequest) -> TokenResponse:
         """Authenticates a user and returns a token.
