@@ -34,6 +34,16 @@ class LoginRequest(BaseModel):
     password: SecretStr = Field(..., description="The user plain text password.")
 
 
+class LocalLoginRequest(BaseModel):
+    """Request schema for LOCAL mode authentication.
+
+    Attributes:
+        username (str): The username to login or auto-register with.
+    """
+
+    username: str = Field(..., min_length=1, max_length=32, description="The username.")
+
+
 class TokenResponse(BaseModel):
     """Response schema for successful authentication.
 

@@ -1,9 +1,15 @@
 """Authentication routes for the API."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.auth.dependencies import get_auth_service
-from backend.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from backend.core.config import settings
+from backend.schemas.auth import (
+    LocalLoginRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+)
 from backend.schemas.user import UserRead
 from backend.services.auth_service import AuthService
 
@@ -42,3 +48,31 @@ def login(
         TokenResponse: The authentication token.
     """
     return auth_service.login_user(login_request)
+
+
+@router.post("/local-login", response_model=TokenResponse)
+def local_login(
+    login_request: LocalLoginRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> TokenResponse:
+    """Authenticate with username only (LOCAL mode).
+
+    Finds existing user or auto-creates one. No password required.
+    Disabled when AUTH_MODE=ONLINE.
+
+    Args:
+        login_request: The username to login with.
+        auth_service: The authentication service.
+
+    Returns:
+        TokenResponse: The authentication token.
+
+    Raises:
+        HTTPException: 404 if AUTH_MODE is not LOCAL.
+    """
+    if settings.AUTH_MODE != "LOCAL":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Endpoint not available in ONLINE mode",
+        )
+    return auth_service.local_login(login_request)

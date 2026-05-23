@@ -95,9 +95,15 @@ class UserService:
         """
         data = user_data.model_dump()
         plain_password = data.pop("password")
-        data["hashed_password"] = self._security_service.generate_password_hash(
-            password=plain_password
-        )
+
+        if plain_password:
+            data["hashed_password"] = (
+                self._security_service.generate_password_hash(
+                    password=plain_password
+                )
+            )
+        else:
+            data["hashed_password"] = None
 
         if data.get("email"):
             data["email"] = data["email"].lower()
