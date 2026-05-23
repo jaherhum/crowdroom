@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Metadata Cache
+    METADATA_CACHE_TTL_SECONDS: int = 86400
+    METADATA_CACHE_MAX_SIZE: int = 2048
+
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",
