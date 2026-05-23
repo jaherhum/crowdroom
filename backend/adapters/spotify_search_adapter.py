@@ -6,6 +6,7 @@ from typing import ClassVar
 import httpx
 
 from backend.adapters.base import BaseAdapter
+from backend.adapters.cache import get_cached_metadata, set_cached_metadata
 from backend.adapters.spotify_utils import request_token
 from backend.db.models.enum import StreamingPlatforms
 from backend.schemas.song_metadata import ReadSongMetadata
@@ -86,6 +87,13 @@ class SpotifySearchAdapter(BaseAdapter):
         Returns:
             Track metadata if found, None on non-200 response.
         """
+        cached_metadata = get_cached_metadata(
+            platform=StreamingPlatforms.SPOTIFY.value,
+            external_id=external_id,
+        )
+        if cached_metadata:
+            return cached_metadata
+
         token = await self._get_access_token()
 
         async with httpx.AsyncClient() as client:
@@ -97,7 +105,14 @@ class SpotifySearchAdapter(BaseAdapter):
         if response.status_code != 200:
             return None
 
-        return self._map_track(response.json())
+        metadata = self._map_track(response.json())
+
+        set_cached_metadata(
+            platform=StreamingPlatforms.SPOTIFY.value,
+            external_id=external_id, metadata=metadata,
+        )
+
+        return metadata
 
     async def get_track_uri(self, external_id: str) -> str | None:
         """Resolve Spotify playback URI for a track.
