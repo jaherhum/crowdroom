@@ -21,7 +21,7 @@ def register(
     register_request: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserRead:
-    """Registers a new user.
+    """Registers a new user (ONLINE mode only).
 
     Args:
         register_request (RegisterRequest): The registration details.
@@ -29,7 +29,15 @@ def register(
 
     Returns:
         UserRead: The newly created user.
+
+    Raises:
+        HTTPException: 404 if AUTH_MODE is LOCAL.
     """
+    if settings.AUTH_MODE != "ONLINE":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Endpoint not available in LOCAL mode",
+        )
     return auth_service.register_user(register_request)
 
 
@@ -38,7 +46,7 @@ def login(
     login_request: LoginRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
-    """Authenticates a user and returns a JWT token.
+    """Authenticates a user and returns a JWT token (ONLINE mode only).
 
     Args:
         login_request (LoginRequest): The login credentials.
@@ -46,7 +54,15 @@ def login(
 
     Returns:
         TokenResponse: The authentication token.
+
+    Raises:
+        HTTPException: 404 if AUTH_MODE is LOCAL.
     """
+    if settings.AUTH_MODE != "ONLINE":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Endpoint not available in LOCAL mode",
+        )
     return auth_service.login_user(login_request)
 
 
