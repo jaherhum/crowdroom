@@ -18,3 +18,4 @@ from .room import Room as Room
 from .session import Session as Session
 from .song import Song as Song
 from .user import User as User
+from .room_invite import RoomInvite as RoomInvite
