@@ -34,7 +34,12 @@ class TestMusicServiceSearch:
 
     @patch("backend.services.music_service.AdapterFactory")
     def test_search_resolves_credentials_and_delegates(
-        self, mock_factory, music_service, mock_platform_service, mock_room_repo, mock_session_repo
+        self,
+        mock_factory,
+        music_service,
+        mock_platform_service,
+        mock_room_repo,
+        mock_session_repo,
     ):
         room_id = uuid4()
         host_id = uuid4()
@@ -48,7 +53,8 @@ class TestMusicServiceSearch:
         mock_room_repo.get_by_id.return_value = mock_room
 
         mock_platform_service.get_decrypted_credentials.return_value = {
-            "client_id": "id", "client_secret": "secret"
+            "client_id": "id",
+            "client_secret": "secret",
         }
 
         mock_adapter = AsyncMock()
@@ -93,7 +99,12 @@ class TestMusicServiceGetMetadata:
 
     @patch("backend.services.music_service.AdapterFactory")
     def test_get_metadata_delegates_to_adapter(
-        self, mock_factory, music_service, mock_platform_service, mock_room_repo, mock_session_repo
+        self,
+        mock_factory,
+        music_service,
+        mock_platform_service,
+        mock_room_repo,
+        mock_session_repo,
     ):
         room_id = uuid4()
         host_id = uuid4()
@@ -107,7 +118,8 @@ class TestMusicServiceGetMetadata:
         mock_room_repo.get_by_id.return_value = mock_room
 
         mock_platform_service.get_decrypted_credentials.return_value = {
-            "client_id": "id", "client_secret": "secret"
+            "client_id": "id",
+            "client_secret": "secret",
         }
 
         expected_metadata = MagicMock(spec=ReadSongMetadata)
@@ -125,7 +137,12 @@ class TestMusicServiceGetMetadata:
 
     @patch("backend.services.music_service.AdapterFactory")
     def test_get_metadata_returns_none_when_not_found(
-        self, mock_factory, music_service, mock_platform_service, mock_room_repo, mock_session_repo
+        self,
+        mock_factory,
+        music_service,
+        mock_platform_service,
+        mock_room_repo,
+        mock_session_repo,
     ):
         room_id = uuid4()
 
@@ -138,7 +155,8 @@ class TestMusicServiceGetMetadata:
         mock_room_repo.get_by_id.return_value = mock_room
 
         mock_platform_service.get_decrypted_credentials.return_value = {
-            "client_id": "id", "client_secret": "secret"
+            "client_id": "id",
+            "client_secret": "secret",
         }
 
         mock_adapter = AsyncMock()
@@ -171,7 +189,12 @@ class TestMusicServiceGetTrackUri:
 
     @patch("backend.services.music_service.AdapterFactory")
     def test_get_track_uri_delegates_to_adapter(
-        self, mock_factory, music_service, mock_platform_service, mock_room_repo, mock_session_repo
+        self,
+        mock_factory,
+        music_service,
+        mock_platform_service,
+        mock_room_repo,
+        mock_session_repo,
     ):
         room_id = uuid4()
 
@@ -184,7 +207,8 @@ class TestMusicServiceGetTrackUri:
         mock_room_repo.get_by_id.return_value = mock_room
 
         mock_platform_service.get_decrypted_credentials.return_value = {
-            "client_id": "id", "client_secret": "secret"
+            "client_id": "id",
+            "client_secret": "secret",
         }
 
         mock_adapter = AsyncMock()
