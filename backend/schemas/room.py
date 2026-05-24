@@ -1,9 +1,9 @@
 """Room schemas for the API."""
-
+import re
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class WelcomeMessage(BaseModel):
@@ -34,7 +34,27 @@ class CreateRoom(BaseModel):
     is_private: bool = Field(
         default=False, description="Whether if the room is private or public."
     )
+    pin: str | None = Field(None, description="Pin of the room.")
+    is_visible: bool = Field(True, description="Whether if the room is visible.")
 
+    @field_validator("pin")
+    @classmethod
+    def validate_pin(cls, value: str | None) -> str | None:
+        """Validate PIN format: must be 4-6 digits if provided."""
+        if value is None:
+            return value
+        if not re.match(r"^\d{4,6}$", value):
+            raise ValueError("PIN must be 4-6 digits.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_model(self):
+        """Enforce PIN/privacy consistency rules."""
+        if self.is_private is True and self.pin is None:
+            raise ValueError("A private room needs a PIN.")
+        elif self.is_private is False and self.pin is not None:
+            raise ValueError("A public room can't have a PIN.")
+        return self
 
 class ReadRoom(BaseModel):
     """Schema for the room data returned by the API.
@@ -55,6 +75,7 @@ class ReadRoom(BaseModel):
     is_private: bool = Field(
         ..., description="Whether if the room is private or public."
     )
+    is_visible: bool = Field(..., description="Whether if the room is visible or not.")
     settings: dict[str, Any] = Field(
         default_factory=dict, description="Room configuration settings."
     )
@@ -73,10 +94,23 @@ class UpdateRoom(BaseModel):
     is_private: bool | None = Field(
         None, description="Whether if the room is private or public."
     )
+    pin: str | None = Field(None, description="Pin of the room.")
+    is_visible: bool | None = Field(
+        None, description="Whether if the room is visible or not."
+    )
     settings: dict[str, Any] | None = Field(
         None, description="Room's configuration settings."
     )
 
+    @field_validator("pin")
+    @classmethod
+    def validate_pin(cls, value: str | None) -> str | None:
+        """Validate PIN format: must be 4-6 digits if provided."""
+        if value is None:
+            return value
+        if not re.match(r"^\d{4,6}$", value):
+            raise ValueError("PIN must be 4-6 digits.")
+        return value
 
 class RoomStateUpdate(BaseModel):
     """Schema for real-time room state updates."""
