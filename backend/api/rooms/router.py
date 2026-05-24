@@ -30,6 +30,25 @@ async def get_rooms(
     return room_service.get_all_rooms()
 
 
+@router.get(
+    "/code/{room_code}", response_model=ReadRoom, status_code=status.HTTP_200_OK
+)
+async def get_room_by_code(
+    room_code: str,
+    room_service: RoomService = Depends(get_room_service),
+) -> ReadRoom:
+    """Retrieve a room by its unique sharing code.
+
+    Args:
+        room_code: The 6-character room code.
+        room_service: The injected room service.
+
+    Returns:
+        ReadRoom: The room schema.
+    """
+    return room_service.get_room_by_code(room_code)
+
+
 @router.get("/{room_id}", response_model=ReadRoom, status_code=status.HTTP_200_OK)
 async def get_room(
     room_id: UUID,

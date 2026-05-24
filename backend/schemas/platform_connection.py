@@ -19,7 +19,8 @@ class CreatePlatformConnection(BaseModel):
         ..., description="The streaming service to connect."
     )
     credentials: dict[str, str] = Field(
-        ..., description="Platform-specific credentials (e.g., client_id, client_secret)."
+        ...,
+        description="Platform-specific credentials (e.g., client_id, client_secret).",
     )
 
 

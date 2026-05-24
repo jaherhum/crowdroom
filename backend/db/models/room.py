@@ -36,6 +36,7 @@ class Room(SQLModel, table=True):
     is_private: bool = Field(default=False, nullable=False)
     pin_hash: str | None = Field(default=None, max_length=255, nullable=True)
     is_visible: bool = Field(default=True, nullable=False)
+    room_code: str = Field(max_length=6, nullable=False, index=True, unique=True)
     settings: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSON, nullable=False)
     )

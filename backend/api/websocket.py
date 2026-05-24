@@ -19,9 +19,7 @@ class ConnectionManager:
         # Maps room_id (str) -> set of active WebSockets
         self.active_connections: dict[str, set[WebSocket]] = {}
 
-    async def connect(
-        self, websocket: WebSocket, room_id: str
-    ) -> None:
+    async def connect(self, websocket: WebSocket, room_id: str) -> None:
         """Accept and register a new WebSocket connection for a room.
 
         Accepts the WebSocket upgrade handshake and adds the connection
@@ -36,9 +34,7 @@ class ConnectionManager:
             self.active_connections[room_id] = set()
         self.active_connections[room_id].add(websocket)
 
-    async def disconnect(
-        self, websocket: WebSocket, room_id: str
-    ) -> None:
+    async def disconnect(self, websocket: WebSocket, room_id: str) -> None:
         """Remove a WebSocket connection from its room.
 
         Removes the connection from the room's active set and cleans up
@@ -53,9 +49,7 @@ class ConnectionManager:
             if not self.active_connections[room_id]:
                 del self.active_connections[room_id]
 
-    async def broadcast(
-        self, message: dict[str, Any], room_id: str
-    ) -> None:
+    async def broadcast(self, message: dict[str, Any], room_id: str) -> None:
         """Send a message to every WebSocket client in a room.
 
         Iterates over all active connections for the given room and sends
@@ -76,9 +70,7 @@ class ConnectionManager:
             if tasks:
                 await asyncio.gather(*tasks)
 
-    async def _safe_send(
-        self, connection: WebSocket, message: dict[str, Any]
-    ) -> None:
+    async def _safe_send(self, connection: WebSocket, message: dict[str, Any]) -> None:
         """Send a JSON message to a single WebSocket connection.
 
         Silently catches and swallows any exceptions that occur during send,

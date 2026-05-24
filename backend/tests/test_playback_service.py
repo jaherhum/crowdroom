@@ -109,9 +109,7 @@ class TestQueueHistoryRepository:
     def test_get_by_session_returns_newest_first(self, repo, mock_session):
         session_id = uuid4()
         now = datetime.now()
-        newest = QueueHistory(
-            session_id=session_id, song_id=uuid4(), played_at=now
-        )
+        newest = QueueHistory(session_id=session_id, song_id=uuid4(), played_at=now)
         oldest = QueueHistory(
             session_id=session_id, song_id=uuid4(), played_at=datetime(2025, 1, 1)
         )
@@ -137,12 +135,8 @@ class TestQueueHistoryRepository:
     # -- delete_oldest (FIFO eviction) --
 
     def test_delete_oldest_when_exceeds_limit(self, repo, mock_session):
-        old_entry1 = QueueHistory(
-            session_id=uuid4(), song_id=uuid4()
-        )
-        old_entry2 = QueueHistory(
-            session_id=old_entry1.session_id, song_id=uuid4()
-        )
+        old_entry1 = QueueHistory(session_id=uuid4(), song_id=uuid4())
+        old_entry2 = QueueHistory(session_id=old_entry1.session_id, song_id=uuid4())
 
         mock_exec = MagicMock()
         mock_exec.all.return_value = [old_entry1, old_entry2]

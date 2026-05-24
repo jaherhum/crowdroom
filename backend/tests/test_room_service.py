@@ -6,14 +6,16 @@ from uuid import uuid4
 
 import anyio
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from backend.api.websocket import manager
 from backend.core.exceptions import EntityNotFoundException
+from backend.core.room_code import CHARSET, ROOM_CODE_LENGTH
 from backend.core.security import SecurityService
 from backend.db.models.room import Room
 from backend.repositories.room_repo import RoomRepository
 from backend.schemas.room import CreateRoom, UpdateRoom
-from backend.services.room_service import RoomService
+from backend.services.room_service import MAX_CODE_RETRIES, RoomService
 
 
 class TestRoomService:
@@ -54,7 +56,9 @@ class TestRoomService:
         private_visible = MagicMock(spec=Room, is_private=True, is_visible=True)
         private_invisible = MagicMock(spec=Room, is_private=True, is_visible=False)
         mock_room_repo.get_all.return_value = [
-            public_room, private_visible, private_invisible
+            public_room,
+            private_visible,
+            private_invisible,
         ]
 
         result = room_service.get_all_rooms()
@@ -161,9 +165,7 @@ class TestRoomService:
     def test_create_public_room_no_pin_hash(
         self, room_service, mock_room_repo, mock_security_service
     ):
-        room_data = CreateRoom(
-            host_user_id=uuid4(), room_name="Open", is_private=False
-        )
+        room_data = CreateRoom(host_user_id=uuid4(), room_name="Open", is_private=False)
         mock_room_repo.create.return_value = MagicMock(spec=Room)
 
         with patch("backend.services.room_service.Room") as mock_room_cls:
@@ -176,9 +178,7 @@ class TestRoomService:
 
     def test_create_private_room_without_pin_rejected(self):
         with pytest.raises(ValueError, match="private room needs a PIN"):
-            CreateRoom(
-                host_user_id=uuid4(), room_name="Bad", is_private=True
-            )
+            CreateRoom(host_user_id=uuid4(), room_name="Bad", is_private=True)
 
     def test_create_public_room_with_pin_rejected(self):
         with pytest.raises(ValueError, match="public room can't have a PIN"):
@@ -289,3 +289,63 @@ class TestRoomService:
         mock_room_repo.get_by_id.return_value = mock_room
 
         assert room_service.verify_pin(room_id, "anything") is True
+
+    def test_create_room_generates_room_code(self, room_service, mock_room_repo):
+        room_data = CreateRoom(
+            host_user_id=uuid4(), room_name="Coded Room", is_private=False
+        )
+        mock_room_repo.create.side_effect = lambda room: room
+
+        result = room_service.create_room(room_data)
+
+        assert len(result.room_code) == ROOM_CODE_LENGTH
+        assert all(char in CHARSET for char in result.room_code)
+
+    def test_create_room_retries_on_collision(self, room_service, mock_room_repo):
+        room_data = CreateRoom(
+            host_user_id=uuid4(), room_name="Retry Room", is_private=False
+        )
+        mock_room = MagicMock(spec=Room)
+        mock_room_repo.create.side_effect = [
+            IntegrityError("", {}, None),
+            IntegrityError("", {}, None),
+            mock_room,
+        ]
+
+        result = room_service.create_room(room_data)
+
+        assert result == mock_room
+        assert mock_room_repo.create.call_count == 3
+
+    def test_create_room_exhausts_retries(self, room_service, mock_room_repo):
+        room_data = CreateRoom(
+            host_user_id=uuid4(), room_name="Doomed Room", is_private=False
+        )
+        mock_room_repo.create.side_effect = IntegrityError("", {}, None)
+
+        with pytest.raises(IntegrityError):
+            room_service.create_room(room_data)
+
+        assert mock_room_repo.create.call_count == MAX_CODE_RETRIES + 1
+
+    def test_get_room_by_code_success(self, room_service, mock_room_repo):
+        expected_room = MagicMock(spec=Room)
+        mock_room_repo.get_by_code.return_value = expected_room
+
+        result = room_service.get_room_by_code("ABC123")
+
+        assert result == expected_room
+        mock_room_repo.get_by_code.assert_called_once_with("ABC123")
+
+    def test_get_room_by_code_not_found(self, room_service, mock_room_repo):
+        mock_room_repo.get_by_code.return_value = None
+
+        with pytest.raises(EntityNotFoundException):
+            room_service.get_room_by_code("XXXXXX")
+
+    def test_get_room_by_code_normalizes_uppercase(self, room_service, mock_room_repo):
+        mock_room_repo.get_by_code.return_value = MagicMock(spec=Room)
+
+        room_service.get_room_by_code("abc123")
+
+        mock_room_repo.get_by_code.assert_called_once_with("ABC123")

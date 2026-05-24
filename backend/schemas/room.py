@@ -1,4 +1,5 @@
 """Room schemas for the API."""
+
 import re
 from typing import Any
 from uuid import UUID
@@ -56,6 +57,7 @@ class CreateRoom(BaseModel):
             raise ValueError("A public room can't have a PIN.")
         return self
 
+
 class ReadRoom(BaseModel):
     """Schema for the room data returned by the API.
 
@@ -76,6 +78,7 @@ class ReadRoom(BaseModel):
         ..., description="Whether if the room is private or public."
     )
     is_visible: bool = Field(..., description="Whether if the room is visible or not.")
+    room_code: str = Field(..., description="Room's code.")
     settings: dict[str, Any] = Field(
         default_factory=dict, description="Room configuration settings."
     )
@@ -111,6 +114,7 @@ class UpdateRoom(BaseModel):
         if not re.match(r"^\d{4,6}$", value):
             raise ValueError("PIN must be 4-6 digits.")
         return value
+
 
 class RoomStateUpdate(BaseModel):
     """Schema for real-time room state updates."""

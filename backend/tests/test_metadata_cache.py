@@ -136,9 +136,7 @@ class TestAdapterCacheIntegration:
 
     @patch("backend.adapters.spotify_search_adapter.request_token")
     @patch("backend.adapters.spotify_search_adapter.httpx.AsyncClient")
-    def test_failed_lookup_does_not_cache(
-        self, mock_client_cls, mock_token, adapter
-    ):
+    def test_failed_lookup_does_not_cache(self, mock_client_cls, mock_token, adapter):
         mock_token.return_value = {"access_token": "tok", "expires_in": 3600}
 
         mock_response = MagicMock()

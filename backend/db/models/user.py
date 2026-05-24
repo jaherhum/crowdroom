@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from backend.db.models.platform_connection import PlatformConnection
     from backend.db.models.queue_item import QueueItem
     from backend.db.models.queue_vote import QueueVote
     from backend.db.models.room import Room
@@ -34,9 +35,7 @@ class User(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     username: str = Field(max_length=32, unique=True, nullable=False)
-    email: str | None = Field(
-        default=None, max_length=255, unique=True, nullable=True
-    )
+    email: str | None = Field(default=None, max_length=255, unique=True, nullable=True)
     hashed_password: str | None = Field(default=None, max_length=255, nullable=True)
     room_id: UUID | None = Field(default=None, foreign_key="rooms.id", nullable=True)
 
@@ -47,4 +46,6 @@ class User(SQLModel, table=True):
     )
     queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="added_by")
     user_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="user")
-    platform_connections: Mapped[list["PlatformConnection"]] = Relationship(back_populates="user")
+    platform_connections: Mapped[list["PlatformConnection"]] = Relationship(
+        back_populates="user"
+    )

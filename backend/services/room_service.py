@@ -2,12 +2,17 @@
 
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
+
 from backend.api.websocket import manager
 from backend.core.exceptions import EntityNotFoundException
+from backend.core.room_code import generate_room_code
 from backend.core.security import SecurityService
 from backend.db.models.room import Room
 from backend.repositories.room_repo import RoomRepository
 from backend.schemas.room import CreateRoom, UpdateRoom
+
+MAX_CODE_RETRIES = 5
 
 
 class RoomService:
@@ -68,6 +73,23 @@ class RoomService:
             raise EntityNotFoundException("Room", str(host_id))
         return room
 
+    def get_room_by_code(self, room_code: str) -> Room:
+        """Retrieve a room by its unique sharing code.
+
+        Args:
+            room_code: The 6-character room code.
+
+        Returns:
+            Room: The room instance.
+
+        Raises:
+            EntityNotFoundException: If no room matches the code.
+        """
+        room = self._room_repo.get_by_code(room_code.upper())
+        if not room:
+            raise EntityNotFoundException("Room", room_code)
+        return room
+
     def create_room(self, room_data: CreateRoom) -> Room:
         """Create a new room, hashing the PIN if provided.
 
@@ -76,20 +98,28 @@ class RoomService:
 
         Returns:
             The newly created room.
+
+        Raises:
+            IntegrityError: If room code generation exhausts all retries.
         """
         pin_hash = None
         if room_data.pin is not None:
             pin_hash = self._security_service.generate_password_hash(room_data.pin)
 
-        new_room = Room(
-            host_user_id=room_data.host_user_id,
-            room_name=room_data.room_name,
-            is_private=room_data.is_private,
-            pin_hash=pin_hash,
-            is_visible=room_data.is_visible,
-        )
-
-        return self._room_repo.create(new_room)
+        for attempt in range(MAX_CODE_RETRIES + 1):
+            new_room = Room(
+                host_user_id=room_data.host_user_id,
+                room_name=room_data.room_name,
+                is_private=room_data.is_private,
+                pin_hash=pin_hash,
+                is_visible=room_data.is_visible,
+                room_code=generate_room_code(),
+            )
+            try:
+                return self._room_repo.create(new_room)
+            except IntegrityError:
+                if attempt == MAX_CODE_RETRIES:
+                    raise
 
     async def update_room(self, room_id: UUID, room_data: UpdateRoom) -> Room:
         """Update an existing room.
@@ -114,8 +144,8 @@ class RoomService:
         if "pin" in data:
             raw_pin = data.pop("pin")
             if raw_pin is not None:
-                data["pin_hash"] = (
-                    self._security_service.generate_password_hash(raw_pin)
+                data["pin_hash"] = self._security_service.generate_password_hash(
+                    raw_pin
                 )
             else:
                 data["pin_hash"] = None
@@ -129,9 +159,7 @@ class RoomService:
         if not updated_room:
             raise EntityNotFoundException("Room", room_id)
 
-        broadcast_payload = {
-            key: val for key, val in data.items() if key != "pin_hash"
-        }
+        broadcast_payload = {key: val for key, val in data.items() if key != "pin_hash"}
 
         await manager.broadcast(
             {"type": "settings_updated", "payload": broadcast_payload}, str(room_id)
