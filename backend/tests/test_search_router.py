@@ -32,7 +32,9 @@ class TestSearchTracks:
         user.id = uuid4()
         return user
 
-    def test_search_returns_results(self, mock_music_service, mock_song_service, mock_user):
+    def test_search_returns_results(
+        self, mock_music_service, mock_song_service, mock_user
+    ):
         room_id = uuid4()
         results = [
             ReadSongMetadata(
