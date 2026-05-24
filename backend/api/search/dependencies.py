@@ -27,14 +27,14 @@ def get_session_repo(session: DBSession = Depends(get_session)) -> SessionReposi
 
 def get_platform_connection_repo(
     session: DBSession = Depends(get_session),
-    ) -> PlatformConnectionRepo:
+) -> PlatformConnectionRepo:
     """Provide a PlatformConnectionRepo bound to the current database session."""
     return PlatformConnectionRepo(session)
 
 
 def get_platform_connection_service(
     repo: PlatformConnectionRepo = Depends(get_platform_connection_repo),
-    ) -> PlatformConnectionService:
+) -> PlatformConnectionService:
     """Provide a PlatformConnectionService wired with its repository."""
     return PlatformConnectionService(repo)
 
@@ -45,7 +45,7 @@ def get_music_service(
     ),
     room_repo: RoomRepository = Depends(get_room_repo),
     session_repo: SessionRepository = Depends(get_session_repo),
-    ) -> MusicService:
+) -> MusicService:
     """Provide a MusicService wired with all required dependencies."""
     return MusicService(
         platform_connection_service=platform_connection_service,
@@ -61,6 +61,6 @@ def get_song_repo(session: DBSession = Depends(get_session)) -> SongRepository:
 
 def get_song_service(
     song_repo: SongRepository = Depends(get_song_repo),
-    ) -> SongService:
+) -> SongService:
     """Provide a SongService wired with its repository."""
     return SongService(song_repo)

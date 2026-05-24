@@ -27,9 +27,7 @@ class PlatformConnection(SQLModel, table=True):
     """
 
     __tablename__ = "platform_connections"
-    __table_args__ = (
-        UniqueConstraint("user_id", "platform", name="uq_user_platform"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "platform", name="uq_user_platform"),)
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id", nullable=False)
