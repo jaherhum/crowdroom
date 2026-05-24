@@ -104,3 +104,31 @@ class InvalidPlatformCredentialsException(AppException):
             super().__init__(f"{platform} rejected the provided credentials")
         else:
             super().__init__("Platform rejected the provided credentials")
+
+
+class ForbiddenException(AppException):
+    """Exception raised when a user lacks permission for an operation.
+
+    Attributes:
+        message (str): The error message.
+    """
+
+    def __init__(self, message: str = "You do not have permission to perform this action"):
+        """Initializes the exception.
+
+        Args:
+            message: Human-readable description of the forbidden action.
+        """
+        super().__init__(message)
+
+
+class InviteExpiredException(AppException):
+    """Exception raised when an invite token is expired or exhausted.
+
+    Attributes:
+        message (str): The error message.
+    """
+
+    def __init__(self):
+        """Initializes the exception."""
+        super().__init__("Invite is expired or has reached its maximum uses")
