@@ -1,4 +1,5 @@
 """Search functionality routes for the API."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,6 +16,7 @@ from backend.services.song_service import SongService
 
 router = APIRouter(prefix="/search", tags=["search"])
 
+
 def _persist_song(metadata: ReadSongMetadata, song_service: SongService) -> None:
     if metadata.external_id is None or metadata.platform is None:
         return
@@ -29,6 +31,7 @@ def _persist_song(metadata: ReadSongMetadata, song_service: SongService) -> None
         is_explicit=metadata.is_explicit,
     )
     song_service.get_or_create_song(song_data)
+
 
 @router.get(
     "/",
@@ -60,14 +63,13 @@ async def search_tracks(
     try:
         results = await music_service.search(room_id, q)
     except EntityNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
     for metadata in results:
         _persist_song(metadata, song_service)
 
     return results
+
 
 @router.get(
     "/{external_id}",
@@ -99,9 +101,7 @@ async def get_track_metadata(
     try:
         metadata = await music_service.get_metadata(room_id, external_id)
     except EntityNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
     if metadata is None:
         raise HTTPException(

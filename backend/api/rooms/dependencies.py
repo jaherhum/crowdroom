@@ -24,6 +24,7 @@ def get_room_repo(session: DBSession = Depends(get_session)) -> RoomRepository:
     """
     return RoomRepository(session)
 
+
 def get_session_repo(session: DBSession = Depends(get_session)) -> SessionRepository:
     """Provide a SessionRepository bound to the current database session.
 
@@ -34,6 +35,7 @@ def get_session_repo(session: DBSession = Depends(get_session)) -> SessionReposi
         A SessionRepository instance for session data access.
     """
     return SessionRepository(session)
+
 
 def get_room_service(
     room_repo: RoomRepository = Depends(get_room_repo),
