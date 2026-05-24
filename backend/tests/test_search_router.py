@@ -6,16 +6,14 @@ from uuid import uuid4
 
 import anyio
 import pytest
+from fastapi import HTTPException
 
+from backend.api.search.router import _persist_song, get_track_metadata, search_tracks
 from backend.core.exceptions import EntityNotFoundException
 from backend.db.models.enum import StreamingPlatforms
 from backend.schemas.song_metadata import ReadSongMetadata
 from backend.services.music_service import MusicService
 from backend.services.song_service import SongService
-from backend.api.search.router import search_tracks, get_track_metadata, _persist_song
-from backend.schemas.song import CreateSong
-
-from fastapi import HTTPException
 
 
 class TestSearchTracks:
