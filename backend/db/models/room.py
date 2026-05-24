@@ -10,6 +10,7 @@ from sqlmodel import Field, Relationship, SQLModel
 if TYPE_CHECKING:
     from backend.db.models.session import Session
     from backend.db.models.user import User
+    from backend.db.models.room_invite import RoomInvite
 
 
 class Room(SQLModel, table=True):
@@ -46,4 +47,5 @@ class Room(SQLModel, table=True):
         back_populates="room",
         sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
     )
+    invites: Mapped[list["RoomInvite"]] = Relationship(back_populates="room")
     session: "Session" = Relationship(back_populates="room")
