@@ -56,7 +56,9 @@ class TestRoomService:
         private_visible = MagicMock(spec=Room, is_private=True, is_visible=True)
         private_invisible = MagicMock(spec=Room, is_private=True, is_visible=False)
         mock_room_repo.get_all.return_value = [
-            public_room, private_visible, private_invisible
+            public_room,
+            private_visible,
+            private_invisible,
         ]
 
         result = room_service.get_all_rooms()
@@ -163,9 +165,7 @@ class TestRoomService:
     def test_create_public_room_no_pin_hash(
         self, room_service, mock_room_repo, mock_security_service
     ):
-        room_data = CreateRoom(
-            host_user_id=uuid4(), room_name="Open", is_private=False
-        )
+        room_data = CreateRoom(host_user_id=uuid4(), room_name="Open", is_private=False)
         mock_room_repo.create.return_value = MagicMock(spec=Room)
 
         with patch("backend.services.room_service.Room") as mock_room_cls:
@@ -178,9 +178,7 @@ class TestRoomService:
 
     def test_create_private_room_without_pin_rejected(self):
         with pytest.raises(ValueError, match="private room needs a PIN"):
-            CreateRoom(
-                host_user_id=uuid4(), room_name="Bad", is_private=True
-            )
+            CreateRoom(host_user_id=uuid4(), room_name="Bad", is_private=True)
 
     def test_create_public_room_with_pin_rejected(self):
         with pytest.raises(ValueError, match="public room can't have a PIN"):

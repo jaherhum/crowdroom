@@ -144,8 +144,8 @@ class RoomService:
         if "pin" in data:
             raw_pin = data.pop("pin")
             if raw_pin is not None:
-                data["pin_hash"] = (
-                    self._security_service.generate_password_hash(raw_pin)
+                data["pin_hash"] = self._security_service.generate_password_hash(
+                    raw_pin
                 )
             else:
                 data["pin_hash"] = None
@@ -159,9 +159,7 @@ class RoomService:
         if not updated_room:
             raise EntityNotFoundException("Room", room_id)
 
-        broadcast_payload = {
-            key: val for key, val in data.items() if key != "pin_hash"
-        }
+        broadcast_payload = {key: val for key, val in data.items() if key != "pin_hash"}
 
         await manager.broadcast(
             {"type": "settings_updated", "payload": broadcast_payload}, str(room_id)
