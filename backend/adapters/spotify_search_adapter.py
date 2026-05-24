@@ -109,7 +109,8 @@ class SpotifySearchAdapter(BaseAdapter):
 
         set_cached_metadata(
             platform=StreamingPlatforms.SPOTIFY.value,
-            external_id=external_id, metadata=metadata,
+            external_id=external_id,
+            metadata=metadata,
         )
 
         return metadata
