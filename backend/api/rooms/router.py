@@ -29,6 +29,12 @@ async def get_rooms(
     """
     return room_service.get_all_rooms()
 
+@router.get("/code/{room_code}", response_model=ReadRoom, status_code=status.HTTP_200_OK)
+async def get_room_code(
+        room_code: str,
+        room_service: RoomService = Depends(get_room_service),
+) -> ReadRoom:
+    return room_service.get_room_by_code(room_code)
 
 @router.get("/{room_id}", response_model=ReadRoom, status_code=status.HTTP_200_OK)
 async def get_room(
