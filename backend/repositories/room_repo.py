@@ -117,6 +117,14 @@ class RoomRepository:
         return None
 
     def get_by_code(self, room_code: str) -> Room | None:
+        """Retrieve a room by its unique room code.
+
+        Args:
+            room_code: The 6-character room sharing code.
+
+        Returns:
+            The matching room, or None if not found.
+        """
         return self._session.exec(
             select(Room).where(Room.room_code == room_code)
         ).first()
