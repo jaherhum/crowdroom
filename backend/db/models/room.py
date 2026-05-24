@@ -34,6 +34,8 @@ class Room(SQLModel, table=True):
     host_user_id: UUID = Field(foreign_key="users.id", nullable=False)
     room_name: str = Field(max_length=255, nullable=False)
     is_private: bool = Field(default=False, nullable=False)
+    pin_hash: str | None = Field(default=None, max_length=255, nullable=True)
+    is_visible: bool = Field(default=True, nullable=False)
     settings: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSON, nullable=False)
     )

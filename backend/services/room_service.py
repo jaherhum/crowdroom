@@ -4,6 +4,7 @@ from uuid import UUID
 
 from backend.api.websocket import manager
 from backend.core.exceptions import EntityNotFoundException
+from backend.core.security import SecurityService
 from backend.db.models.room import Room
 from backend.repositories.room_repo import RoomRepository
 from backend.schemas.room import CreateRoom, UpdateRoom
@@ -12,13 +13,17 @@ from backend.schemas.room import CreateRoom, UpdateRoom
 class RoomService:
     """Service for managing chat rooms and their associated data."""
 
-    def __init__(self, room_repo: RoomRepository) -> None:
-        """Initialize the RoomService with its repository.
+    def __init__(
+        self, room_repo: RoomRepository, security_service: SecurityService
+    ) -> None:
+        """Initialize the RoomService with its dependencies.
 
         Args:
             room_repo: Repository for all room data operations.
+            security_service: Service for PIN hashing and verification.
         """
         self._room_repo = room_repo
+        self._security_service = security_service
 
     def get_room(self, room_id: UUID) -> Room:
         """Retrieve a specific room by its ID.
@@ -38,13 +43,13 @@ class RoomService:
         return room
 
     def get_all_rooms(self) -> list[Room]:
-        """Retrieve all rooms.
+        """Retrieve all publicly listable rooms.
 
         Returns:
-            list[Room]: A list of all rooms.
+            list[Room]: Rooms that are public or private-but-visible.
         """
         rooms = self._room_repo.get_all()
-        return rooms
+        return [room for room in rooms if not room.is_private or room.is_visible]
 
     def get_host_room(self, host_id: UUID) -> Room:
         """Retrieve the room owned by a specific host.
@@ -64,18 +69,24 @@ class RoomService:
         return room
 
     def create_room(self, room_data: CreateRoom) -> Room:
-        """Create a new room.
+        """Create a new room, hashing the PIN if provided.
 
         Args:
-            room_data (CreateRoom): The schema containing creation details.
+            room_data: The schema containing creation details.
 
         Returns:
-            Room: The newly created room.
+            The newly created room.
         """
+        pin_hash = None
+        if room_data.pin is not None:
+            pin_hash = self._security_service.generate_password_hash(room_data.pin)
+
         new_room = Room(
             host_user_id=room_data.host_user_id,
             room_name=room_data.room_name,
             is_private=room_data.is_private,
+            pin_hash=pin_hash,
+            is_visible=room_data.is_visible,
         )
 
         return self._room_repo.create(new_room)
@@ -83,28 +94,68 @@ class RoomService:
     async def update_room(self, room_id: UUID, room_data: UpdateRoom) -> Room:
         """Update an existing room.
 
+        Handles PIN hashing on change and enforces that making a room
+        private requires a PIN in the same request if none exists.
+
         Args:
-            room_id (UUID): The unique identifier of the room to update.
-            room_data (UpdateRoom): The schema containing update details.
+            room_id: The unique identifier of the room to update.
+            room_data: The schema containing update details.
 
         Returns:
-            Room: The updated room instance.
+            The updated room instance.
 
         Raises:
             EntityNotFoundException: If the room is not found.
+            ValueError: If making room private without providing a PIN.
         """
-        self.get_room(room_id)
+        existing_room = self.get_room(room_id)
         data = room_data.model_dump(exclude_unset=True)
+
+        if "pin" in data:
+            raw_pin = data.pop("pin")
+            if raw_pin is not None:
+                data["pin_hash"] = (
+                    self._security_service.generate_password_hash(raw_pin)
+                )
+            else:
+                data["pin_hash"] = None
+
+        is_becoming_private = data.get("is_private") is True
+        has_no_pin = "pin_hash" not in data and existing_room.pin_hash is None
+        if is_becoming_private and has_no_pin:
+            raise ValueError("PIN required when making room private")
+
         updated_room = self._room_repo.update(room_id, data)
         if not updated_room:
             raise EntityNotFoundException("Room", room_id)
 
-        # Broadcast settings update
+        broadcast_payload = {
+            key: val for key, val in data.items() if key != "pin_hash"
+        }
+
         await manager.broadcast(
-            {"type": "settings_updated", "payload": data}, str(room_id)
+            {"type": "settings_updated", "payload": broadcast_payload}, str(room_id)
         )
 
         return updated_room
+
+    def verify_pin(self, room_id: UUID, pin: str) -> bool:
+        """Verify a PIN against a room's stored hash.
+
+        Args:
+            room_id: The unique identifier of the room to verify against.
+            pin: The raw PIN string to check.
+
+        Returns:
+            True if PIN matches or room has no PIN set, False otherwise.
+
+        Raises:
+            EntityNotFoundException: If the room is not found.
+        """
+        room = self.get_room(room_id)
+        if not room.pin_hash:
+            return True
+        return self._security_service.verify_password(pin, room.pin_hash)
 
     def delete_room(self, room_id: UUID) -> None:
         """Delete a room from the system.

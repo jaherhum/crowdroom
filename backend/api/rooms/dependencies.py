@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import Depends
 from sqlmodel import Session as DBSession
 
+from backend.core.config import settings
+from backend.core.security import SecurityService
 from backend.db.database import get_session
 from backend.repositories.room_repo import RoomRepository
 from backend.repositories.session_repo import SessionRepository
@@ -44,4 +46,4 @@ def get_room_service(
     Returns:
         A RoomService instance for room business logic.
     """
-    return RoomService(room_repo)
+    return RoomService(room_repo, SecurityService(settings))
