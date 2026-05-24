@@ -97,10 +97,8 @@ class UserService:
         plain_password = data.pop("password")
 
         if plain_password:
-            data["hashed_password"] = (
-                self._security_service.generate_password_hash(
-                    password=plain_password
-                )
+            data["hashed_password"] = self._security_service.generate_password_hash(
+                password=plain_password
             )
         else:
             data["hashed_password"] = None

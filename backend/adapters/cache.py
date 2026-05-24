@@ -11,9 +11,7 @@ _metadata_cache: TTLCache[str, ReadSongMetadata] = TTLCache(
 )
 
 
-def get_cached_metadata(
-    platform: str, external_id: str
-) -> ReadSongMetadata | None:
+def get_cached_metadata(platform: str, external_id: str) -> ReadSongMetadata | None:
     """Retrieve cached metadata if available.
 
     Args:
