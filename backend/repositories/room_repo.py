@@ -115,3 +115,8 @@ class RoomRepository:
                 self._session.rollback()
                 raise
         return None
+
+    def get_by_code(self, room_code: str) -> Room | None:
+        return self._session.exec(
+            select(Room).where(Room.room_code == room_code)
+        ).first()

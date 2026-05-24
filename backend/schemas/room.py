@@ -76,6 +76,7 @@ class ReadRoom(BaseModel):
         ..., description="Whether if the room is private or public."
     )
     is_visible: bool = Field(..., description="Whether if the room is visible or not.")
+    room_code: str = Field(..., description="Room's code.")
     settings: dict[str, Any] = Field(
         default_factory=dict, description="Room configuration settings."
     )
