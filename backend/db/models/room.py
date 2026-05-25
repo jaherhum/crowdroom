@@ -8,9 +8,9 @@ from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from backend.db.models.room_invite import RoomInvite
     from backend.db.models.session import Session
     from backend.db.models.user import User
-    from backend.db.models.room_invite import RoomInvite
 
 
 class Room(SQLModel, table=True):
