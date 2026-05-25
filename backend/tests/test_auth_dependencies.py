@@ -25,8 +25,8 @@ def test_get_current_user_success():
     mock_user.id = user_id
     mock_user.email = "zelda_lover@example.com"
 
-    mock_user_service.get_by_identifier.return_value = mock_user
-    mock_security_service.decode_token.return_value = {"sub": "zelda_lover@example.com"}
+    mock_user_service.get_by_id.return_value = mock_user
+    mock_security_service.decode_token.return_value = {"sub": str(user_id)}
 
     # Call the dependency directly
     user = get_current_user(
@@ -39,9 +39,7 @@ def test_get_current_user_success():
     mock_security_service.decode_token.assert_called_once_with(
         "valid_token", expected_type=TokenType.ACCESS
     )
-    mock_user_service.get_by_identifier.assert_called_once_with(
-        "zelda_lover@example.com"
-    )
+    mock_user_service.get_by_id.assert_called_once_with(user_id)
 
 
 def test_get_current_user_invalid_token():
@@ -67,8 +65,9 @@ def test_get_current_user_user_not_found():
     mock_user_service = MagicMock(spec=UserService)
     mock_security_service = MagicMock(spec=SecurityService)
 
-    mock_security_service.decode_token.return_value = {"sub": "zelda_hater@example.com"}
-    mock_user_service.get_by_identifier.return_value = None
+    nonexistent_id = uuid4()
+    mock_security_service.decode_token.return_value = {"sub": str(nonexistent_id)}
+    mock_user_service.get_by_id.return_value = None
 
     with pytest.raises(HTTPException) as excinfo:
         get_current_user(
@@ -100,8 +99,8 @@ def test_integration_protected_route():
     mock_user = MagicMock(spec=User)
     mock_user.id = user_id
 
-    mock_user_service.get_by_identifier.return_value = mock_user
-    mock_security_service.decode_token.return_value = {"sub": "zelda_lover@example.com"}
+    mock_user_service.get_by_id.return_value = mock_user
+    mock_security_service.decode_token.return_value = {"sub": str(user_id)}
 
     # Override dependencies
     app.dependency_overrides[get_current_user] = lambda: mock_user
