@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from backend.api.auth.router import router as auth_router
+from backend.api.invites.router import router as invites_router
 from backend.api.platform_connections.router import (
     router as platform_connections_router,
 )
@@ -35,6 +36,7 @@ app.include_router(
     prefix=settings.API_V1_STR,
     tags=["platform_connections"],
 )
+app.include_router(invites_router, prefix=settings.API_V1_STR, tags=["invites"])
 app.include_router(rooms_router, prefix=settings.API_V1_STR, tags=["rooms"])
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(queue_router, prefix=settings.API_V1_STR, tags=["queue"])
