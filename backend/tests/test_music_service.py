@@ -46,7 +46,7 @@ class TestMusicServiceSearch:
 
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
-        mock_session_repo.get_by_id.return_value = mock_session
+        mock_session_repo.get_by_room.return_value = mock_session
 
         mock_room = MagicMock()
         mock_room.host_user_id = host_id
@@ -68,7 +68,7 @@ class TestMusicServiceSearch:
         result = anyio.run(_run)
 
         assert result == expected
-        mock_session_repo.get_by_id.assert_called_once_with(room_id)
+        mock_session_repo.get_by_room.assert_called_once_with(room_id)
         mock_room_repo.get_by_id.assert_called_once_with(room_id)
         mock_platform_service.get_decrypted_credentials.assert_called_once_with(
             host_id, StreamingPlatforms.SPOTIFY
@@ -111,7 +111,7 @@ class TestMusicServiceGetMetadata:
 
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
-        mock_session_repo.get_by_id.return_value = mock_session
+        mock_session_repo.get_by_room.return_value = mock_session
 
         mock_room = MagicMock()
         mock_room.host_user_id = host_id
@@ -148,7 +148,7 @@ class TestMusicServiceGetMetadata:
 
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
-        mock_session_repo.get_by_id.return_value = mock_session
+        mock_session_repo.get_by_room.return_value = mock_session
 
         mock_room = MagicMock()
         mock_room.host_user_id = uuid4()
@@ -200,7 +200,7 @@ class TestMusicServiceGetTrackUri:
 
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
-        mock_session_repo.get_by_id.return_value = mock_session
+        mock_session_repo.get_by_room.return_value = mock_session
 
         mock_room = MagicMock()
         mock_room.host_user_id = uuid4()

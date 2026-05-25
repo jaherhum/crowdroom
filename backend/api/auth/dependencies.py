@@ -1,5 +1,7 @@
 """Authentication dependencies for the API."""
 
+from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
@@ -65,8 +67,8 @@ def get_current_user(
     )
     try:
         payload = security_service.decode_token(token, expected_type=TokenType.ACCESS)
-        identifier = payload.get("sub")
-        user = user_service.get_by_identifier(identifier)
+        user_id = payload.get("sub")
+        user = user_service.get_by_id(UUID(user_id))
 
         if not user:
             raise credentials_exception
