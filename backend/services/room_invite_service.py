@@ -77,7 +77,10 @@ class RoomInviteService:
             InviteExpiredException: If invite is expired or has reached max uses.
         """
         now = datetime.now(timezone.utc)
-        if invite.expires_at and invite.expires_at <= now:
+        expires_at = invite.expires_at
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at and expires_at <= now:
             raise InviteExpiredException()
         if invite.max_uses is not None and invite.use_count >= invite.max_uses:
             raise InviteExpiredException()
