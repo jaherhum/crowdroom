@@ -2,14 +2,25 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.api.auth.dependencies import get_current_user
 from backend.api.queue.dependencies import get_queue_history_repo
-from backend.api.rooms.dependencies import get_room_service, get_session_repo
-from backend.core.exceptions import EntityNotFoundException
+from backend.api.rooms.dependencies import (
+    get_room_membership_service,
+    get_room_service,
+    get_session_repo,
+)
+from backend.core.exceptions import (
+    EntityNotFoundException,
+    ForbiddenException,
+    UserAlreadyInRoomException,
+)
+from backend.db.models.user import User
 from backend.repositories.queue_history_repo import QueueHistoryRepository
 from backend.schemas.queue_history import ReadQueueHistory
-from backend.schemas.room import CreateRoom, ReadRoom, UpdateRoom
+from backend.schemas.room import CreateRoom, JoinRoom, ReadRoom, UpdateRoom
+from backend.services.room_membership_service import RoomMembershipService
 from backend.services.room_service import RoomService
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
@@ -147,3 +158,67 @@ async def get_room_history(
 
     history_entries = queue_history_repo.get_by_session(session.id, limit=limit)
     return [ReadQueueHistory.model_validate(entry) for entry in history_entries]
+
+@router.post("/{room_id}/join", status_code=status.HTTP_200_OK)
+async def join_room(
+    room_id: UUID,
+    body: JoinRoom,
+    current_user: User = Depends(get_current_user),
+    membership_service: RoomMembershipService = Depends(
+        get_room_membership_service
+    ),
+) -> dict:
+    """Join a room. Public rooms join directly; private rooms need PIN or invite.
+
+    Args:
+        room_id: The room to join.
+        body: Optional PIN or invite_token.
+        current_user: The authenticated user.
+        membership_service: The injected membership service.
+
+    Returns:
+        Confirmation with room details.
+    """
+    try:
+        await membership_service.join_room(
+            room_id,
+            current_user,
+            pin=body.pin,
+            invite_token=body.invite_token,
+        )
+        return {"room_id": str(room_id), "message": "Joined room successfully"}
+    except UserAlreadyInRoomException as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ForbiddenException as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except EntityNotFoundException as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/{room_id}/leave", status_code=status.HTTP_200_OK)
+async def leave_room(
+    room_id: UUID,
+    current_user: User = Depends(get_current_user),
+    membership_service: RoomMembershipService = Depends(
+        get_room_membership_service
+    ),
+) -> dict:
+    """Leave the current room.
+
+    Args:
+        room_id: The room to leave (validated against user state).
+        current_user: The authenticated user.
+        membership_service: The injected membership service.
+
+    Returns:
+        Confirmation message.
+    """
+    if current_user.room_id != room_id:
+        raise HTTPException(
+            status_code=400, detail="User is not in this room"
+        )
+    try:
+        await membership_service.leave_room(current_user)
+        return {"message": "Left room successfully"}
+    except EntityNotFoundException as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
