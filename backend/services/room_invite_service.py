@@ -8,7 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from backend.core.exceptions import (
     EntityNotFoundException,
     ForbiddenException,
-    InviteExpiredException, UserAlreadyInRoomException,
+    InviteExpiredException,
+    UserAlreadyInRoomException,
 )
 from backend.core.invite_token import generate_invite_token
 from backend.db.models.room import Room

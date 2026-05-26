@@ -131,8 +131,9 @@ class RoomStateUpdate(BaseModel):
     )
 
 class JoinRoom(BaseModel):
-    """Schema for joining a room.
-    Attributes:
-    """
+    """Request body for joining a room."""
+
     pin: str | None = Field(None, description="Pin of the room.")
-    invite_token: str | None = Field(None, description="Invite token for the room.")
+    invite_token: str | None = Field(
+        None, description="Invite token for the room."
+    )

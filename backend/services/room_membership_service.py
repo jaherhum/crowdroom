@@ -1,3 +1,5 @@
+"""Service for managing room join and leave operations."""
+
 from uuid import UUID
 
 from backend.api.websocket import manager
@@ -15,26 +17,59 @@ from backend.services.room_service import RoomService
 
 
 class RoomMembershipService:
+    """Handles user join and leave operations for rooms."""
 
-    def __init__(self,
-                 room_service: RoomService,
-                 room_invite_service: RoomInviteService,
-                 user_repo: UserRepository,
-                 room_repo: RoomRepository
-                 ) -> None:
+    def __init__(
+        self,
+        room_service: RoomService,
+        room_invite_service: RoomInviteService,
+        user_repo: UserRepository,
+        room_repo: RoomRepository,
+    ) -> None:
+        """Initialize the RoomMembershipService with its dependencies.
+
+        Args:
+            room_service: Service for room CRUD and PIN verification.
+            room_invite_service: Service for invite token validation.
+            user_repo: Repository for persisting user changes.
+            room_repo: Repository for room data access.
+        """
         self._room_service = room_service
         self._room_invite_service = room_invite_service
         self._user_repo = user_repo
         self._room_repo = room_repo
 
-    async def join_room(self, room_id: UUID, user: User, pin: str | None = None, invite_token: str | None = None) -> None:
+    async def join_room(
+        self,
+        room_id: UUID,
+        user: User,
+        pin: str | None = None,
+        invite_token: str | None = None,
+    ) -> None:
+        """Join a user to a room with access control.
+
+        Args:
+            room_id: The room to join.
+            user: The authenticated user.
+            pin: Optional PIN for private rooms.
+            invite_token: Optional invite token to bypass PIN.
+
+        Raises:
+            UserAlreadyInRoomException: If user is already in another room.
+            EntityNotFoundException: If room does not exist.
+            ForbiddenException: If room is private and no valid credentials.
+        """
         if user.room_id is not None and user.room_id != room_id:
             raise UserAlreadyInRoomException()
         if user.room_id == room_id:
             return
         room = self._room_service.get_room(room_id)
         if room.is_private:
-            token_validation = self._room_invite_service.validate_and_consume_invite(invite_token, room_id)
+            token_validation = (
+                self._room_invite_service.validate_and_consume_invite(
+                    invite_token, room_id
+                )
+            )
             if not token_validation:
                 if pin and self._room_service.verify_pin(room_id, pin):
                     pass
@@ -56,6 +91,14 @@ class RoomMembershipService:
         )
 
     async def leave_room(self, user: User) -> None:
+        """Remove a user from their current room.
+
+        Args:
+            user: The authenticated user.
+
+        Raises:
+            EntityNotFoundException: If user is not in any room.
+        """
         if user.room_id is None:
             raise EntityNotFoundException("Room membership")
         room_id = user.room_id
@@ -78,6 +121,11 @@ class RoomMembershipService:
             await self._handle_host_departure(room)
 
     async def _handle_host_departure(self, room: Room) -> None:
+        """Close room and evict remaining members when host leaves.
+
+        Args:
+            room: The room whose host departed.
+        """
         await manager.broadcast(
             {
                 "type": "room_closed",
