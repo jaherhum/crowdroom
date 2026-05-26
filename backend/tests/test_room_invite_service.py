@@ -2,7 +2,7 @@
 
 # ruff: noqa: D101, D102
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -12,6 +12,7 @@ from backend.core.exceptions import (
     EntityNotFoundException,
     ForbiddenException,
     InviteExpiredException,
+    UserAlreadyInRoomException,
 )
 from backend.db.models.room import Room
 from backend.db.models.room_invite import RoomInvite
@@ -259,10 +260,8 @@ class TestRoomInviteService:
         user.room_id = uuid4()  # already in another room
         mock_user_repo.save.return_value = user
 
-        result = invite_service.join_via_invite("validtoken00", user)
-
-        assert result.room_id == room.id
-        assert user.room_id == room.id
+        with pytest.raises(UserAlreadyInRoomException):
+            invite_service.join_via_invite("validtoken00", user)
 
     # --- list_invites ---
 

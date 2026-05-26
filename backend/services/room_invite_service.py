@@ -9,6 +9,7 @@ from backend.core.exceptions import (
     EntityNotFoundException,
     ForbiddenException,
     InviteExpiredException,
+    UserAlreadyInRoomException,
 )
 from backend.core.invite_token import generate_invite_token
 from backend.db.models.room import Room
@@ -176,6 +177,8 @@ class RoomInviteService:
         if not room:
             raise EntityNotFoundException("Room", invite.room_id)
 
+        if user.room_id is not None and user.room_id != room.id:
+            raise UserAlreadyInRoomException(user.room_id)
         user.room_id = room.id
         self._user_repo.save(user)
         self._invite_repo.increment_use_count(invite)
@@ -221,3 +224,23 @@ class RoomInviteService:
             raise ForbiddenException("Invite does not belong to this room")
 
         self._invite_repo.delete(invite_id)
+
+    def validate_and_consume_invite(self, token: str, expected_room_id: UUID) -> bool:
+        """Validate invite token for a specific room and increment use count.
+
+        Args:
+            token: The invite token to check.
+            expected_room_id: The room the invite must belong to.
+
+        Returns:
+            True if invite is valid for given room, False otherwise.
+        """
+        invite = self._invite_repo.get_by_token(token)
+        if not invite or invite.room_id != expected_room_id:
+            return False
+        try:
+            self._validate_invite(invite)
+            self._invite_repo.increment_use_count(invite)
+            return True
+        except InviteExpiredException:
+            return False

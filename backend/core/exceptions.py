@@ -113,7 +113,10 @@ class ForbiddenException(AppException):
         message (str): The error message.
     """
 
-    def __init__(self, message: str = "You do not have permission to perform this action"):
+    def __init__(
+        self,
+        message: str = "You do not have permission to perform this action",
+    ):
         """Initializes the exception.
 
         Args:
@@ -132,3 +135,24 @@ class InviteExpiredException(AppException):
     def __init__(self):
         """Initializes the exception."""
         super().__init__("Invite is expired or has reached its maximum uses")
+
+class UserAlreadyInRoomException(AppException):
+    """Exception raised when a user tries to join a room while already in another.
+
+    Attributes:
+        current_room_id (str | UUID): The room the user is currently in.
+    """
+
+    def __init__(self, current_room_id: str | UUID = ""):
+        """Initializes the exception with the current room ID.
+
+        Args:
+            current_room_id: The ID of the room the user is already in.
+        """
+        self.current_room_id = current_room_id
+        if not current_room_id:
+            super().__init__("User is already in a room. Leave current room first.")
+        else:
+            super().__init__(
+                f"User is already in room {current_room_id}. Leave current room first."
+            )
