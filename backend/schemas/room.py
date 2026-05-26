@@ -129,3 +129,10 @@ class RoomStateUpdate(BaseModel):
     payload: dict[str, Any] = Field(
         ..., description="The data associated with the update."
     )
+
+class JoinRoom(BaseModel):
+    """Schema for joining a room.
+    Attributes:
+    """
+    pin: str | None = Field(None, description="Pin of the room.")
+    invite_token: str | None = Field(None, description="Invite token for the room.")

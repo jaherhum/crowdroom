@@ -132,3 +132,10 @@ class InviteExpiredException(AppException):
     def __init__(self):
         """Initializes the exception."""
         super().__init__("Invite is expired or has reached its maximum uses")
+
+class UserAlreadyInRoomException(AppException):
+    def __init__(self, current_room_id: str | UUID = ""):
+        if not current_room_id:
+            super().__init__("User is already in a room. Leave current room first.")
+        else:
+            super().__init__(f"User is already in room {current_room_id}. Leave current room first.")
