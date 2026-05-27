@@ -53,8 +53,7 @@ class RoomService:
         Returns:
             list[Room]: Rooms that are public or private-but-visible.
         """
-        rooms = self._room_repo.get_all()
-        return [room for room in rooms if not room.is_private or room.is_visible]
+        return self._room_repo.get_listed_rooms()
 
     def get_host_room(self, host_id: UUID) -> Room:
         """Retrieve the room owned by a specific host.
@@ -72,6 +71,20 @@ class RoomService:
         if not room:
             raise EntityNotFoundException("Room", str(host_id))
         return room
+
+    def get_host_rooms(self, host_id: UUID) -> list[Room]:
+        """Retrieve all rooms owned by a host, regardless of visibility.
+
+        Args:
+            host_id: The unique identifier of the host user.
+
+        Returns:
+            The host's rooms (empty list if none found).
+        """
+        room = self._room_repo.get_by_host(host_id)
+        if room is None:
+            return []
+        return [room]
 
     def get_room_by_code(self, room_code: str) -> Room:
         """Retrieve a room by its unique sharing code.

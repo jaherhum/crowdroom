@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session as DBSession
-from sqlmodel import select
+from sqlmodel import or_, select
 
 from backend.db.models.room import Room
 
@@ -128,3 +128,23 @@ class RoomRepository:
         return self._session.exec(
             select(Room).where(Room.room_code == room_code)
         ).first()
+
+    def get_listed_rooms(self) -> list[Room]:
+        """Retrieve all rooms eligible for public listing.
+
+        Returns rooms that are public or private-but-visible.
+        Excludes private rooms with is_visible=False.
+
+        Returns:
+            All publicly listable rooms, ordered by name.
+        """
+        return self._session.exec(
+            select(Room)
+            .where(
+                or_(
+                    Room.is_private == False,  # noqa: E712
+                    Room.is_visible == True,  # noqa: E712
+                )
+            )
+            .order_by(Room.room_name)
+        ).all()
