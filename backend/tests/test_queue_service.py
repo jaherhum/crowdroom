@@ -1,13 +1,15 @@
 """Tests for QueueService."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import anyio
 import pytest
 
 from backend.core.exceptions import EntityNotFoundException
 from backend.db.models.queue_item import QueueItem
 from backend.repositories.queue_repo import QueueRepository
+from backend.repositories.session_repo import SessionRepository
 from backend.services.queue_service import QueueService
 
 
@@ -17,8 +19,16 @@ class TestQueueService:
         return MagicMock(spec=QueueRepository)
 
     @pytest.fixture
-    def queue_service(self, mock_queue_repo):
-        return QueueService(mock_queue_repo)
+    def mock_session_repo(self):
+        repo = MagicMock(spec=SessionRepository)
+        session_obj = MagicMock()
+        session_obj.room_id = uuid4()
+        repo.get_by_id.return_value = session_obj
+        return repo
+
+    @pytest.fixture
+    def queue_service(self, mock_queue_repo, mock_session_repo):
+        return QueueService(mock_queue_repo, mock_session_repo)
 
     # -- add_to_queue --
 
@@ -26,10 +36,16 @@ class TestQueueService:
         session_id, song_id, user_id = uuid4(), uuid4(), uuid4()
         mock_item = MagicMock(spec=QueueItem)
         mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
 
-        result = queue_service.add_to_queue(
-            session_id, song_id, user_id, group="manual"
-        )
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                return await queue_service.add_to_queue(
+                    session_id, song_id, user_id, group="manual"
+                )
+
+        result = anyio.run(_run)
 
         assert result == mock_item
         mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
@@ -40,8 +56,14 @@ class TestQueueService:
         session_id, song_id = uuid4(), uuid4()
         mock_item = MagicMock(spec=QueueItem)
         mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
 
-        queue_service.add_to_queue(session_id, song_id, group="playlist")
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await queue_service.add_to_queue(session_id, song_id, group="playlist")
+
+        anyio.run(_run)
 
         mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
             session_id, song_id, None, "playlist"
@@ -51,8 +73,14 @@ class TestQueueService:
         session_id, song_id = uuid4(), uuid4()
         mock_item = MagicMock(spec=QueueItem)
         mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
 
-        queue_service.add_to_queue(session_id, song_id, group="manual")
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await queue_service.add_to_queue(session_id, song_id, group="manual")
+
+        anyio.run(_run)
 
         mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
             session_id, song_id, None, "manual"
@@ -62,22 +90,58 @@ class TestQueueService:
         session_id, song_id = uuid4(), uuid4()
         mock_item = MagicMock(spec=QueueItem)
         mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
 
-        queue_service.add_to_queue(session_id, song_id)
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await queue_service.add_to_queue(session_id, song_id)
+
+        anyio.run(_run)
 
         mock_queue_repo.add_to_queue_atomic.assert_called_once_with(
             session_id, song_id, None, "manual"
         )
+
+    def test_add_to_queue_broadcasts_event(
+        self, queue_service, mock_queue_repo, mock_session_repo
+    ):
+        session_id, song_id, user_id = uuid4(), uuid4(), uuid4()
+        mock_item = MagicMock(spec=QueueItem)
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await queue_service.add_to_queue(
+                    session_id, song_id, user_id, group="manual"
+                )
+
+        anyio.run(_run)
+
+        mock_broadcast.assert_called_once()
+        call_args = mock_broadcast.call_args[0]
+        assert call_args[0]["type"] == "queue_updated"
+        assert call_args[0]["action"] == "added"
 
     # -- remove_from_queue --
 
     def test_remove_from_queue_success(self, queue_service, mock_queue_repo):
         item_id = uuid4()
         mock_item = MagicMock(spec=QueueItem)
+        mock_item.session_id = uuid4()
         mock_queue_repo.get_by_id.return_value = mock_item
         mock_queue_repo.delete.return_value = True
+        mock_queue_repo.get_all_by_session.return_value = []
 
-        queue_service.remove_from_queue(item_id)
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await queue_service.remove_from_queue(item_id)
+
+        anyio.run(_run)
 
         mock_queue_repo.get_by_id.assert_called_once_with(item_id)
         mock_queue_repo.delete.assert_called_once_with(item_id)
@@ -87,18 +151,52 @@ class TestQueueService:
         item_id = uuid4()
         mock_queue_repo.get_by_id.return_value = None
 
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await queue_service.remove_from_queue(item_id)
+
         with pytest.raises(EntityNotFoundException):
-            queue_service.remove_from_queue(item_id)
+            anyio.run(_run)
 
     def test_remove_from_queue_delete_fails(self, queue_service, mock_queue_repo):
         """EntityNotFoundException raised when delete returns False."""
         item_id = uuid4()
         mock_item = MagicMock(spec=QueueItem)
+        mock_item.session_id = uuid4()
         mock_queue_repo.get_by_id.return_value = mock_item
         mock_queue_repo.delete.return_value = False
 
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await queue_service.remove_from_queue(item_id)
+
         with pytest.raises(EntityNotFoundException):
-            queue_service.remove_from_queue(item_id)
+            anyio.run(_run)
+
+    def test_remove_from_queue_broadcasts_event(
+        self, queue_service, mock_queue_repo, mock_session_repo
+    ):
+        item_id = uuid4()
+        mock_item = MagicMock(spec=QueueItem)
+        mock_item.session_id = uuid4()
+        mock_queue_repo.get_by_id.return_value = mock_item
+        mock_queue_repo.delete.return_value = True
+        mock_queue_repo.get_all_by_session.return_value = []
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await queue_service.remove_from_queue(item_id)
+
+        anyio.run(_run)
+
+        mock_broadcast.assert_called_once()
+        call_args = mock_broadcast.call_args[0]
+        assert call_args[0]["type"] == "queue_updated"
+        assert call_args[0]["action"] == "removed"
 
     # -- get_queue_item --
 

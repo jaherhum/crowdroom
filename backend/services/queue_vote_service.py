@@ -27,7 +27,7 @@ class QueueVoteService:
         self._repo = queue_vote_repo
         self._playback_service = playback_service
 
-    def cast_vote(self, queue_item_id: UUID, user_id: UUID) -> QueueVote:
+    async def cast_vote(self, queue_item_id: UUID, user_id: UUID) -> QueueVote:
         """Cast a skip vote for a specific queue item.
 
         Rejects duplicate votes from the same user on the same queue item.
@@ -53,13 +53,12 @@ class QueueVoteService:
         vote = QueueVote(queue_item_id=queue_item_id, user_id=user_id)
         saved_vote = self._repo.create(vote)
 
-        # Check threshold and trigger skip if met
         if self._playback_service:
-            self._check_skip_threshold(saved_vote)
+            await self._check_skip_threshold(saved_vote)
 
         return saved_vote
 
-    def _check_skip_threshold(self, vote_obj: QueueVote) -> None:
+    async def _check_skip_threshold(self, vote_obj: QueueVote) -> None:
         """Verify whether votes on a queue item meet the room's skip threshold.
 
         Looks up the room's configured skip_threshold setting and compares
@@ -85,7 +84,7 @@ class QueueVoteService:
 
         current_votes = self._repo.count_by_item(vote_obj.queue_item_id)
         if current_votes >= threshold:
-            self._playback_service.finish_song(session_obj.id)
+            await self._playback_service.finish_song(session_obj.id)
 
     def vote_count(self, queue_item_id: UUID) -> int:
         """Return the total number of skip votes for a queue item.

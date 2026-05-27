@@ -1,9 +1,10 @@
 """Tests for PlaybackService."""
 
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import anyio
 import pytest
 
 from backend.db.models.queue_history import QueueHistory
@@ -21,7 +22,9 @@ class TestPlaybackService:
 
     @pytest.fixture
     def mock_queue_service(self):
-        return MagicMock(spec=QueueService)
+        service = MagicMock(spec=QueueService)
+        service.remove_from_queue = AsyncMock()
+        return service
 
     @pytest.fixture
     def mock_history_repo(self):
@@ -46,7 +49,10 @@ class TestPlaybackService:
         current_item.song_id = song_id
         mock_queue_service.get_current_song.return_value = current_item
 
-        result = playback_service.finish_song(session_id)
+        async def _run():
+            return await playback_service.finish_song(session_id)
+
+        result = anyio.run(_run)
 
         assert result == "finished"
         assert current_item.playback_status.name == "FINISHED"
@@ -58,7 +64,10 @@ class TestPlaybackService:
         session_id = uuid4()
         mock_queue_service.get_current_song.return_value = None
 
-        result = playback_service.finish_song(session_id)
+        async def _run():
+            return await playback_service.finish_song(session_id)
+
+        result = anyio.run(_run)
 
         assert result == "finished"
         playback_service._queue_history_repo.create.assert_not_called()
@@ -72,8 +81,6 @@ class TestPlaybackService:
         playback_service._record_history(session_id, song_id)
 
         history_repo = playback_service._queue_history_repo
-        # Verify create was called with a QueueHistory
-        # having the correct session and song
         create_call = history_repo.create.call_args
         assert create_call is not None
         actual_entry = create_call[0][0]

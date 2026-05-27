@@ -35,7 +35,7 @@ class PlaybackService:
         self._queue_service = queue_service
         self._queue_history_repo = queue_history_repo
 
-    def finish_song(self, session_id: UUID) -> str:
+    async def finish_song(self, session_id: UUID) -> str:
         """Advance to the next song after one finishes.
 
         Records the current song in history, updates its status to FINISHED,
@@ -49,12 +49,11 @@ class PlaybackService:
         """
         current_item = self._queue_service.get_current_song(session_id)
         if current_item is not None:
-            # Mark item as finished before removing from queue
             current_item.playback_status = ItemStatus.FINISHED
             self._session_repo.update(current_item.session_id, {})
 
             self._record_history(session_id, current_item.song_id)
-            self._queue_service.remove_from_queue(current_item.id)
+            await self._queue_service.remove_from_queue(current_item.id)
 
         return "finished"
 

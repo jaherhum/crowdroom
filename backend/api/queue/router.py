@@ -70,7 +70,7 @@ def get_queue(
 
 
 @router.post("/", response_model=ReadQueueItem, status_code=status.HTTP_201_CREATED)
-def add_to_queue(
+async def add_to_queue(
     data: CreateQueueItem,
     queue_service: QueueService = Depends(get_queue_service),
     current_user: User = Depends(get_current_user),
@@ -89,7 +89,7 @@ def add_to_queue(
     Returns:
         ReadQueueItem schema for the newly added queue item.
     """
-    item = queue_service.add_to_queue(
+    item = await queue_service.add_to_queue(
         session_id=data.session_id,
         song_id=data.song_id,
         added_by_user_id=current_user.id,
@@ -99,7 +99,7 @@ def add_to_queue(
 
 
 @router.delete("/{queue_item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_from_queue(
+async def remove_from_queue(
     queue_item_id: UUID,
     queue_service: QueueService = Depends(get_queue_service),
 ) -> None:
@@ -115,11 +115,11 @@ def remove_from_queue(
     Raises:
         EntityNotFoundException: If no queue item exists with the given ID.
     """
-    queue_service.remove_from_queue(queue_item_id)
+    await queue_service.remove_from_queue(queue_item_id)
 
 
 @router.post("/vote", response_model=ReadQueueVote, status_code=status.HTTP_201_CREATED)
-def vote_skip(
+async def vote_skip(
     data: CreateQueueVote,
     queue_vote_service: QueueVoteService = Depends(get_queue_vote_service),
 ) -> ReadQueueVote:
@@ -139,7 +139,7 @@ def vote_skip(
     Raises:
         EntityExistsException: If the user has already voted on this item.
     """
-    vote = queue_vote_service.cast_vote(
+    vote = await queue_vote_service.cast_vote(
         queue_item_id=data.queue_item_id,
         user_id=data.user_id,
     )
