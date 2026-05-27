@@ -1,8 +1,9 @@
 """Tests for QueueVoteService."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import anyio
 import pytest
 
 from backend.core.exceptions import EntityExistsException
@@ -29,7 +30,10 @@ class TestQueueVoteService:
         mock_vote = MagicMock(spec=QueueVote)
         mock_repo.create.return_value = mock_vote
 
-        result = service.cast_vote(item_id, user_id)
+        async def _run():
+            return await service.cast_vote(item_id, user_id)
+
+        result = anyio.run(_run)
 
         assert result == mock_vote
         mock_repo.get_by_item_and_user.assert_called_once_with(item_id, user_id)
@@ -41,8 +45,11 @@ class TestQueueVoteService:
         item_id, user_id = uuid4(), uuid4()
         mock_repo.get_by_item_and_user.return_value = MagicMock(spec=QueueVote)
 
+        async def _run():
+            await service.cast_vote(item_id, user_id)
+
         with pytest.raises(EntityExistsException):
-            service.cast_vote(item_id, user_id)
+            anyio.run(_run)
 
         mock_repo.create.assert_not_called()
 
@@ -69,6 +76,7 @@ class TestQueueVoteService:
 
     def test_check_skip_threshold_defaults_to_two(self, mock_repo):
         mock_playback = MagicMock(spec=PlaybackService)
+        mock_playback.finish_song = AsyncMock()
         service = QueueVoteService(
             queue_vote_repo=mock_repo, playback_service=mock_playback
         )
@@ -83,15 +91,24 @@ class TestQueueVoteService:
         mock_vote.queue_item.session = mock_session
 
         mock_repo.count_by_item.return_value = 1
-        service._check_skip_threshold(mock_vote)
+
+        async def _run_below():
+            await service._check_skip_threshold(mock_vote)
+
+        anyio.run(_run_below)
         mock_playback.finish_song.assert_not_called()
 
         mock_repo.count_by_item.return_value = 2
-        service._check_skip_threshold(mock_vote)
+
+        async def _run_at():
+            await service._check_skip_threshold(mock_vote)
+
+        anyio.run(_run_at)
         mock_playback.finish_song.assert_called_once_with(mock_session.id)
 
     def test_check_skip_threshold_uses_configured_value(self, mock_repo):
         mock_playback = MagicMock(spec=PlaybackService)
+        mock_playback.finish_song = AsyncMock()
         service = QueueVoteService(
             queue_vote_repo=mock_repo, playback_service=mock_playback
         )
@@ -106,9 +123,17 @@ class TestQueueVoteService:
         mock_vote.queue_item.session = mock_session
 
         mock_repo.count_by_item.return_value = 4
-        service._check_skip_threshold(mock_vote)
+
+        async def _run_below():
+            await service._check_skip_threshold(mock_vote)
+
+        anyio.run(_run_below)
         mock_playback.finish_song.assert_not_called()
 
         mock_repo.count_by_item.return_value = 5
-        service._check_skip_threshold(mock_vote)
+
+        async def _run_at():
+            await service._check_skip_threshold(mock_vote)
+
+        anyio.run(_run_at)
         mock_playback.finish_song.assert_called_once_with(mock_session.id)

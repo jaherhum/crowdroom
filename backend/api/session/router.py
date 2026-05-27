@@ -122,5 +122,5 @@ async def finish_current_song(
     Returns:
         FinishResponse: Confirmation of the finished state.
     """
-    new_status = playback_service.finish_song(session_id)
+    new_status = await playback_service.finish_song(session_id)
     return FinishResponse(status=new_status)
