@@ -109,4 +109,4 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str) -> None:
             # Keep the connection alive and listen for any client messages if needed
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket, room_id)
+        await manager.disconnect(websocket, room_id)
