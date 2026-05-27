@@ -21,6 +21,12 @@ class WelcomeMessage(BaseModel):
     )
 
 
+class RoomSettings(BaseModel):
+    """Room configuration settings."""
+
+    skip_threshold: int = Field(default=2, ge=1, le=50, description="Skip threshold.")
+
+
 class CreateRoom(BaseModel):
     """Schema for creating a new room.
 
@@ -37,6 +43,10 @@ class CreateRoom(BaseModel):
     )
     pin: str | None = Field(None, description="Pin of the room.")
     is_visible: bool = Field(True, description="Whether if the room is visible.")
+    settings: RoomSettings = Field(
+        default_factory=RoomSettings,
+        description="Room configuration settings.",
+    )
 
     @field_validator("pin")
     @classmethod
@@ -79,8 +89,8 @@ class ReadRoom(BaseModel):
     )
     is_visible: bool = Field(..., description="Whether if the room is visible or not.")
     room_code: str = Field(..., description="Room's code.")
-    settings: dict[str, Any] = Field(
-        default_factory=dict, description="Room configuration settings."
+    settings: RoomSettings = Field(
+        default_factory=RoomSettings, description="Room configuration settings."
     )
 
 
@@ -101,7 +111,7 @@ class UpdateRoom(BaseModel):
     is_visible: bool | None = Field(
         None, description="Whether if the room is visible or not."
     )
-    settings: dict[str, Any] | None = Field(
+    settings: RoomSettings | None = Field(
         None, description="Room's configuration settings."
     )
 
@@ -130,10 +140,9 @@ class RoomStateUpdate(BaseModel):
         ..., description="The data associated with the update."
     )
 
+
 class JoinRoom(BaseModel):
     """Request body for joining a room."""
 
     pin: str | None = Field(None, description="Pin of the room.")
-    invite_token: str | None = Field(
-        None, description="Invite token for the room."
-    )
+    invite_token: str | None = Field(None, description="Invite token for the room.")

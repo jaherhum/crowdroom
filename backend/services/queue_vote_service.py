@@ -79,9 +79,9 @@ class QueueVoteService:
             return
 
         room_obj = session_obj.room
-        threshold = 1
+        threshold = 2
         if room_obj and room_obj.settings:
-            threshold = room_obj.settings.get("skip_threshold", 1)
+            threshold = room_obj.settings.get("skip_threshold", 2)
 
         current_votes = self._repo.count_by_item(vote_obj.queue_item_id)
         if current_votes >= threshold:

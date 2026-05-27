@@ -107,6 +107,7 @@ class RoomService:
             pin_hash = self._security_service.generate_password_hash(room_data.pin)
 
         for attempt in range(MAX_CODE_RETRIES + 1):
+            settings = room_data.settings.model_dump()
             new_room = Room(
                 host_user_id=room_data.host_user_id,
                 room_name=room_data.room_name,
@@ -114,6 +115,7 @@ class RoomService:
                 pin_hash=pin_hash,
                 is_visible=room_data.is_visible,
                 room_code=generate_room_code(),
+                settings=settings,
             )
             try:
                 return self._room_repo.create(new_room)
