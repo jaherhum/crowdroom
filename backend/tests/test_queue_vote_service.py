@@ -8,6 +8,7 @@ import pytest
 from backend.core.exceptions import EntityExistsException
 from backend.db.models.queue_vote import QueueVote
 from backend.repositories.queue_vote_repo import QueueVoteRepository
+from backend.services.playback_service import PlaybackService
 from backend.services.queue_vote_service import QueueVoteService
 
 
@@ -63,3 +64,51 @@ class TestQueueVoteService:
         result = service.vote_count(item_id)
 
         assert result == 0
+
+    # -- _check_skip_threshold --
+
+    def test_check_skip_threshold_defaults_to_two(self, mock_repo):
+        mock_playback = MagicMock(spec=PlaybackService)
+        service = QueueVoteService(
+            queue_vote_repo=mock_repo, playback_service=mock_playback
+        )
+
+        mock_vote = MagicMock(spec=QueueVote)
+        mock_vote.queue_item_id = uuid4()
+        mock_session = MagicMock()
+        mock_session.id = uuid4()
+        mock_room = MagicMock()
+        mock_room.settings = {}
+        mock_session.room = mock_room
+        mock_vote.queue_item.session = mock_session
+
+        mock_repo.count_by_item.return_value = 1
+        service._check_skip_threshold(mock_vote)
+        mock_playback.finish_song.assert_not_called()
+
+        mock_repo.count_by_item.return_value = 2
+        service._check_skip_threshold(mock_vote)
+        mock_playback.finish_song.assert_called_once_with(mock_session.id)
+
+    def test_check_skip_threshold_uses_configured_value(self, mock_repo):
+        mock_playback = MagicMock(spec=PlaybackService)
+        service = QueueVoteService(
+            queue_vote_repo=mock_repo, playback_service=mock_playback
+        )
+
+        mock_vote = MagicMock(spec=QueueVote)
+        mock_vote.queue_item_id = uuid4()
+        mock_session = MagicMock()
+        mock_session.id = uuid4()
+        mock_room = MagicMock()
+        mock_room.settings = {"skip_threshold": 5}
+        mock_session.room = mock_room
+        mock_vote.queue_item.session = mock_session
+
+        mock_repo.count_by_item.return_value = 4
+        service._check_skip_threshold(mock_vote)
+        mock_playback.finish_song.assert_not_called()
+
+        mock_repo.count_by_item.return_value = 5
+        service._check_skip_threshold(mock_vote)
+        mock_playback.finish_song.assert_called_once_with(mock_session.id)
