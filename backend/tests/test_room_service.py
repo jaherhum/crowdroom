@@ -14,7 +14,7 @@ from backend.core.room_code import CHARSET, ROOM_CODE_LENGTH
 from backend.core.security import SecurityService
 from backend.db.models.room import Room
 from backend.repositories.room_repo import RoomRepository
-from backend.schemas.room import CreateRoom, UpdateRoom
+from backend.schemas.room import CreateRoom, RoomSettings, UpdateRoom
 from backend.services.room_service import MAX_CODE_RETRIES, RoomService
 
 
@@ -349,3 +349,57 @@ class TestRoomService:
         room_service.get_room_by_code("abc123")
 
         mock_room_repo.get_by_code.assert_called_once_with("ABC123")
+
+    def test_create_room_default_settings(self, room_service, mock_room_repo):
+        room_data = CreateRoom(
+            host_user_id=uuid4(), room_name="Defaults", is_private=False
+        )
+        mock_room_repo.create.side_effect = lambda room: room
+
+        result = room_service.create_room(room_data)
+
+        assert result.settings == {"skip_threshold": 2}
+
+    def test_create_room_custom_settings(self, room_service, mock_room_repo):
+        room_data = CreateRoom(
+            host_user_id=uuid4(),
+            room_name="Custom",
+            is_private=False,
+            settings=RoomSettings(skip_threshold=5),
+        )
+        mock_room_repo.create.side_effect = lambda room: room
+
+        result = room_service.create_room(room_data)
+
+        assert result.settings == {"skip_threshold": 5}
+
+    def test_settings_skip_threshold_too_low(self):
+        with pytest.raises(ValueError):
+            RoomSettings(skip_threshold=0)
+
+    def test_settings_skip_threshold_too_high(self):
+        with pytest.raises(ValueError):
+            RoomSettings(skip_threshold=51)
+
+    def test_settings_skip_threshold_negative(self):
+        with pytest.raises(ValueError):
+            RoomSettings(skip_threshold=-1)
+
+    def test_update_room_with_settings(self, room_service, mock_room_repo):
+        room_id = uuid4()
+        existing_room = MagicMock(spec=Room, pin_hash="some_hash")
+        update_data = UpdateRoom(settings=RoomSettings(skip_threshold=10))
+
+        mock_room_repo.get_by_id.return_value = existing_room
+        mock_room_repo.update.return_value = existing_room
+
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch.object(manager, "broadcast", new=mock_broadcast):
+                await room_service.update_room(room_id, update_data)
+
+        anyio.run(_run)
+
+        update_call_data = mock_room_repo.update.call_args[0][1]
+        assert update_call_data["settings"] == {"skip_threshold": 10}
