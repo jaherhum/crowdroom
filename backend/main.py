@@ -15,6 +15,7 @@ from backend.api.search.router import router as search_router
 from backend.api.session.router import router as session_router
 from backend.api.songs.router import router as songs_router
 from backend.api.users.router import router as user_router
+from backend.api.websocket import router as websocket_router
 from backend.core.config import settings
 from backend.db.database import create_db_and_tables
 
@@ -44,3 +45,4 @@ app.include_router(search_router, prefix=settings.API_V1_STR, tags=["search"])
 app.include_router(session_router, prefix=settings.API_V1_STR, tags=["session"])
 app.include_router(songs_router, prefix=settings.API_V1_STR, tags=["songs"])
 app.include_router(user_router, prefix=settings.API_V1_STR, tags=["users"])
+app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
