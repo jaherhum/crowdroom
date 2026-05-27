@@ -30,13 +30,16 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 async def get_rooms(
     room_service: RoomService = Depends(get_room_service),
 ) -> list[ReadRoom]:
-    """Retrieves a list of all rooms.
+    """Retrieve all publicly listable rooms.
+
+    Returns rooms that are public or private-but-visible.
+    Private+invisible rooms are excluded.
 
     Args:
-        room_service (RoomService): The injected room service.
+        room_service: The injected room service.
 
     Returns:
-        list[ReadRoom]: A list of room schemas.
+        Publicly listable rooms.
     """
     return room_service.get_all_rooms()
 
@@ -222,3 +225,19 @@ async def leave_room(
         return {"message": "Left room successfully"}
     except EntityNotFoundException as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+@router.get("/mine", response_model=list[ReadRoom], status_code=status.HTTP_200_OK)
+async def get_my_rooms(
+    current_user: User = Depends(get_current_user),
+    room_service: RoomService = Depends(get_room_service),
+) -> list[ReadRoom]:
+    """Retrieve rooms owned by the authenticated user.
+
+    Args:
+        current_user: The authenticated user from JWT.
+        room_service: The injected room service.
+
+    Returns:
+        The user's hosted rooms, regardless of visibility settings.
+    """
+    return room_service.get_host_rooms(current_user.id)

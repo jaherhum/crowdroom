@@ -54,19 +54,33 @@ class TestRoomService:
     def test_get_all_rooms(self, room_service, mock_room_repo):
         public_room = MagicMock(spec=Room, is_private=False, is_visible=True)
         private_visible = MagicMock(spec=Room, is_private=True, is_visible=True)
-        private_invisible = MagicMock(spec=Room, is_private=True, is_visible=False)
-        mock_room_repo.get_all.return_value = [
+        mock_room_repo.get_listed_rooms.return_value = [
             public_room,
             private_visible,
-            private_invisible,
         ]
 
         result = room_service.get_all_rooms()
 
-        assert public_room in result
-        assert private_visible in result
-        assert private_invisible not in result
-        mock_room_repo.get_all.assert_called_once()
+        assert result == [public_room, private_visible]
+        mock_room_repo.get_listed_rooms.assert_called_once()
+
+    def test_get_host_rooms_success(self, room_service, mock_room_repo):
+        host_id = uuid4()
+        expected_room = MagicMock(spec=Room)
+        mock_room_repo.get_by_host.return_value = expected_room
+
+        result = room_service.get_host_rooms(host_id)
+
+        assert result == [expected_room]
+        mock_room_repo.get_by_host.assert_called_once_with(host_id)
+
+    def test_get_host_rooms_no_room(self, room_service, mock_room_repo):
+        host_id = uuid4()
+        mock_room_repo.get_by_host.return_value = None
+
+        result = room_service.get_host_rooms(host_id)
+
+        assert result == []
 
     def test_get_host_room_success(self, room_service, mock_room_repo):
         host_id = uuid4()
