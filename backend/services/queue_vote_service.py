@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from backend.api.websocket import manager
 from backend.core.exceptions import EntityExistsException
 from backend.db.models.queue_vote import QueueVote
 from backend.repositories.queue_vote_repo import QueueVoteRepository
@@ -31,8 +32,9 @@ class QueueVoteService:
         """Cast a skip vote for a specific queue item.
 
         Rejects duplicate votes from the same user on the same queue item.
-        If the total vote count reaches the room's skip threshold (via
-        PlaybackService), triggers the finish_song flow to advance playback.
+        Broadcasts a skip_vote event to connected room members. If the total
+        vote count reaches the room's skip threshold, triggers the finish_song
+        flow to advance playback.
 
         Args:
             queue_item_id: UUID of the queue item to vote on.
@@ -53,24 +55,22 @@ class QueueVoteService:
         vote = QueueVote(queue_item_id=queue_item_id, user_id=user_id)
         saved_vote = self._repo.create(vote)
 
-        if self._playback_service:
-            await self._check_skip_threshold(saved_vote)
+        await self._broadcast_and_check_skip(saved_vote)
 
         return saved_vote
 
-    async def _check_skip_threshold(self, vote_obj: QueueVote) -> None:
-        """Verify whether votes on a queue item meet the room's skip threshold.
+    async def _broadcast_and_check_skip(self, vote_obj: QueueVote) -> None:
+        """Broadcast skip_vote event and trigger skip if threshold reached.
 
-        Looks up the room's configured skip_threshold setting and compares
-        it against the current vote count. If the threshold is met or
-        exceeded, triggers finish_song to advance playback.
+        Resolves the room context from the vote's queue item chain, broadcasts
+        the skip_vote event to all connected room members, and triggers
+        finish_song if the vote count meets or exceeds the threshold.
 
-        This is an internal method that safely returns without action if
-        any part of the lookup chain (queue item, session, room, settings)
-        is missing.
+        Safely returns without action if any part of the lookup chain
+        (queue item, session, room) is missing.
 
         Args:
-            vote_obj: The QueueVote whose associated item's votes to evaluate.
+            vote_obj: The QueueVote that was just persisted.
         """
         queue_item = vote_obj.queue_item
         session_obj = queue_item.session
@@ -78,12 +78,30 @@ class QueueVoteService:
             return
 
         room_obj = session_obj.room
+        if not room_obj:
+            return
+
         threshold = 2
-        if room_obj and room_obj.settings:
+        if room_obj.settings:
             threshold = room_obj.settings.get("skip_threshold", 2)
 
         current_votes = self._repo.count_by_item(vote_obj.queue_item_id)
-        if current_votes >= threshold:
+        skip_triggered = current_votes >= threshold
+
+        await manager.broadcast(
+            {
+                "type": "skip_vote",
+                "room_id": str(room_obj.id),
+                "queue_item_id": str(vote_obj.queue_item_id),
+                "voter_id": str(vote_obj.user_id),
+                "current_votes": current_votes,
+                "threshold": threshold,
+                "skip_triggered": skip_triggered,
+            },
+            str(room_obj.id),
+        )
+
+        if skip_triggered and self._playback_service:
             await self._playback_service.finish_song(session_obj.id)
 
     def vote_count(self, queue_item_id: UUID) -> int:
