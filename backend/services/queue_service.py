@@ -8,6 +8,7 @@ from backend.db.models.queue_item import QueueItem
 from backend.repositories.queue_repo import QueueRepository
 from backend.repositories.session_repo import SessionRepository
 from backend.schemas.queue_item import ReadQueueItem
+from backend.schemas.song import ReadSong
 
 
 class QueueService:
@@ -56,6 +57,8 @@ class QueueService:
             session_id, song_id, added_by_user_id, group
         )
         await self._broadcast_queue_updated(session_id, action="added")
+        if item.position == 0:
+            await self._broadcast_song_changed(session_id, item.song)
         return item
 
     async def remove_from_queue(self, queue_item_id: UUID) -> None:
@@ -158,6 +161,32 @@ class QueueService:
                 "action": action,
                 "room_id": str(room_id),
                 "queue": queue_payload,
+            },
+            str(room_id),
+        )
+
+    async def _broadcast_song_changed(self, session_id: UUID, song) -> None:
+        """Broadcast song_changed event when first song starts playing.
+
+        Args:
+            session_id: The session whose playback started.
+            song: The song that is now playing.
+        """
+        if not self._session_repo:
+            return
+
+        session_obj = self._session_repo.get_by_id(session_id)
+        if not session_obj:
+            return
+
+        room_id = session_obj.room_id
+        song_payload = ReadSong.model_validate(song).model_dump(mode="json")
+
+        await manager.broadcast(
+            {
+                "type": "song_changed",
+                "room_id": str(room_id),
+                "song": song_payload,
             },
             str(room_id),
         )

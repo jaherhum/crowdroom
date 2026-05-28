@@ -1,7 +1,7 @@
 """Tests for PlaybackService."""
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import anyio
@@ -39,7 +39,7 @@ class TestPlaybackService:
     # -- finish_song --
 
     def test_finish_records_history_and_removes(
-        self, playback_service, mock_queue_service
+        self, playback_service, mock_queue_service, mock_session_repo
     ):
         """finish_song marks item as FINISHED, records history, removes from queue."""
         session_id = uuid4()
@@ -47,10 +47,16 @@ class TestPlaybackService:
         current_item = MagicMock(spec=QueueItem)
         current_item.session_id = session_id
         current_item.song_id = song_id
-        mock_queue_service.get_current_song.return_value = current_item
+        mock_queue_service.get_current_song.side_effect = [current_item, None]
+
+        session_obj = MagicMock()
+        session_obj.room_id = uuid4()
+        mock_session_repo.get_by_id.return_value = session_obj
 
         async def _run():
-            return await playback_service.finish_song(session_id)
+            with patch("backend.services.playback_service.manager") as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                return await playback_service.finish_song(session_id)
 
         result = anyio.run(_run)
 
@@ -72,6 +78,82 @@ class TestPlaybackService:
         assert result == "finished"
         playback_service._queue_history_repo.create.assert_not_called()
         mock_queue_service.remove_from_queue.assert_not_called()
+
+    # -- song_changed broadcast --
+
+    def test_finish_song_broadcasts_next_song(
+        self, playback_service, mock_queue_service, mock_session_repo
+    ):
+        """finish_song broadcasts song_changed with next song metadata."""
+        session_id = uuid4()
+        room_id = uuid4()
+        current_item = MagicMock(spec=QueueItem)
+        current_item.session_id = session_id
+        current_item.song_id = uuid4()
+
+        next_item = MagicMock(spec=QueueItem)
+        next_item.song = MagicMock()
+        next_item.song.id = uuid4()
+        next_item.song.external_id = "spotify:track:123"
+        next_item.song.title = "Next Song"
+        next_item.song.artist = "Artist"
+        next_item.song.platform = "spotify"
+        next_item.song.duration = 200.0
+        next_item.song.album_art_url = None
+        next_item.song.is_explicit = False
+
+        mock_queue_service.get_current_song.side_effect = [current_item, next_item]
+
+        session_obj = MagicMock()
+        session_obj.room_id = room_id
+        mock_session_repo.get_by_id.return_value = session_obj
+
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch("backend.services.playback_service.manager") as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await playback_service.finish_song(session_id)
+
+        anyio.run(_run)
+
+        mock_broadcast.assert_called_once()
+        call_args = mock_broadcast.call_args[0]
+        assert call_args[0]["type"] == "song_changed"
+        assert call_args[0]["room_id"] == str(room_id)
+        assert call_args[0]["song"] is not None
+        assert call_args[1] == str(room_id)
+
+    def test_finish_song_broadcasts_null_when_queue_empty(
+        self, playback_service, mock_queue_service, mock_session_repo
+    ):
+        """finish_song broadcasts song_changed with null song when queue empties."""
+        session_id = uuid4()
+        room_id = uuid4()
+        current_item = MagicMock(spec=QueueItem)
+        current_item.session_id = session_id
+        current_item.song_id = uuid4()
+
+        mock_queue_service.get_current_song.side_effect = [current_item, None]
+
+        session_obj = MagicMock()
+        session_obj.room_id = room_id
+        mock_session_repo.get_by_id.return_value = session_obj
+
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch("backend.services.playback_service.manager") as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await playback_service.finish_song(session_id)
+
+        anyio.run(_run)
+
+        mock_broadcast.assert_called_once()
+        call_args = mock_broadcast.call_args[0]
+        assert call_args[0]["type"] == "song_changed"
+        assert call_args[0]["song"] is None
+        assert call_args[1] == str(room_id)
 
     def test_record_history_calls_create_and_prune(self, playback_service):
         """_record_history creates an entry and prunes old ones."""

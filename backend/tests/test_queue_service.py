@@ -108,6 +108,7 @@ class TestQueueService:
     ):
         session_id, song_id, user_id = uuid4(), uuid4(), uuid4()
         mock_item = MagicMock(spec=QueueItem)
+        mock_item.position = 1
         mock_queue_repo.add_to_queue_atomic.return_value = mock_item
         mock_queue_repo.get_all_by_session.return_value = []
         mock_broadcast = AsyncMock()
@@ -125,6 +126,73 @@ class TestQueueService:
         call_args = mock_broadcast.call_args[0]
         assert call_args[0]["type"] == "queue_updated"
         assert call_args[0]["action"] == "added"
+
+    def test_add_to_queue_broadcasts_song_changed_for_first_song(
+        self, queue_service, mock_queue_repo, mock_session_repo
+    ):
+        """add_to_queue broadcasts song_changed when item is at position 0."""
+        session_id, song_id, user_id = uuid4(), uuid4(), uuid4()
+        room_id = uuid4()
+        mock_item = MagicMock(spec=QueueItem)
+        mock_item.position = 0
+        mock_item.song = MagicMock()
+        mock_item.song.id = song_id
+        mock_item.song.external_id = "spotify:track:abc"
+        mock_item.song.title = "First Song"
+        mock_item.song.artist = "Artist"
+        mock_item.song.platform = "spotify"
+        mock_item.song.duration = 180.0
+        mock_item.song.album_art_url = None
+        mock_item.song.is_explicit = False
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
+
+        session_obj = MagicMock()
+        session_obj.room_id = room_id
+        mock_session_repo.get_by_id.return_value = session_obj
+
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await queue_service.add_to_queue(
+                    session_id, song_id, user_id, group="manual"
+                )
+
+        anyio.run(_run)
+
+        assert mock_broadcast.call_count == 2
+        first_call = mock_broadcast.call_args_list[0][0]
+        assert first_call[0]["type"] == "queue_updated"
+        second_call = mock_broadcast.call_args_list[1][0]
+        assert second_call[0]["type"] == "song_changed"
+        assert second_call[0]["song"] is not None
+        assert second_call[1] == str(room_id)
+
+    def test_add_to_queue_no_song_changed_when_not_first(
+        self, queue_service, mock_queue_repo, mock_session_repo
+    ):
+        """add_to_queue does not broadcast song_changed when position > 0."""
+        session_id, song_id, user_id = uuid4(), uuid4(), uuid4()
+        mock_item = MagicMock(spec=QueueItem)
+        mock_item.position = 2
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await queue_service.add_to_queue(
+                    session_id, song_id, user_id, group="manual"
+                )
+
+        anyio.run(_run)
+
+        mock_broadcast.assert_called_once()
+        call_args = mock_broadcast.call_args[0]
+        assert call_args[0]["type"] == "queue_updated"
 
     # -- remove_from_queue --
 

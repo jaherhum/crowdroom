@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from backend.schemas.queue_item import ReadQueueItem
+from backend.schemas.song import ReadSong
 
 
 class QueueUpdatedEvent(BaseModel):
@@ -21,3 +22,17 @@ class QueueUpdatedEvent(BaseModel):
     action: str
     room_id: UUID
     queue: list[ReadQueueItem]
+
+
+class SongChangedEvent(BaseModel):
+    """Payload for song_changed WebSocket events.
+
+    Attributes:
+        type: Event type identifier, always 'song_changed'.
+        room_id: The room where playback changed.
+        song: Metadata of the now-playing song.
+    """
+
+    type: str = "song_changed"
+    room_id: UUID
+    song: ReadSong | None
