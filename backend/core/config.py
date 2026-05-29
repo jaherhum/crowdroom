@@ -1,5 +1,6 @@
 """Application configuration management."""
 
+import logging
 from pathlib import Path
 from typing import Literal
 
@@ -9,6 +10,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # So parent.parent is the 'backend' directory itself.
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+logger = logging.getLogger(__name__)
+
+def validate_spotify_config() -> None:
+    """Log warning if Spotify OAuth config is incomplete."""
+    if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
+        logger.warning(
+            "SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not set. "
+            "All Spotify features (search, queue, playback) will be unavailable."
+        )
+        return
+
+    if not settings.SPOTIFY_REDIRECT_URI:
+        logger.warning(
+            "SPOTIFY_REDIRECT_URI not set. "
+            "Search will work but Spotify OAuth playback flow will fail."
+        )
 
 class Settings(BaseSettings):
     """Manages global application configuration via environment variables.
@@ -46,6 +63,12 @@ class Settings(BaseSettings):
     # WebSocket Heartbeat
     WS_HEARTBEAT_INTERVAL_SECONDS: int = 30
     WS_HEARTBEAT_TIMEOUT_SECONDS: int = 10
+
+    # Spotify OAuth (playback control)
+    SPOTIFY_CLIENT_ID: str = ""
+    SPOTIFY_CLIENT_SECRET: str = ""
+    SPOTIFY_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/spotify/callback"
+    PLAYBACK_POLL_INTERVAL_SECONDS: int = 3
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
