@@ -16,13 +16,14 @@ from backend.api.session.router import router as session_router
 from backend.api.songs.router import router as songs_router
 from backend.api.users.router import router as user_router
 from backend.api.websocket import router as websocket_router
-from backend.core.config import settings
+from backend.core.config import settings, validate_spotify_config
 from backend.db.database import create_db_and_tables
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manages the application lifecycle."""
+    validate_spotify_config()
     print("Creating tables in database...")
     create_db_and_tables()
     yield
@@ -30,7 +31,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
 
 app.include_router(
     platform_connections_router,
