@@ -4,10 +4,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+import sqlalchemy as sa
 from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
-from backend.db.models.enum import StreamingPlatforms
+from backend.db.models.enum import ItemStatus, StreamingPlatforms
 
 if TYPE_CHECKING:
     from backend.db.models.queue_history import QueueHistory
@@ -41,6 +42,12 @@ class Session(SQLModel, table=True):
     current_song_id: str | None = Field(default=None, nullable=True)
 
     last_updated: datetime = Field(default_factory=datetime.now, nullable=False)
+    playback_status: ItemStatus | None = Field(
+        default=None, sa_column=sa.Column(sa.Enum(ItemStatus), nullable=True)
+    )
+    playback_position_ms: int | None = Field(None, nullable=True)
+    playback_started_at: datetime | None = Field(None, nullable=True)
+    current_device_id: str | None = Field(default=None, nullable=True)
 
     # Relations
     room: "Room" = Relationship(back_populates="session")
