@@ -5,6 +5,7 @@ from backend.db.models.enum import (
 )
 from backend.db.models.enum import (
     StreamingPlatforms as StreamingPlatforms,
+    ConnectionType as ConnectionType,
 )
 from backend.db.models.enum import (
     TokenType as TokenType,
