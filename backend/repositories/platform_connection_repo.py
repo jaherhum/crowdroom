@@ -79,6 +79,20 @@ class PlatformConnectionRepo:
             select(PlatformConnection).where(PlatformConnection.user_id == user_id)
         ).all()
 
+    def update(self, connection: PlatformConnection) -> PlatformConnection:
+        """Persist changes to an existing platform connection.
+
+        Args:
+            connection: PlatformConnection instance with updated fields.
+
+        Returns:
+            Refreshed connection after commit.
+        """
+        self._session.add(connection)
+        self._session.commit()
+        self._session.refresh(connection)
+        return connection
+
     def delete(self, connection_id: UUID) -> None:
         """Delete a platform connection by ID.
 
