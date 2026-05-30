@@ -31,3 +31,7 @@ class TokenType(str, Enum):
 
     ACCESS = "access"
     REFRESH = "refresh"
+
+class ConnectionType(str, Enum):
+    CLIENT_CREDENTIALS = "client_credentials"
+    AUTHORIZATION_CODE = "authorization_code"

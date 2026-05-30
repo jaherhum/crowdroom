@@ -1,12 +1,13 @@
 """Database model representing a user's connection to a streaming platform."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
-from backend.db.models.enum import StreamingPlatforms
+from backend.db.models.enum import StreamingPlatforms, ConnectionType
 
 if TYPE_CHECKING:
     from backend.db.models.user import User
@@ -32,7 +33,13 @@ class PlatformConnection(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id", nullable=False)
     platform: StreamingPlatforms = Field(nullable=False)
-    credentials_encrypted: str = Field(nullable=False)
+    credentials_encrypted: str | None = Field(default=None)
+    connection_type: ConnectionType = Field(default=ConnectionType.CLIENT_CREDENTIALS)
+    access_token_encrypted: str | None = Field(default=None)
+    refresh_token_encrypted: str | None = Field(default=None)
+    token_expires_at: datetime | None = Field(default=None)
+    scopes: str | None = Field(default=None)
+
 
     # Relations
     user: "User" = Relationship(back_populates="platform_connections")
