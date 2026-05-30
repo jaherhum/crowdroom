@@ -156,3 +156,18 @@ class UserAlreadyInRoomException(AppException):
             super().__init__(
                 f"User is already in room {current_room_id}. Leave current room first."
             )
+
+class OAuthStateException(AppException):
+    """Exception raised when an OAuth state parameter is invalid or expired."""
+
+    def __init__(self, reason: str = ""):
+        """Initializes the exception.
+
+        Args:
+            reason: Specific reason for the failure. Empty for generic message.
+        """
+        if not reason:
+            super().__init__("OAuth state validation failed.")
+        else:
+            super().__init__(f"OAuth state validation failed: {reason}")
+
