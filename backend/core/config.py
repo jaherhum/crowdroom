@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     SPOTIFY_CLIENT_SECRET: str = ""
     SPOTIFY_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/spotify/callback"
     PLAYBACK_POLL_INTERVAL_SECONDS: int = 3
+    SPOTIFY_OAUTH_STATE_TTL_SECONDS: int = 600
+    FRONTEND_URL: str = "http://localhost:5500"
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

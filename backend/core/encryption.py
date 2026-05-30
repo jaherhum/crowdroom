@@ -36,3 +36,20 @@ def decrypt_data(data: str) -> dict:
     str_bytes = data.encode()
     decrypted_bytes = _fernet.decrypt(str_bytes)
     return json.loads(decrypted_bytes)
+
+def decrypt_data_with_ttl(data: str, ttl_seconds: int) -> dict:
+    """Decrypt a Fernet-encoded string, rejecting tokens older than ttl_seconds.
+
+    Args:
+        data: Encrypted string produced by ``encrypt_data``.
+        ttl_seconds: Maximum allowed age of the token in seconds.
+
+    Returns:
+        Original dictionary.
+
+    Raises:
+        cryptography.fernet.InvalidToken: If token is expired or tampered.
+    """
+    str_bytes = data.encode()
+    decrypted_bytes = _fernet.decrypt(str_bytes, ttl=ttl_seconds)
+    return json.loads(decrypted_bytes)

@@ -4,12 +4,17 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlmodel import Session as DBSession
 
 from backend.api.users.dependencies import get_user_service
 from backend.core.security import SecurityService
+from backend.db.database import get_session
 from backend.db.models.enum import TokenType
 from backend.db.models.user import User
+from backend.repositories.platform_connection_repo import PlatformConnectionRepo
 from backend.services.auth_service import AuthService
+from backend.services.platform_connection_service import PlatformConnectionService
+from backend.services.spotify_oauth_service import SpotifyOAuthService
 from backend.services.user_service import UserService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -75,3 +80,47 @@ def get_current_user(
         return user
     except Exception as exc:
         raise credentials_exception from exc
+
+
+def _get_platform_connection_repo(
+    session: DBSession = Depends(get_session),
+) -> PlatformConnectionRepo:
+    """Provide a PlatformConnectionRepo (local to avoid circular import).
+
+    Args:
+        session: Database session from dependency injection.
+
+    Returns:
+        A PlatformConnectionRepo instance.
+    """
+    return PlatformConnectionRepo(session)
+
+
+def _get_platform_connection_service(
+    repo: PlatformConnectionRepo = Depends(_get_platform_connection_repo),
+) -> PlatformConnectionService:
+    """Provide a PlatformConnectionService (local to avoid circular import).
+
+    Args:
+        repo: PlatformConnectionRepo from dependency injection.
+
+    Returns:
+        A PlatformConnectionService instance.
+    """
+    return PlatformConnectionService(repo)
+
+
+def get_spotify_oauth_service(
+    platform_connection_service: PlatformConnectionService = Depends(
+        _get_platform_connection_service,
+    ),
+) -> SpotifyOAuthService:
+    """Provide a SpotifyOAuthService wired with its dependencies.
+
+    Args:
+        platform_connection_service: Service for persisting OAuth tokens.
+
+    Returns:
+        A SpotifyOAuthService instance.
+    """
+    return SpotifyOAuthService(platform_connection_service)
