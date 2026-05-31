@@ -22,6 +22,7 @@ from backend.repositories.room_repo import RoomRepository
 from backend.repositories.user_repo import UserRepository
 from backend.schemas.room_invite import CreateRoomInvite
 from backend.services.room_invite_service import MAX_TOKEN_RETRIES, RoomInviteService
+from backend.services.room_service import RoomService
 
 
 class TestRoomInviteService:
@@ -38,8 +39,16 @@ class TestRoomInviteService:
         return MagicMock(spec=UserRepository)
 
     @pytest.fixture
-    def invite_service(self, mock_invite_repo, mock_room_repo, mock_user_repo):
-        return RoomInviteService(mock_invite_repo, mock_room_repo, mock_user_repo)
+    def mock_room_service(self):
+        return MagicMock(spec=RoomService)
+
+    @pytest.fixture
+    def invite_service(
+        self, mock_invite_repo, mock_room_repo, mock_user_repo, mock_room_service
+    ):
+        return RoomInviteService(
+            mock_invite_repo, mock_room_repo, mock_user_repo, mock_room_service
+        )
 
     @pytest.fixture
     def host_user_id(self):
@@ -57,9 +66,9 @@ class TestRoomInviteService:
     # --- create_invite ---
 
     def test_create_invite_success(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         expected_invite = MagicMock(spec=RoomInvite)
         mock_invite_repo.create.return_value = expected_invite
         data = CreateRoomInvite()
@@ -70,26 +79,30 @@ class TestRoomInviteService:
         mock_invite_repo.create.assert_called_once()
 
     def test_create_invite_non_host_forbidden(
-        self, invite_service, mock_room_repo, room
+        self, invite_service, mock_room_service, room
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.side_effect = ForbiddenException(
+            "Only the room host can perform this action"
+        )
         non_host_id = uuid4()
         data = CreateRoomInvite()
 
         with pytest.raises(ForbiddenException):
             invite_service.create_invite(room.id, non_host_id, data)
 
-    def test_create_invite_room_not_found(self, invite_service, mock_room_repo):
-        mock_room_repo.get_by_id.return_value = None
+    def test_create_invite_room_not_found(self, invite_service, mock_room_service):
+        mock_room_service.assert_host.side_effect = EntityNotFoundException(
+            "Room", uuid4()
+        )
         data = CreateRoomInvite()
 
         with pytest.raises(EntityNotFoundException):
             invite_service.create_invite(uuid4(), uuid4(), data)
 
     def test_create_invite_with_expiry(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         created_invite = MagicMock(spec=RoomInvite)
         mock_invite_repo.create.return_value = created_invite
         data = CreateRoomInvite(expires_in_hours=24)
@@ -102,9 +115,9 @@ class TestRoomInviteService:
         assert call_args.expires_at > expected_min
 
     def test_create_invite_with_max_uses(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         created_invite = MagicMock(spec=RoomInvite)
         mock_invite_repo.create.return_value = created_invite
         data = CreateRoomInvite(max_uses=10)
@@ -115,9 +128,9 @@ class TestRoomInviteService:
         assert call_args.max_uses == 10
 
     def test_create_invite_retries_on_token_collision(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         expected_invite = MagicMock(spec=RoomInvite)
         mock_invite_repo.create.side_effect = [
             IntegrityError("", {}, None),
@@ -132,9 +145,9 @@ class TestRoomInviteService:
         assert mock_invite_repo.create.call_count == 3
 
     def test_create_invite_exhausts_retries(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         mock_invite_repo.create.side_effect = IntegrityError("", {}, None)
         data = CreateRoomInvite()
 
@@ -266,9 +279,9 @@ class TestRoomInviteService:
     # --- list_invites ---
 
     def test_list_invites_success(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         invites = [MagicMock(spec=RoomInvite), MagicMock(spec=RoomInvite)]
         mock_invite_repo.get_by_room.return_value = invites
 
@@ -278,9 +291,11 @@ class TestRoomInviteService:
         mock_invite_repo.get_by_room.assert_called_once_with(room.id)
 
     def test_list_invites_non_host_forbidden(
-        self, invite_service, mock_room_repo, room
+        self, invite_service, mock_room_service, room
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.side_effect = ForbiddenException(
+            "Only the room host can perform this action"
+        )
         non_host_id = uuid4()
 
         with pytest.raises(ForbiddenException):
@@ -289,9 +304,9 @@ class TestRoomInviteService:
     # --- revoke_invite ---
 
     def test_revoke_invite_success(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         invite = MagicMock(spec=RoomInvite)
         invite.room_id = room.id
         invite_id = uuid4()
@@ -302,27 +317,29 @@ class TestRoomInviteService:
         mock_invite_repo.delete.assert_called_once_with(invite_id)
 
     def test_revoke_invite_non_host_forbidden(
-        self, invite_service, mock_room_repo, room
+        self, invite_service, mock_room_service, room
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.side_effect = ForbiddenException(
+            "Only the room host can perform this action"
+        )
         non_host_id = uuid4()
 
         with pytest.raises(ForbiddenException):
             invite_service.revoke_invite(room.id, uuid4(), non_host_id)
 
     def test_revoke_invite_not_found(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         mock_invite_repo.get_by_id.return_value = None
 
         with pytest.raises(EntityNotFoundException):
             invite_service.revoke_invite(room.id, uuid4(), host_user_id)
 
     def test_revoke_invite_wrong_room(
-        self, invite_service, mock_invite_repo, mock_room_repo, room, host_user_id
+        self, invite_service, mock_invite_repo, mock_room_service, room, host_user_id
     ):
-        mock_room_repo.get_by_id.return_value = room
+        mock_room_service.assert_host.return_value = room
         invite = MagicMock(spec=RoomInvite)
         invite.room_id = uuid4()  # different room
         mock_invite_repo.get_by_id.return_value = invite

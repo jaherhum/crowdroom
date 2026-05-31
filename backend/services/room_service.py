@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 
 from backend.api.websocket import manager
-from backend.core.exceptions import EntityNotFoundException
+from backend.core.exceptions import EntityNotFoundException, ForbiddenException
 from backend.core.room_code import generate_room_code
 from backend.core.security import SecurityService
 from backend.db.models.room import Room
@@ -29,6 +29,25 @@ class RoomService:
         """
         self._room_repo = room_repo
         self._security_service = security_service
+
+    def assert_host(self, room_id: UUID, user_id: UUID) -> Room:
+        """Verify user is the host of the given room.
+
+        Args:
+            room_id: The room to check.
+            user_id: The user to verify as host.
+
+        Returns:
+            The Room instance if user is host.
+
+        Raises:
+            EntityNotFoundException: If room does not exist.
+            ForbiddenException: If user is not the room host.
+        """
+        room = self.get_room(room_id)
+        if room.host_user_id != user_id:
+            raise ForbiddenException("Only the room host can perform this action")
+        return room
 
     def get_room(self, room_id: UUID) -> Room:
         """Retrieve a specific room by its ID.
