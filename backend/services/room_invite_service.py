@@ -12,7 +12,6 @@ from backend.core.exceptions import (
     UserAlreadyInRoomException,
 )
 from backend.core.invite_token import generate_invite_token
-from backend.db.models.room import Room
 from backend.db.models.room_invite import RoomInvite
 from backend.db.models.user import User
 from backend.repositories.room_invite_repo import RoomInviteRepository
@@ -23,6 +22,7 @@ from backend.schemas.room_invite import (
     InviteJoinResult,
     InvitePreview,
 )
+from backend.services.room_service import RoomService
 
 MAX_TOKEN_RETRIES = 5
 
@@ -35,6 +35,7 @@ class RoomInviteService:
         invite_repo: RoomInviteRepository,
         room_repo: RoomRepository,
         user_repo: UserRepository,
+        room_service: RoomService,
     ) -> None:
         """Initialize the RoomInviteService with its dependencies.
 
@@ -42,31 +43,12 @@ class RoomInviteService:
             invite_repo: Repository for invite data operations.
             room_repo: Repository for room lookups.
             user_repo: Repository for user updates on join.
+            room_service: Service for room operations including host verification.
         """
         self._invite_repo = invite_repo
         self._room_repo = room_repo
         self._user_repo = user_repo
-
-    def _assert_host(self, room_id: UUID, user_id: UUID) -> Room:
-        """Verify user is the host of the given room.
-
-        Args:
-            room_id: The room to check.
-            user_id: The user to verify as host.
-
-        Returns:
-            The Room instance if user is host.
-
-        Raises:
-            EntityNotFoundException: If room does not exist.
-            ForbiddenException: If user is not the room host.
-        """
-        room = self._room_repo.get_by_id(room_id)
-        if not room:
-            raise EntityNotFoundException("Room", room_id)
-        if room.host_user_id != user_id:
-            raise ForbiddenException("Only the room host can perform this action")
-        return room
+        self._room_service = room_service
 
     def _validate_invite(self, invite: RoomInvite) -> None:
         """Check that an invite is still valid (not expired or exhausted).
@@ -104,7 +86,7 @@ class RoomInviteService:
             ForbiddenException: If user is not the room host.
             IntegrityError: If token generation exhausts all retries.
         """
-        self._assert_host(room_id, user_id)
+        self._room_service.assert_host(room_id, user_id)
 
         expires_at = None
         if data.expires_in_hours is not None:
@@ -199,7 +181,7 @@ class RoomInviteService:
             EntityNotFoundException: If room does not exist.
             ForbiddenException: If user is not the room host.
         """
-        self._assert_host(room_id, user_id)
+        self._room_service.assert_host(room_id, user_id)
         return self._invite_repo.get_by_room(room_id)
 
     def revoke_invite(self, room_id: UUID, invite_id: UUID, user_id: UUID) -> None:
@@ -215,7 +197,7 @@ class RoomInviteService:
             ForbiddenException: If user is not the room host or invite
                 doesn't belong to the room.
         """
-        self._assert_host(room_id, user_id)
+        self._room_service.assert_host(room_id, user_id)
 
         invite = self._invite_repo.get_by_id(invite_id)
         if not invite:

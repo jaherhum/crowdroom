@@ -73,7 +73,7 @@ def get_room_membership_service(
         A RoomMembershipService instance for join/leave operations.
     """
     invite_repo = RoomInviteRepository(session)
-    invite_service = RoomInviteService(invite_repo, room_repo, user_repo)
+    invite_service = RoomInviteService(invite_repo, room_repo, user_repo, room_service)
     return RoomMembershipService(
         room_service, invite_service, user_repo, room_repo
     )

@@ -9,6 +9,7 @@ from backend.api.invites.router import router as invites_router
 from backend.api.platform_connections.router import (
     router as platform_connections_router,
 )
+from backend.api.playback.router import router as playback_router
 from backend.api.queue.router import router as queue_router
 from backend.api.rooms.router import router as rooms_router
 from backend.api.search.router import router as search_router
@@ -38,6 +39,7 @@ app.include_router(
     tags=["platform_connections"],
 )
 app.include_router(invites_router, prefix=settings.API_V1_STR, tags=["invites"])
+app.include_router(playback_router, prefix=settings.API_V1_STR, tags=["playback"])
 app.include_router(rooms_router, prefix=settings.API_V1_STR, tags=["rooms"])
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(queue_router, prefix=settings.API_V1_STR, tags=["queue"])
