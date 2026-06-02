@@ -2,11 +2,14 @@
 
 from uuid import UUID
 
+import httpx
+
 from backend.adapters.spotify_playback_adapter import (
     SpotifyPlaybackAdapter,
     SpotifyPlaybackState,
 )
-from backend.core.exceptions import EntityNotFoundException
+from backend.api.websocket import manager
+from backend.core.exceptions import EntityNotFoundException, SpotifyUpstreamException
 from backend.db.models.enum import ItemStatus, StreamingPlatforms
 from backend.repositories.session_repo import SessionRepository
 from backend.repositories.song_repo import SongRepository
@@ -82,8 +85,13 @@ class PlaybackControlService:
 
         track_uri = f"spotify:track:{song.external_id}"
         adapter = await self._get_adapter(user_id)
-        await adapter.play(track_uri, device_id)
-
+        try:
+            await adapter.play(track_uri, device_id)
+        except httpx.HTTPStatusError as error:
+            raise SpotifyUpstreamException(
+                status_code=error.response.status_code,
+                detail=self._spotify_error_detail(error),
+            ) from error
         session = self._session_repo.get_by_room(room_id)
         if session:
             self._session_repo.update(
@@ -94,6 +102,8 @@ class PlaybackControlService:
                     "current_device_id": device_id or session.current_device_id,
                 },
             )
+
+        await self._broadcast_state_changed(room_id, "playing", song.external_id)
 
     async def pause(self, room_id: UUID, user_id: UUID) -> None:
         """Pause playback on the host's Spotify.
@@ -108,13 +118,21 @@ class PlaybackControlService:
         """
         self._room_service.assert_host(room_id, user_id)
         adapter = await self._get_adapter(user_id)
-        await adapter.pause()
+        try:
+            await adapter.pause()
+        except httpx.HTTPStatusError as error:
+            raise SpotifyUpstreamException(
+                status_code=error.response.status_code,
+                detail=self._spotify_error_detail(error),
+            ) from error
 
         session = self._session_repo.get_by_room(room_id)
         if session:
             self._session_repo.update(
                 session.id, {"playback_status": ItemStatus.PAUSED}
             )
+
+        await self._broadcast_state_changed(room_id, "paused")
 
     async def skip(self, room_id: UUID, user_id: UUID) -> None:
         """Skip the current song on the host's Spotify and advance internal queue.
@@ -129,7 +147,13 @@ class PlaybackControlService:
         """
         self._room_service.assert_host(room_id, user_id)
         adapter = await self._get_adapter(user_id)
-        await adapter.skip()
+        try:
+            await adapter.skip()
+        except httpx.HTTPStatusError as error:
+            raise SpotifyUpstreamException(
+                status_code=error.response.status_code,
+                detail=self._spotify_error_detail(error),
+            ) from error
 
         session = self._session_repo.get_by_room(room_id)
         if session:
@@ -153,4 +177,52 @@ class PlaybackControlService:
         """
         self._room_service.assert_host(room_id, user_id)
         adapter = await self._get_adapter(user_id)
-        return await adapter.get_current_playback()
+        try:
+            return await adapter.get_current_playback()
+        except httpx.HTTPStatusError as error:
+            raise SpotifyUpstreamException(
+                status_code=error.response.status_code,
+                detail=self._spotify_error_detail(error),
+            ) from error
+
+    async def _broadcast_state_changed(
+        self, room_id: UUID, playback_status: str, track_id: str | None = None
+    ) -> None:
+        """Broadcast playback state change to all room members.
+
+        Args:
+            room_id: Room whose members should receive the event.
+            playback_status: New status ('playing' or 'paused').
+            track_id: Spotify track ID currently playing, if any.
+        """
+        await manager.broadcast(
+            {
+                "type": "playback_state_changed",
+                "room_id": str(room_id),
+                "status": playback_status,
+                "track_id": track_id,
+            },
+            str(room_id),
+        )
+
+    @staticmethod
+    def _spotify_error_detail(error: httpx.HTTPStatusError) -> str:
+        """Map Spotify HTTP status codes to user-facing messages.
+
+        Args:
+            error: The HTTP error raised by the Spotify adapter.
+
+        Returns:
+            Human-readable error description.
+        """
+        code = error.response.status_code
+        if code == 404:
+            return (
+                "No active Spotify device found. "
+                "Open Spotify on a device and try again."
+            )
+        if code == 401:
+            return "Spotify session expired. Please re-link your Spotify account."
+        if code == 403:
+            return "Spotify rejected the request. Check your account permissions."
+        return f"Spotify returned an error (HTTP {code})."
