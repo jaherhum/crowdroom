@@ -1,5 +1,8 @@
 """Service for orchestrating Spotify playback control commands."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import httpx
@@ -17,6 +20,9 @@ from backend.services.platform_connection_service import PlatformConnectionServi
 from backend.services.playback_service import PlaybackService
 from backend.services.room_service import RoomService
 
+if TYPE_CHECKING:
+    from backend.services.playback_poller_service import PlaybackPollerService
+
 
 class PlaybackControlService:
     """Orchestrates Spotify playback commands with permission and token management."""
@@ -28,6 +34,7 @@ class PlaybackControlService:
         song_repo: SongRepository,
         platform_connection_service: PlatformConnectionService,
         playback_service: PlaybackService,
+        playback_poller: "PlaybackPollerService | None" = None,
     ) -> None:
         """Initialize with required dependencies.
 
@@ -37,12 +44,14 @@ class PlaybackControlService:
             song_repo: Repository for song external_id resolution.
             platform_connection_service: Service for fetching user OAuth tokens.
             playback_service: Service for internal queue advancement.
+            playback_poller: Optional poller to start on playback begin.
         """
         self._room_service = room_service
         self._session_repo = session_repo
         self._song_repo = song_repo
         self._platform_connection_service = platform_connection_service
         self._playback_service = playback_service
+        self._playback_poller = playback_poller
 
     async def _get_adapter(self, user_id: UUID) -> SpotifyPlaybackAdapter:
         """Obtain a playback adapter with the user's valid access token.
@@ -104,6 +113,9 @@ class PlaybackControlService:
             )
 
         await self._broadcast_state_changed(room_id, "playing", song.external_id)
+
+        if self._playback_poller:
+            await self._playback_poller.start_polling(room_id, user_id)
 
     async def pause(self, room_id: UUID, user_id: UUID) -> None:
         """Pause playback on the host's Spotify.

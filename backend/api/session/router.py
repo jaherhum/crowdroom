@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from backend.api.session.dependencies import get_playback_service, get_session_service
 from backend.schemas.playback import FinishResponse
@@ -90,15 +90,20 @@ async def update_session(
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(
     session_id: UUID,
+    request: Request,
     session_service: SessionService = Depends(get_session_service),
 ) -> None:
     """Deletes a session from the system.
 
     Args:
         session_id (UUID): The unique identifier of the session to delete.
+        request (Request): The incoming request (used to access app state).
         session_service (SessionService): The injected session service.
     """
+    session = session_service.get_session(session_id)
+    room_id = session.room_id
     session_service.delete_session(session_id)
+    await request.app.state.playback_poller.stop_polling(room_id)
 
 
 @router.post(

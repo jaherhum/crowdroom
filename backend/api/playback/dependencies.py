@@ -1,6 +1,6 @@
 """Playback control API dependencies."""
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlmodel import Session as DBSession
 
 from backend.api.rooms.dependencies import get_room_service
@@ -29,6 +29,7 @@ def get_platform_connection_service(
 
 
 def get_playback_control_service(
+    request: Request,
     room_service: RoomService = Depends(get_room_service),
     session_repo: SessionRepository = Depends(get_session_repo),
     song_repo: SongRepository = Depends(get_song_repo),
@@ -44,4 +45,5 @@ def get_playback_control_service(
         song_repo=song_repo,
         platform_connection_service=platform_connection_service,
         playback_service=playback_service,
+        playback_poller=request.app.state.playback_poller,
     )

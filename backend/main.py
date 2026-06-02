@@ -19,6 +19,7 @@ from backend.api.users.router import router as user_router
 from backend.api.websocket import router as websocket_router
 from backend.core.config import settings, validate_spotify_config
 from backend.db.database import create_db_and_tables
+from backend.services.playback_poller_service import PlaybackPollerService
 
 
 @asynccontextmanager
@@ -27,7 +28,9 @@ async def lifespan(app: FastAPI):
     validate_spotify_config()
     print("Creating tables in database...")
     create_db_and_tables()
+    app.state.playback_poller = PlaybackPollerService()
     yield
+    await app.state.playback_poller.stop_all()
     print("App closed.")
 
 
