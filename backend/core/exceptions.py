@@ -171,3 +171,22 @@ class OAuthStateException(AppException):
         else:
             super().__init__(f"OAuth state validation failed: {reason}")
 
+class SpotifyUpstreamException(AppException):
+    """Exception raised when Spotify API returns an error response.
+
+    Attributes:
+        upstream_status_code: The HTTP status code Spotify returned.
+    """
+
+    def __init__(self, status_code: int, detail: str = ""):
+        """Initializes the exception.
+
+        Args:
+            status_code: HTTP status code from Spotify's response.
+            detail: Human-readable error detail. Auto-generated if empty.
+        """
+        self.upstream_status_code = status_code
+        if not detail:
+            super().__init__(f"Spotify returned HTTP {status_code}")
+        else:
+            super().__init__(detail)

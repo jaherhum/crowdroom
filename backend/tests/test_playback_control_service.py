@@ -5,10 +5,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import anyio
+import httpx
 import pytest
 
 from backend.adapters.spotify_playback_adapter import SpotifyPlaybackState
-from backend.core.exceptions import EntityNotFoundException, ForbiddenException
+from backend.core.exceptions import (
+    EntityNotFoundException,
+    ForbiddenException,
+    SpotifyUpstreamException,
+)
 from backend.db.models.enum import ItemStatus
 from backend.db.models.session import Session as SessionModel
 from backend.db.models.song import Song
@@ -132,6 +137,75 @@ class TestPlaybackControlServicePlay:
         with pytest.raises(EntityNotFoundException):
             anyio.run(_run)
 
+    @patch("backend.services.playback_control_service.manager")
+    @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
+    def test_play_broadcasts_state_changed(
+        self,
+        mock_adapter_cls,
+        mock_manager,
+        service,
+        mock_room_service,
+        mock_song_repo,
+        mock_session_repo,
+    ):
+        room_id = uuid4()
+        user_id = uuid4()
+        song_id = uuid4()
+
+        mock_song = MagicMock(spec=Song)
+        mock_song.external_id = "spotify_track_id"
+        mock_song_repo.get_by_id.return_value = mock_song
+
+        mock_session = MagicMock(spec=SessionModel)
+        mock_session.id = uuid4()
+        mock_session.current_device_id = "dev1"
+        mock_session_repo.get_by_room.return_value = mock_session
+
+        mock_adapter = AsyncMock()
+        mock_adapter.play = AsyncMock()
+        mock_adapter_cls.return_value = mock_adapter
+
+        mock_manager.broadcast = AsyncMock()
+
+        async def _run():
+            await service.play(room_id, user_id, song_id)
+
+        anyio.run(_run)
+
+        mock_manager.broadcast.assert_called_once_with(
+            {
+                "type": "playback_state_changed",
+                "room_id": str(room_id),
+                "status": "playing",
+                "track_id": "spotify_track_id",
+            },
+            str(room_id),
+        )
+
+    @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
+    def test_play_spotify_404_raises_upstream_exception(
+        self, mock_adapter_cls, service, mock_room_service, mock_song_repo
+    ):
+        mock_song = MagicMock(spec=Song)
+        mock_song.external_id = "track_id"
+        mock_song_repo.get_by_id.return_value = mock_song
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_adapter = AsyncMock()
+        mock_adapter.play.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=MagicMock(), response=mock_response
+        )
+        mock_adapter_cls.return_value = mock_adapter
+
+        async def _run():
+            await service.play(uuid4(), uuid4(), uuid4())
+
+        with pytest.raises(SpotifyUpstreamException) as exc_info:
+            anyio.run(_run)
+
+        assert "No active Spotify device" in str(exc_info.value)
+
 
 class TestPlaybackControlServicePause:
     @pytest.fixture
@@ -211,6 +285,64 @@ class TestPlaybackControlServicePause:
 
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
+
+    @patch("backend.services.playback_control_service.manager")
+    @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
+    def test_pause_broadcasts_state_changed(
+        self,
+        mock_adapter_cls,
+        mock_manager,
+        service,
+        mock_room_service,
+        mock_session_repo,
+    ):
+        room_id = uuid4()
+        user_id = uuid4()
+
+        mock_session = MagicMock(spec=SessionModel)
+        mock_session.id = uuid4()
+        mock_session_repo.get_by_room.return_value = mock_session
+
+        mock_adapter = AsyncMock()
+        mock_adapter.pause = AsyncMock()
+        mock_adapter_cls.return_value = mock_adapter
+
+        mock_manager.broadcast = AsyncMock()
+
+        async def _run():
+            await service.pause(room_id, user_id)
+
+        anyio.run(_run)
+
+        mock_manager.broadcast.assert_called_once_with(
+            {
+                "type": "playback_state_changed",
+                "room_id": str(room_id),
+                "status": "paused",
+                "track_id": None,
+            },
+            str(room_id),
+        )
+
+    @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
+    def test_pause_spotify_error_raises_upstream_exception(
+        self, mock_adapter_cls, service, mock_room_service
+    ):
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_adapter = AsyncMock()
+        mock_adapter.pause.side_effect = httpx.HTTPStatusError(
+            "Unauthorized", request=MagicMock(), response=mock_response
+        )
+        mock_adapter_cls.return_value = mock_adapter
+
+        async def _run():
+            await service.pause(uuid4(), uuid4())
+
+        with pytest.raises(SpotifyUpstreamException) as exc_info:
+            anyio.run(_run)
+
+        assert "expired" in str(exc_info.value)
 
 
 class TestPlaybackControlServiceSkip:
@@ -296,6 +428,26 @@ class TestPlaybackControlServiceSkip:
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
 
+    @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
+    def test_skip_spotify_error_raises_upstream_exception(
+        self, mock_adapter_cls, service, mock_room_service
+    ):
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_adapter = AsyncMock()
+        mock_adapter.skip.side_effect = httpx.HTTPStatusError(
+            "Forbidden", request=MagicMock(), response=mock_response
+        )
+        mock_adapter_cls.return_value = mock_adapter
+
+        async def _run():
+            await service.skip(uuid4(), uuid4())
+
+        with pytest.raises(SpotifyUpstreamException) as exc_info:
+            anyio.run(_run)
+
+        assert "permissions" in str(exc_info.value)
+
 
 class TestPlaybackControlServiceGetCurrentPlayback:
     @pytest.fixture
@@ -378,3 +530,23 @@ class TestPlaybackControlServiceGetCurrentPlayback:
 
         result = anyio.run(_run)
         assert result is None
+
+    @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
+    def test_get_current_playback_spotify_error_raises_upstream_exception(
+        self, mock_adapter_cls, service, mock_room_service
+    ):
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_adapter = AsyncMock()
+        mock_adapter.get_current_playback.side_effect = httpx.HTTPStatusError(
+            "Server Error", request=MagicMock(), response=mock_response
+        )
+        mock_adapter_cls.return_value = mock_adapter
+
+        async def _run():
+            return await service.get_current_playback(uuid4(), uuid4())
+
+        with pytest.raises(SpotifyUpstreamException) as exc_info:
+            anyio.run(_run)
+
+        assert "HTTP 500" in str(exc_info.value)

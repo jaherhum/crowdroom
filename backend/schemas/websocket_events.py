@@ -58,3 +58,18 @@ class SkipVoteEvent(BaseModel):
     current_votes: int
     threshold: int
     skip_triggered: bool
+
+class PlaybackStateChangedEvent(BaseModel):
+    """Payload for playback_state_changed WebSocket events.
+
+    Attributes:
+        type: Event type identifier, always 'playback_state_changed'.
+        room_id: The room whose playback state changed.
+        status: New playback status ('playing' or 'paused').
+        track_id: Spotify track ID currently playing, if any.
+    """
+
+    type: str = "playback_state_changed"
+    room_id: UUID
+    status: str
+    track_id: str | None = None
