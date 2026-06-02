@@ -65,7 +65,7 @@ class PlaybackStateChangedEvent(BaseModel):
     Attributes:
         type: Event type identifier, always 'playback_state_changed'.
         room_id: The room whose playback state changed.
-        status: New playback status ('playing' or 'paused').
+        status: New playback status ('playing', 'paused', 'skipped', or 'stopped').
         track_id: Spotify track ID currently playing, if any.
     """
 

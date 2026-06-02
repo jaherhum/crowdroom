@@ -428,6 +428,44 @@ class TestPlaybackControlServiceSkip:
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
 
+    @patch("backend.services.playback_control_service.manager")
+    @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
+    def test_skip_broadcasts_state_changed(
+        self,
+        mock_adapter_cls,
+        mock_manager,
+        service,
+        mock_room_service,
+        mock_session_repo,
+    ):
+        room_id = uuid4()
+        user_id = uuid4()
+
+        mock_session = MagicMock(spec=SessionModel)
+        mock_session.id = uuid4()
+        mock_session_repo.get_by_room.return_value = mock_session
+
+        mock_adapter = AsyncMock()
+        mock_adapter.skip = AsyncMock()
+        mock_adapter_cls.return_value = mock_adapter
+
+        mock_manager.broadcast = AsyncMock()
+
+        async def _run():
+            await service.skip(room_id, user_id)
+
+        anyio.run(_run)
+
+        mock_manager.broadcast.assert_called_once_with(
+            {
+                "type": "playback_state_changed",
+                "room_id": str(room_id),
+                "status": "skipped",
+                "track_id": None,
+            },
+            str(room_id),
+        )
+
     @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
     def test_skip_spotify_error_raises_upstream_exception(
         self, mock_adapter_cls, service, mock_room_service

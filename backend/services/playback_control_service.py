@@ -171,6 +171,8 @@ class PlaybackControlService:
         if session:
             await self._playback_service.finish_song(session.id)
 
+        await self._broadcast_state_changed(room_id, "skipped")
+
     async def get_current_playback(
         self, room_id: UUID, user_id: UUID
     ) -> SpotifyPlaybackState | None:
@@ -204,7 +206,7 @@ class PlaybackControlService:
 
         Args:
             room_id: Room whose members should receive the event.
-            playback_status: New status ('playing' or 'paused').
+            playback_status: New status ('playing', 'paused', or 'skipped').
             track_id: Spotify track ID currently playing, if any.
         """
         await manager.broadcast(
