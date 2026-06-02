@@ -4,7 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.auth.dependencies import get_current_user
 from backend.api.playback.dependencies import get_playback_control_service
-from backend.core.exceptions import EntityNotFoundException, ForbiddenException
+from backend.core.exceptions import (
+    EntityNotFoundException,
+    ForbiddenException,
+    InvalidPlatformCredentialsException,
+    SpotifyUpstreamException,
+)
 from backend.db.models.user import User
 from backend.schemas.playback import PlaybackStateResponse, PlayRequest
 from backend.services.playback_control_service import PlaybackControlService
@@ -39,6 +44,15 @@ async def play(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
+    except InvalidPlatformCredentialsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No linked Spotify account. Connect your account first.",
+        ) from exc
+    except SpotifyUpstreamException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
 
 
 @router.post("/pause", status_code=status.HTTP_204_NO_CONTENT)
@@ -63,6 +77,15 @@ async def pause(
     except EntityNotFoundException as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except InvalidPlatformCredentialsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No linked Spotify account. Connect your account first.",
+        ) from exc
+    except SpotifyUpstreamException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
         ) from exc
 
 
@@ -89,6 +112,15 @@ async def skip(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
+    except InvalidPlatformCredentialsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No linked Spotify account. Connect your account first.",
+        ) from exc
+    except SpotifyUpstreamException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
 
 
 @router.get("/current", response_model=PlaybackStateResponse | None)
@@ -113,6 +145,15 @@ async def get_current_playback(
     except EntityNotFoundException as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except InvalidPlatformCredentialsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No linked Spotify account. Connect your account first.",
+        ) from exc
+    except SpotifyUpstreamException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
         ) from exc
 
     if state is None:
