@@ -1,0 +1,271 @@
+"""Background polling service for detecting external Spotify playback changes."""
+
+import asyncio
+import logging
+from uuid import UUID
+
+import httpx
+from sqlmodel import Session as DBSession
+
+from backend.adapters.spotify_playback_adapter import SpotifyPlaybackAdapter
+from backend.api.websocket import manager
+from backend.core.config import settings
+from backend.db.database import engine
+from backend.db.models.enum import ItemStatus, StreamingPlatforms
+from backend.repositories.platform_connection_repo import PlatformConnectionRepo
+from backend.repositories.queue_history_repo import QueueHistoryRepository
+from backend.repositories.queue_repo import QueueRepository
+from backend.repositories.session_repo import SessionRepository
+from backend.services.platform_connection_service import PlatformConnectionService
+from backend.services.playback_service import PlaybackService
+from backend.services.queue_service import QueueService
+
+logger = logging.getLogger(__name__)
+
+
+class PlaybackPollerService:
+    """Manages per-room background tasks that poll Spotify and reconcile state."""
+
+    def __init__(self) -> None:
+        self._active_tasks: dict[UUID, asyncio.Task] = {}
+        self._lock = asyncio.Lock()
+
+    def _get_session_state(self, room_id: UUID):
+        """Read the current session for a room from a fresh DB connection.
+
+        Args:
+            room_id: The room whose session to look up.
+
+        Returns:
+            The Session model instance, or None if no session exists.
+        """
+        with DBSession(engine) as db_session:
+            repo = SessionRepository(db_session)
+            return repo.get_by_room(room_id)
+
+    def _update_session_status(self, session_id: UUID, status: ItemStatus) -> None:
+        """Update a session's playback_status in a fresh DB connection.
+
+        Args:
+            session_id: The session to update.
+            status: The new playback status.
+        """
+        with DBSession(engine) as db_session:
+            repo = SessionRepository(db_session)
+            repo.update(session_id, {"playback_status": status})
+
+    def _update_session_track(
+        self, session_id: UUID, track_id: str, status: ItemStatus
+    ) -> None:
+        """Update a session's current track and status in a fresh DB connection.
+
+        Args:
+            session_id: The session to update.
+            track_id: The new Spotify track ID.
+            status: The new playback status.
+        """
+        with DBSession(engine) as db_session:
+            repo = SessionRepository(db_session)
+            repo.update(
+                session_id,
+                {"current_song_id": track_id, "playback_status": status},
+            )
+
+    async def _get_valid_token(self, host_user_id: UUID) -> str:
+        """Get a valid Spotify access token for the host user.
+
+        Opens a fresh DB connection, builds PlatformConnectionService,
+        and calls get_valid_access_token (which handles refresh if needed).
+
+        Args:
+            host_user_id: The host user whose token to retrieve.
+
+        Returns:
+            A valid Spotify access token string.
+        """
+        with DBSession(engine) as db_session:
+            repo = PlatformConnectionRepo(db_session)
+            service = PlatformConnectionService(repo)
+            return await service.get_valid_access_token(
+                host_user_id, StreamingPlatforms.SPOTIFY
+            )
+
+    def _build_playback_service(self) -> PlaybackService:
+        """Construct a PlaybackService with a fresh DB session and all its deps.
+
+        Returns:
+            A fully wired PlaybackService instance.
+        """
+        db_session = DBSession(engine)
+        session_repo = SessionRepository(db_session)
+        queue_repo = QueueRepository(db_session)
+        queue_history_repo = QueueHistoryRepository(db_session)
+        queue_service = QueueService(queue_repo)
+        return PlaybackService(session_repo, queue_service, queue_history_repo)
+
+    async def _broadcast_state_changed(
+        self, room_id: UUID, status: str, track_id: str | None = None
+    ) -> None:
+        """Broadcast a playback_state_changed event to all room members.
+
+        Args:
+            room_id: Room whose members should receive the event.
+            status: New status string ('playing', 'paused', 'stopped').
+            track_id: Spotify track ID, if any.
+        """
+        await manager.broadcast(
+            {
+                "type": "playback_state_changed",
+                "room_id": str(room_id),
+                "status": status,
+                "track_id": track_id,
+            },
+            str(room_id),
+        )
+
+    async def start_polling(self, room_id: UUID, host_user_id: UUID) -> None:
+        """Start a polling task for a room if one is not already running.
+
+        Args:
+            room_id: The room to poll for.
+            host_user_id: The host whose Spotify token to use.
+        """
+        async with self._lock:
+            if room_id in self._active_tasks:
+                return
+            task = asyncio.create_task(self._poll_loop(room_id, host_user_id))
+            self._active_tasks[room_id] = task
+
+    async def stop_polling(self, room_id: UUID) -> None:
+        """Cancel and clean up the polling task for a room.
+
+        Args:
+            room_id: The room whose poller to stop.
+        """
+        async with self._lock:
+            task = self._active_tasks.pop(room_id, None)
+        if task:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    async def stop_all(self) -> None:
+        """Cancel all active polling tasks. Called during app shutdown."""
+        async with self._lock:
+            tasks = list(self._active_tasks.values())
+            self._active_tasks.clear()
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    def is_polling(self, room_id: UUID) -> bool:
+        """Check whether a room currently has an active polling task."""
+        return room_id in self._active_tasks
+
+    async def _poll_loop(self, room_id: UUID, host_user_id: UUID) -> None:
+        """Poll Spotify playback state and reconcile with internal queue.
+
+        Args:
+            room_id: The room being monitored.
+            host_user_id: The host whose Spotify account to poll.
+        """
+        backoff = settings.PLAYBACK_POLL_INTERVAL_SECONDS
+        max_backoff = 30
+
+        try:
+            while True:
+                await asyncio.sleep(backoff)
+
+                try:
+                    session = await asyncio.to_thread(self._get_session_state, room_id)
+                    if not session:
+                        break
+
+                    token = await self._get_valid_token(host_user_id)
+                    adapter = SpotifyPlaybackAdapter(token)
+                    state = await adapter.get_current_playback()
+
+                    if state is None:
+                        if session.playback_status == ItemStatus.PLAYING:
+                            await asyncio.to_thread(
+                                self._update_session_status,
+                                session.id,
+                                ItemStatus.STOPPED,
+                            )
+                            await self._broadcast_state_changed(
+                                room_id, "stopped", session.current_song_id
+                            )
+                        backoff = settings.PLAYBACK_POLL_INTERVAL_SECONDS
+                        continue
+
+                    if state.track_id != session.current_song_id:
+                        playback_service = self._build_playback_service()
+                        await playback_service.finish_song(session.id)
+                        await asyncio.to_thread(
+                            self._update_session_track,
+                            session.id,
+                            state.track_id,
+                            ItemStatus.PLAYING,
+                        )
+
+                    elif (
+                        not state.is_playing
+                        and session.playback_status == ItemStatus.PLAYING
+                    ):
+                        await asyncio.to_thread(
+                            self._update_session_status,
+                            session.id,
+                            ItemStatus.PAUSED,
+                        )
+                        await self._broadcast_state_changed(
+                            room_id, "paused", state.track_id
+                        )
+                    elif (
+                        state.is_playing
+                        and session.playback_status == ItemStatus.PAUSED
+                    ):
+                        await asyncio.to_thread(
+                            self._update_session_status,
+                            session.id,
+                            ItemStatus.PLAYING,
+                        )
+                        await self._broadcast_state_changed(
+                            room_id, "playing", state.track_id
+                        )
+
+                    backoff = settings.PLAYBACK_POLL_INTERVAL_SECONDS
+
+                except asyncio.CancelledError:
+                    raise
+                except httpx.HTTPStatusError as error:
+                    if error.response.status_code == 429:
+                        retry_after = int(
+                            error.response.headers.get("Retry-After", "5")
+                        )
+                        backoff = retry_after
+                        logger.warning(
+                            "Rate limited polling room %s, backing off %ds",
+                            room_id,
+                            retry_after,
+                        )
+                    elif error.response.status_code == 401:
+                        backoff = settings.PLAYBACK_POLL_INTERVAL_SECONDS
+                        logger.info(
+                            "Token expired for room %s, will refresh next cycle",
+                            room_id,
+                        )
+                    else:
+                        backoff = min(backoff * 2, max_backoff)
+                        logger.warning(
+                            "Spotify error polling room %s: HTTP %d",
+                            room_id,
+                            error.response.status_code,
+                        )
+                except Exception:
+                    backoff = min(backoff * 2, max_backoff)
+                    logger.exception("Unexpected error polling room %s", room_id)
+
+        finally:
+            self._active_tasks.pop(room_id, None)

@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.api.auth.dependencies import get_current_user
 from backend.api.queue.dependencies import get_queue_history_repo
@@ -119,14 +119,17 @@ async def update_room(
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_room(
     room_id: UUID,
+    request: Request,
     room_service: RoomService = Depends(get_room_service),
 ) -> None:
     """Deletes a room from the system.
 
     Args:
         room_id (UUID): The unique identifier of the room to delete.
+        request (Request): The incoming request (used to access app state).
         room_service (RoomService): The injected room service.
     """
+    await request.app.state.playback_poller.stop_polling(room_id)
     room_service.delete_room(room_id)
 
 
@@ -162,14 +165,13 @@ async def get_room_history(
     history_entries = queue_history_repo.get_by_session(session.id, limit=limit)
     return [ReadQueueHistory.model_validate(entry) for entry in history_entries]
 
+
 @router.post("/{room_id}/join", status_code=status.HTTP_200_OK)
 async def join_room(
     room_id: UUID,
     body: JoinRoom,
     current_user: User = Depends(get_current_user),
-    membership_service: RoomMembershipService = Depends(
-        get_room_membership_service
-    ),
+    membership_service: RoomMembershipService = Depends(get_room_membership_service),
 ) -> dict:
     """Join a room. Public rooms join directly; private rooms need PIN or invite.
 
@@ -202,9 +204,7 @@ async def join_room(
 async def leave_room(
     room_id: UUID,
     current_user: User = Depends(get_current_user),
-    membership_service: RoomMembershipService = Depends(
-        get_room_membership_service
-    ),
+    membership_service: RoomMembershipService = Depends(get_room_membership_service),
 ) -> dict:
     """Leave the current room.
 
@@ -217,14 +217,13 @@ async def leave_room(
         Confirmation message.
     """
     if current_user.room_id != room_id:
-        raise HTTPException(
-            status_code=400, detail="User is not in this room"
-        )
+        raise HTTPException(status_code=400, detail="User is not in this room")
     try:
         await membership_service.leave_room(current_user)
         return {"message": "Left room successfully"}
     except EntityNotFoundException as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
 
 @router.get("/mine", response_model=list[ReadRoom], status_code=status.HTTP_200_OK)
 async def get_my_rooms(
