@@ -64,6 +64,12 @@ class RoomMembershipService:
         if user.room_id == room_id:
             return
         room = self._room_service.get_room(room_id)
+
+        max_members = room.settings.get("max_members", 50)
+        current_count = self._user_repo.count_by_room(room_id)
+        if current_count >= max_members:
+            raise ForbiddenException("Room is full")
+
         if room.is_private:
             token_validation = (
                 self._room_invite_service.validate_and_consume_invite(

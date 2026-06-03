@@ -95,7 +95,9 @@ class TestPollLoopTrackChanged:
 
     @patch("backend.services.playback_poller_service.SpotifyPlaybackAdapter")
     @patch("backend.services.playback_poller_service.settings")
-    def test_track_mismatch_calls_finish_song(self, mock_settings, mock_adapter_cls):
+    def test_track_mismatch_calls_advance_queue(
+        self, mock_settings, mock_adapter_cls
+    ):
         mock_settings.PLAYBACK_POLL_INTERVAL_SECONDS = 0
 
         poller = PlaybackPollerService()
@@ -117,15 +119,13 @@ class TestPollLoopTrackChanged:
                 return mock_session
             return None
 
-        mock_playback_service = MagicMock()
-        mock_playback_service.finish_song = AsyncMock(return_value="finished")
-
         mock_adapter = AsyncMock()
         mock_adapter.get_current_playback = AsyncMock(
             return_value=SpotifyPlaybackState(
                 is_playing=True,
                 track_id="new_track",
                 progress_ms=0,
+                duration_ms=200000,
                 device_id="device1",
             )
         )
@@ -146,16 +146,14 @@ class TestPollLoopTrackChanged:
                 ),
                 patch.object(
                     poller,
-                    "_build_playback_service",
-                    return_value=mock_playback_service,
-                ),
-                patch.object(poller, "_update_session_track") as mock_update_track,
+                    "_advance_queue",
+                    new_callable=AsyncMock,
+                ) as mock_advance,
             ):
                 await poller._poll_loop(room_id, host_user_id)
 
-            mock_playback_service.finish_song.assert_called_once_with(session_id)
-            mock_update_track.assert_called_once_with(
-                session_id, "new_track", ItemStatus.PLAYING
+            mock_advance.assert_called_once_with(
+                mock_session, room_id, host_user_id, mock_adapter
             )
 
         anyio.run(_run)
@@ -192,6 +190,7 @@ class TestPollLoopExternalPause:
                 is_playing=False,
                 track_id="track_123",
                 progress_ms=5000,
+                duration_ms=200000,
                 device_id="device1",
             )
         )
@@ -254,6 +253,7 @@ class TestPollLoopExternalPause:
                 is_playing=True,
                 track_id="track_123",
                 progress_ms=5000,
+                duration_ms=200000,
                 device_id="device1",
             )
         )
@@ -290,7 +290,7 @@ class TestPollLoopExternalPause:
 class TestPollLoopNoDevice:
     @patch("backend.services.playback_poller_service.SpotifyPlaybackAdapter")
     @patch("backend.services.playback_poller_service.settings")
-    def test_no_device_marks_stopped(self, mock_settings, mock_adapter_cls):
+    def test_no_device_advances_queue(self, mock_settings, mock_adapter_cls):
         mock_settings.PLAYBACK_POLL_INTERVAL_SECONDS = 0
 
         poller = PlaybackPollerService()
@@ -329,17 +329,17 @@ class TestPollLoopNoDevice:
                     new_callable=AsyncMock,
                     return_value="token",
                 ),
-                patch.object(poller, "_update_session_status") as mock_update_status,
                 patch.object(
                     poller,
-                    "_broadcast_state_changed",
+                    "_advance_queue",
                     new_callable=AsyncMock,
-                ) as mock_broadcast,
+                ) as mock_advance,
             ):
                 await poller._poll_loop(room_id, host_user_id)
 
-            mock_update_status.assert_called_once_with(session_id, ItemStatus.STOPPED)
-            mock_broadcast.assert_called_once_with(room_id, "stopped", "track_123")
+            mock_advance.assert_called_once_with(
+                mock_session, room_id, host_user_id, mock_adapter
+            )
 
         anyio.run(_run)
 

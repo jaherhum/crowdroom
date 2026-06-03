@@ -25,6 +25,9 @@ class RoomSettings(BaseModel):
     """Room configuration settings."""
 
     skip_threshold: int = Field(default=2, ge=1, le=50, description="Skip threshold.")
+    max_members: int = Field(
+        default=50, ge=2, le=200, description="Maximum number of members allowed."
+    )
 
 
 class CreateRoom(BaseModel):

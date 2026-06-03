@@ -30,6 +30,29 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+@router.get("/mode")
+def get_auth_mode() -> dict:
+    """Return the current authentication mode.
+
+    Returns:
+        Dict with the active auth mode (LOCAL or ONLINE).
+    """
+    return {"mode": settings.AUTH_MODE}
+
+
+@router.get("/me", response_model=UserRead)
+def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
+    """Return the authenticated user's profile.
+
+    Args:
+        current_user: The authenticated user from JWT.
+
+    Returns:
+        The user's data including current room_id.
+    """
+    return UserRead.model_validate(current_user)
+
+
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(
     register_request: RegisterRequest,
@@ -110,27 +133,46 @@ def local_login(
 
 @router.get("/spotify")
 def initiate_spotify_oauth(
-    current_user: User = Depends(get_current_user),
+    token: str = Query(...),
+    auth_service: AuthService = Depends(get_auth_service),
     spotify_oauth_service: SpotifyOAuthService = Depends(get_spotify_oauth_service),
 ) -> RedirectResponse:
     """Redirect the authenticated user to Spotify's authorization page.
 
+    Accepts JWT via ?token= query param for browser redirects where
+    Authorization headers cannot be set.
+
     Args:
-        current_user: Authenticated user from JWT.
+        token: JWT access token from query string.
+        auth_service: The authentication service.
         spotify_oauth_service: OAuth service from DI.
 
     Returns:
         307 redirect to Spotify's authorize URL.
 
     Raises:
-        HTTPException: 503 if Spotify OAuth is not configured.
+        HTTPException: 401 if token invalid, 503 if Spotify not configured.
     """
-    if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
+    user = auth_service.resolve_user_from_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    has_global = settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
+    has_user_creds = bool(
+        spotify_oauth_service._platform_connection_service
+        .get_spotify_app_credentials(user.id)
+    )
+    if not has_global and not has_user_creds:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Spotify OAuth is not configured",
+            detail="No Spotify credentials configured. "
+            "Please set up your Spotify app credentials first.",
         )
-    url = spotify_oauth_service.generate_authorization_url(current_user.id)
+
+    url = spotify_oauth_service.generate_authorization_url(user.id)
     return RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 

@@ -1,0 +1,52 @@
+.rooms-section,
+.my-rooms-section {
+  margin-top: var(--space-6);
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.room-card {
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.room-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.room-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.room-card-name {
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-md);
+}
+
+.room-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.room-card-actions {
+  margin-top: var(--space-4);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.username-display {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}

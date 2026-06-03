@@ -47,5 +47,11 @@ class Room(SQLModel, table=True):
         back_populates="room",
         sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
     )
-    invites: Mapped[list["RoomInvite"]] = Relationship(back_populates="room")
-    session: "Session" = Relationship(back_populates="room")
+    invites: Mapped[list["RoomInvite"]] = Relationship(
+        back_populates="room",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    session: "Session" = Relationship(
+        back_populates="room",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
+    )

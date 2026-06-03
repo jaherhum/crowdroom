@@ -22,6 +22,7 @@ from backend.repositories.song_repo import SongRepository
 from backend.services.platform_connection_service import PlatformConnectionService
 from backend.services.playback_control_service import PlaybackControlService
 from backend.services.playback_service import PlaybackService
+from backend.services.queue_service import QueueService
 from backend.services.room_service import RoomService
 
 
@@ -51,6 +52,10 @@ class TestPlaybackControlServicePlay:
         return mock
 
     @pytest.fixture
+    def mock_queue_service(self):
+        return MagicMock(spec=QueueService)
+
+    @pytest.fixture
     def service(
         self,
         mock_room_service,
@@ -58,6 +63,7 @@ class TestPlaybackControlServicePlay:
         mock_song_repo,
         mock_platform_connection_service,
         mock_playback_service,
+        mock_queue_service,
     ):
         return PlaybackControlService(
             room_service=mock_room_service,
@@ -65,6 +71,7 @@ class TestPlaybackControlServicePlay:
             song_repo=mock_song_repo,
             platform_connection_service=mock_platform_connection_service,
             playback_service=mock_playback_service,
+            queue_service=mock_queue_service,
         )
 
     @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
@@ -103,14 +110,15 @@ class TestPlaybackControlServicePlay:
         mock_adapter.play.assert_called_once_with(
             "spotify:track:spotify_track_id", "dev1"
         )
-        mock_session_repo.update.assert_called_once_with(
-            mock_session.id,
-            {
-                "playback_status": ItemStatus.PLAYING,
-                "current_song_id": "spotify_track_id",
-                "current_device_id": "dev1",
-            },
-        )
+        mock_session_repo.update.assert_called_once()
+        call_args = mock_session_repo.update.call_args
+        assert call_args[0][0] == mock_session.id
+        update_data = call_args[0][1]
+        assert update_data["playback_status"] == ItemStatus.PLAYING
+        assert update_data["current_song_id"] == "spotify_track_id"
+        assert update_data["current_device_id"] == "dev1"
+        assert "playback_started_at" in update_data
+        assert update_data["playback_position_ms"] == 0
 
     def test_play_non_host_forbidden(
         self, service, mock_room_service
@@ -233,6 +241,10 @@ class TestPlaybackControlServicePause:
         return mock
 
     @pytest.fixture
+    def mock_queue_service(self):
+        return MagicMock(spec=QueueService)
+
+    @pytest.fixture
     def service(
         self,
         mock_room_service,
@@ -240,6 +252,7 @@ class TestPlaybackControlServicePause:
         mock_song_repo,
         mock_platform_connection_service,
         mock_playback_service,
+        mock_queue_service,
     ):
         return PlaybackControlService(
             room_service=mock_room_service,
@@ -247,17 +260,22 @@ class TestPlaybackControlServicePause:
             song_repo=mock_song_repo,
             platform_connection_service=mock_platform_connection_service,
             playback_service=mock_playback_service,
+            queue_service=mock_queue_service,
         )
 
     @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
     def test_pause_success(
         self, mock_adapter_cls, service, mock_room_service, mock_session_repo
     ):
+        from datetime import datetime, timezone
+
         room_id = uuid4()
         user_id = uuid4()
 
         mock_session = MagicMock(spec=SessionModel)
         mock_session.id = uuid4()
+        mock_session.playback_started_at = datetime.now(timezone.utc)
+        mock_session.playback_position_ms = 0
         mock_session_repo.get_by_room.return_value = mock_session
 
         mock_adapter = AsyncMock()
@@ -271,9 +289,12 @@ class TestPlaybackControlServicePause:
 
         mock_room_service.assert_host.assert_called_once_with(room_id, user_id)
         mock_adapter.pause.assert_called_once()
-        mock_session_repo.update.assert_called_once_with(
-            mock_session.id, {"playback_status": ItemStatus.PAUSED}
-        )
+        mock_session_repo.update.assert_called_once()
+        call_args = mock_session_repo.update.call_args
+        assert call_args[0][0] == mock_session.id
+        update_data = call_args[0][1]
+        assert update_data["playback_status"] == ItemStatus.PAUSED
+        assert "playback_position_ms" in update_data
 
     def test_pause_non_host_forbidden(self, service, mock_room_service):
         mock_room_service.assert_host.side_effect = ForbiddenException(
@@ -329,10 +350,10 @@ class TestPlaybackControlServicePause:
         self, mock_adapter_cls, service, mock_room_service
     ):
         mock_response = MagicMock()
-        mock_response.status_code = 401
+        mock_response.status_code = 403
         mock_adapter = AsyncMock()
         mock_adapter.pause.side_effect = httpx.HTTPStatusError(
-            "Unauthorized", request=MagicMock(), response=mock_response
+            "Forbidden", request=MagicMock(), response=mock_response
         )
         mock_adapter_cls.return_value = mock_adapter
 
@@ -342,7 +363,7 @@ class TestPlaybackControlServicePause:
         with pytest.raises(SpotifyUpstreamException) as exc_info:
             anyio.run(_run)
 
-        assert "expired" in str(exc_info.value)
+        assert "permissions" in str(exc_info.value)
 
 
 class TestPlaybackControlServiceSkip:
@@ -371,6 +392,10 @@ class TestPlaybackControlServiceSkip:
         return mock
 
     @pytest.fixture
+    def mock_queue_service(self):
+        return MagicMock(spec=QueueService)
+
+    @pytest.fixture
     def service(
         self,
         mock_room_service,
@@ -378,6 +403,7 @@ class TestPlaybackControlServiceSkip:
         mock_song_repo,
         mock_platform_connection_service,
         mock_playback_service,
+        mock_queue_service,
     ):
         return PlaybackControlService(
             room_service=mock_room_service,
@@ -385,16 +411,18 @@ class TestPlaybackControlServiceSkip:
             song_repo=mock_song_repo,
             platform_connection_service=mock_platform_connection_service,
             playback_service=mock_playback_service,
+            queue_service=mock_queue_service,
         )
 
     @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
-    def test_skip_calls_adapter_and_finishes_song(
+    def test_skip_plays_next_queue_item(
         self,
         mock_adapter_cls,
         service,
         mock_room_service,
         mock_session_repo,
         mock_playback_service,
+        mock_queue_service,
     ):
         room_id = uuid4()
         user_id = uuid4()
@@ -404,8 +432,14 @@ class TestPlaybackControlServiceSkip:
         mock_session.id = session_id
         mock_session_repo.get_by_room.return_value = mock_session
 
+        mock_next_song = MagicMock(spec=Song)
+        mock_next_song.external_id = "next_track_id"
+        mock_next_item = MagicMock()
+        mock_next_item.song = mock_next_song
+        mock_queue_service.get_current_song.return_value = mock_next_item
+
         mock_adapter = AsyncMock()
-        mock_adapter.skip = AsyncMock()
+        mock_adapter.play = AsyncMock()
         mock_adapter_cls.return_value = mock_adapter
 
         async def _run():
@@ -414,8 +448,16 @@ class TestPlaybackControlServiceSkip:
         anyio.run(_run)
 
         mock_room_service.assert_host.assert_called_once_with(room_id, user_id)
-        mock_adapter.skip.assert_called_once()
         mock_playback_service.finish_song.assert_called_once_with(session_id)
+        mock_queue_service.get_current_song.assert_called_once_with(session_id)
+        mock_adapter.play.assert_called_once_with("spotify:track:next_track_id")
+        mock_session_repo.update.assert_called_once()
+        call_args = mock_session_repo.update.call_args
+        assert call_args[0][0] == session_id
+        update_data = call_args[0][1]
+        assert update_data["playback_status"] == ItemStatus.PLAYING
+        assert update_data["current_song_id"] == "next_track_id"
+        assert update_data["playback_position_ms"] == 0
 
     def test_skip_non_host_forbidden(self, service, mock_room_service):
         mock_room_service.assert_host.side_effect = ForbiddenException(
@@ -430,23 +472,28 @@ class TestPlaybackControlServiceSkip:
 
     @patch("backend.services.playback_control_service.manager")
     @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
-    def test_skip_broadcasts_state_changed(
+    def test_skip_pauses_when_queue_empty(
         self,
         mock_adapter_cls,
         mock_manager,
         service,
         mock_room_service,
         mock_session_repo,
+        mock_playback_service,
+        mock_queue_service,
     ):
         room_id = uuid4()
         user_id = uuid4()
+        session_id = uuid4()
 
         mock_session = MagicMock(spec=SessionModel)
-        mock_session.id = uuid4()
+        mock_session.id = session_id
         mock_session_repo.get_by_room.return_value = mock_session
 
+        mock_queue_service.get_current_song.return_value = None
+
         mock_adapter = AsyncMock()
-        mock_adapter.skip = AsyncMock()
+        mock_adapter.pause = AsyncMock()
         mock_adapter_cls.return_value = mock_adapter
 
         mock_manager.broadcast = AsyncMock()
@@ -456,30 +503,55 @@ class TestPlaybackControlServiceSkip:
 
         anyio.run(_run)
 
+        mock_playback_service.finish_song.assert_called_once_with(session_id)
+        mock_adapter.pause.assert_called_once()
+        mock_session_repo.update.assert_called_once_with(
+            session_id, {"playback_status": ItemStatus.STOPPED}
+        )
         mock_manager.broadcast.assert_called_once_with(
             {
                 "type": "playback_state_changed",
                 "room_id": str(room_id),
-                "status": "skipped",
+                "status": "stopped",
                 "track_id": None,
             },
             str(room_id),
         )
 
     @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
-    def test_skip_spotify_error_raises_upstream_exception(
-        self, mock_adapter_cls, service, mock_room_service
+    def test_skip_spotify_play_error_raises_upstream_exception(
+        self,
+        mock_adapter_cls,
+        service,
+        mock_room_service,
+        mock_session_repo,
+        mock_playback_service,
+        mock_queue_service,
     ):
+        room_id = uuid4()
+        user_id = uuid4()
+        session_id = uuid4()
+
+        mock_session = MagicMock(spec=SessionModel)
+        mock_session.id = session_id
+        mock_session_repo.get_by_room.return_value = mock_session
+
+        mock_next_song = MagicMock(spec=Song)
+        mock_next_song.external_id = "next_track_id"
+        mock_next_item = MagicMock()
+        mock_next_item.song = mock_next_song
+        mock_queue_service.get_current_song.return_value = mock_next_item
+
         mock_response = MagicMock()
         mock_response.status_code = 403
         mock_adapter = AsyncMock()
-        mock_adapter.skip.side_effect = httpx.HTTPStatusError(
+        mock_adapter.play.side_effect = httpx.HTTPStatusError(
             "Forbidden", request=MagicMock(), response=mock_response
         )
         mock_adapter_cls.return_value = mock_adapter
 
         async def _run():
-            await service.skip(uuid4(), uuid4())
+            await service.skip(room_id, user_id)
 
         with pytest.raises(SpotifyUpstreamException) as exc_info:
             anyio.run(_run)
@@ -513,6 +585,10 @@ class TestPlaybackControlServiceGetCurrentPlayback:
         return mock
 
     @pytest.fixture
+    def mock_queue_service(self):
+        return MagicMock(spec=QueueService)
+
+    @pytest.fixture
     def service(
         self,
         mock_room_service,
@@ -520,6 +596,7 @@ class TestPlaybackControlServiceGetCurrentPlayback:
         mock_song_repo,
         mock_platform_connection_service,
         mock_playback_service,
+        mock_queue_service,
     ):
         return PlaybackControlService(
             room_service=mock_room_service,
@@ -527,6 +604,7 @@ class TestPlaybackControlServiceGetCurrentPlayback:
             song_repo=mock_song_repo,
             platform_connection_service=mock_platform_connection_service,
             playback_service=mock_playback_service,
+            queue_service=mock_queue_service,
         )
 
     @patch("backend.services.playback_control_service.SpotifyPlaybackAdapter")
@@ -540,6 +618,7 @@ class TestPlaybackControlServiceGetCurrentPlayback:
             is_playing=True,
             track_id="track123",
             progress_ms=45000,
+            duration_ms=200000,
             device_id="dev1",
         )
 

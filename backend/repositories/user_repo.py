@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session as DBSession
 from sqlmodel import or_, select
@@ -70,6 +71,32 @@ class UserRepository:
         return self._db_session.exec(
             select(User).where(User.username == username.lower())
         ).first()
+
+    def get_by_room(self, room_id: UUID) -> list[User]:
+        """Retrieve all users currently in a specific room.
+
+        Args:
+            room_id: The room ID to filter users by.
+
+        Returns:
+            List of users whose room_id matches the given ID.
+        """
+        return list(
+            self._db_session.exec(select(User).where(User.room_id == room_id)).all()
+        )
+
+    def count_by_room(self, room_id: UUID) -> int:
+        """Count users currently in a specific room.
+
+        Args:
+            room_id: The room ID to count users for.
+
+        Returns:
+            Number of users in the room.
+        """
+        return self._db_session.exec(
+            select(func.count()).where(User.room_id == room_id)
+        ).one()
 
     def get_by_identifier(self, identifier: str) -> User | None:
         """Retrieves a user by their identifier (email or username).

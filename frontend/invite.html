@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrowdRoom — Invite</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/pages/login.css">
+  <script type="module" src="/js/pages/invite.js"></script>
+</head>
+<body>
+  <main class="page login-page">
+    <div class="login-container">
+      <header class="login-header">
+        <h1>CrowdRoom</h1>
+        <p class="text-secondary">You've been invited!</p>
+      </header>
+
+      <div id="invite-info" class="card" hidden>
+        <h3 id="invite-room-name"></h3>
+        <p class="text-secondary" id="invite-detail"></p>
+        <button id="join-invite-btn" class="btn btn-primary btn-full" style="margin-top: var(--space-4);">Join Room</button>
+      </div>
+
+      <div id="invite-login" hidden>
+        <p class="text-secondary" style="margin-bottom: var(--space-4);">Login first to join this room.</p>
+        <form id="invite-login-form" class="login-form">
+          <input id="invite-username" type="text" class="input" placeholder="Pick a username" maxlength="32" autocomplete="off" required>
+          <button type="submit" class="btn btn-primary btn-full">Enter & Join</button>
+        </form>
+      </div>
+
+      <p id="invite-error" class="error-text" hidden></p>
+
+      <div id="invite-loading" class="empty-state">
+        <p>Loading invite...</p>
+      </div>
+    </div>
+
+    <button class="theme-toggle btn-icon" aria-label="Toggle theme">
+      <i class="ph ph-sun"></i>
+    </button>
+  </main>
+</body>
+</html>

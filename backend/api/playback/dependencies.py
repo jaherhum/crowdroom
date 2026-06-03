@@ -3,6 +3,7 @@
 from fastapi import Depends, Request
 from sqlmodel import Session as DBSession
 
+from backend.api.queue.dependencies import get_queue_service
 from backend.api.rooms.dependencies import get_room_service
 from backend.api.session.dependencies import get_playback_service, get_session_repo
 from backend.db.database import get_session
@@ -12,6 +13,7 @@ from backend.repositories.song_repo import SongRepository
 from backend.services.platform_connection_service import PlatformConnectionService
 from backend.services.playback_control_service import PlaybackControlService
 from backend.services.playback_service import PlaybackService
+from backend.services.queue_service import QueueService
 from backend.services.room_service import RoomService
 
 
@@ -37,6 +39,7 @@ def get_playback_control_service(
         get_platform_connection_service
     ),
     playback_service: PlaybackService = Depends(get_playback_service),
+    queue_service: QueueService = Depends(get_queue_service),
 ) -> PlaybackControlService:
     """Provide a PlaybackControlService wired with all dependencies."""
     return PlaybackControlService(
@@ -45,5 +48,6 @@ def get_playback_control_service(
         song_repo=song_repo,
         platform_connection_service=platform_connection_service,
         playback_service=playback_service,
+        queue_service=queue_service,
         playback_poller=request.app.state.playback_poller,
     )

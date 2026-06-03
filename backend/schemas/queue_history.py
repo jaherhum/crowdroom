@@ -27,6 +27,16 @@ class CreateQueueHistory(BaseModel):
     )
 
 
+class HistorySong(BaseModel):
+    """Inline song data for history entries."""
+
+    title: str
+    artist: str
+    album_art_url: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ReadQueueHistory(BaseModel):
     """Schema for a playback history entry returned by the API.
 
@@ -35,6 +45,7 @@ class ReadQueueHistory(BaseModel):
         session_id: The session where the song was played.
         song_id: The song that was played.
         played_at: Timestamp when the song was played or skipped.
+        song: Nested song metadata.
     """
 
     id: UUID = Field(..., description="The unique identifier of this history entry.")
@@ -48,5 +59,6 @@ class ReadQueueHistory(BaseModel):
     played_at: datetime = Field(
         ..., description="The timestamp when the song was played or skipped."
     )
+    song: HistorySong | None = None
 
     model_config = ConfigDict(from_attributes=True)

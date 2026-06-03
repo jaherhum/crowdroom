@@ -7,7 +7,7 @@ from backend.core.exceptions import EntityNotFoundException
 from backend.db.models.queue_item import QueueItem
 from backend.repositories.queue_repo import QueueRepository
 from backend.repositories.session_repo import SessionRepository
-from backend.schemas.queue_item import ReadQueueItem
+from backend.schemas.queue_item import ReadQueueItemDetail
 from backend.schemas.song import ReadSong
 
 
@@ -151,7 +151,7 @@ class QueueService:
         room_id = session_obj.room_id
         queue_items = self.get_queue(session_id)
         queue_payload = [
-            ReadQueueItem.model_validate(item).model_dump(mode="json")
+            ReadQueueItemDetail.model_validate(item).model_dump(mode="json")
             for item in queue_items
         ]
 

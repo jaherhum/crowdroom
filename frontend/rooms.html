@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrowdRoom — Rooms</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/pages/rooms.css">
+  <script type="module" src="/js/pages/rooms.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="app-header">
+      <h2>CrowdRoom</h2>
+      <div class="header-actions">
+        <span class="username-display" id="username-display"></span>
+        <button class="theme-toggle btn-icon" aria-label="Toggle theme">
+          <i class="ph ph-sun"></i>
+        </button>
+        <button id="logout-btn" class="btn btn-ghost">Logout</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="rooms-section">
+        <div class="section-header">
+          <h3>Rooms</h3>
+          <button id="create-room-btn" class="btn btn-primary">
+            <i class="ph ph-plus"></i> Create Room
+          </button>
+        </div>
+        <div id="rooms-list" class="rooms-grid"></div>
+        <p id="rooms-empty" class="empty-state" hidden>
+          <i class="ph ph-music-notes"></i>
+          <span>No rooms available. Create one!</span>
+        </p>
+      </section>
+
+      <section class="my-rooms-section" id="my-rooms-section" hidden>
+        <div class="section-header">
+          <h3>My Rooms</h3>
+        </div>
+        <div id="my-rooms-list" class="rooms-grid"></div>
+      </section>
+    </main>
+
+    <div id="create-room-modal" class="modal-overlay" hidden>
+      <div class="modal">
+        <h3>Create Room</h3>
+        <form id="create-room-form" class="login-form">
+          <input type="text" class="input" name="room_name" placeholder="Room name" maxlength="255" required>
+          <label class="checkbox-label">
+            <input type="checkbox" name="is_private" id="is-private-check"> Private room
+          </label>
+          <div id="pin-group" hidden>
+            <input type="text" class="input" name="pin" placeholder="PIN (4-6 digits)" pattern="\d{4,6}">
+          </div>
+          <select class="input" name="platform">
+            <option value="spotify">Spotify</option>
+            <option value="tidal">Tidal</option>
+          </select>
+          <div class="form-row">
+            <label class="input-label">
+              Max members
+              <input type="number" class="input" name="max_members" value="50" min="2" max="200">
+            </label>
+            <label class="input-label">
+              Skip votes needed
+              <input type="number" class="input" name="skip_threshold" value="2" min="1" max="50">
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="cancel-create">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="join-pin-modal" class="modal-overlay" hidden>
+      <div class="modal">
+        <h3>Enter PIN</h3>
+        <form id="join-pin-form" class="login-form">
+          <input type="text" class="input" name="pin" placeholder="Room PIN" pattern="\d{4,6}" required>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="cancel-join">Cancel</button>
+            <button type="submit" class="btn btn-primary">Join</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

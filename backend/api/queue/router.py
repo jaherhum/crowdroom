@@ -12,7 +12,11 @@ from backend.api.queue.dependencies import (
 from backend.api.session.dependencies import get_queue_vote_service
 from backend.db.models.user import User
 from backend.schemas.queue_history import ReadQueueHistory
-from backend.schemas.queue_item import CreateQueueItem, ReadQueueItem
+from backend.schemas.queue_item import (
+    CreateQueueItem,
+    ReadQueueItem,
+    ReadQueueItemDetail,
+)
 from backend.schemas.queue_vote import CreateQueueVote, ReadQueueVote
 from backend.services.queue_service import QueueService
 from backend.services.queue_vote_service import QueueVoteService
@@ -22,51 +26,53 @@ router = APIRouter(prefix="/queue", tags=["queue"])
 
 @router.get(
     "/current",
-    response_model=ReadQueueItem | None,
+    response_model=ReadQueueItemDetail | None,
     status_code=status.HTTP_200_OK,
 )
 def get_current_song(
     session_id: UUID,
     queue_service: QueueService = Depends(get_queue_service),
-) -> ReadQueueItem | None:
+) -> ReadQueueItemDetail | None:
     """Retrieve the currently playing song for a session.
 
-    Returns the queue item at position 0 (the now-playing slot) and
-    validates it against the database before returning.
+    Returns the queue item at position 0 (the now-playing slot) with
+    nested song and user data.
 
     Args:
         session_id: The session whose current song to retrieve.
         queue_service: Dependency-injected queue service instance.
 
     Returns:
-        ReadQueueItem schema for the currently playing item, or None if
+        ReadQueueItemDetail with song and user info, or None if
         the session has no active playback.
     """
     item = queue_service.get_current_song(session_id)
     if item is None:
         return None
-    return ReadQueueItem.model_validate(item)
+    return ReadQueueItemDetail.model_validate(item)
 
 
-@router.get("/", response_model=list[ReadQueueItem], status_code=status.HTTP_200_OK)
+@router.get(
+    "/", response_model=list[ReadQueueItemDetail], status_code=status.HTTP_200_OK
+)
 def get_queue(
     session_id: UUID,
     queue_service: QueueService = Depends(get_queue_service),
-) -> list[ReadQueueItem]:
+) -> list[ReadQueueItemDetail]:
     """Retrieve the full queue for a session, ordered by position.
 
     Returns all queued items sorted by group priority (manual first) then
-    ascending position number.
+    ascending position number, with nested song and user data.
 
     Args:
         session_id: The session whose queue to retrieve.
         queue_service: Dependency-injected queue service instance.
 
     Returns:
-        A list of ReadQueueItem schemas ordered by playback position.
+        A list of ReadQueueItemDetail schemas ordered by playback position.
     """
     items = queue_service.get_queue(session_id)
-    return [ReadQueueItem.model_validate(item) for item in items]
+    return [ReadQueueItemDetail.model_validate(item) for item in items]
 
 
 @router.post("/", response_model=ReadQueueItem, status_code=status.HTTP_201_CREATED)

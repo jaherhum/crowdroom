@@ -47,7 +47,7 @@ async def play(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(
@@ -81,7 +81,7 @@ async def pause(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(
@@ -115,7 +115,7 @@ async def skip(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(
@@ -149,7 +149,7 @@ async def get_current_playback(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(

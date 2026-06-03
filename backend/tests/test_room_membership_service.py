@@ -32,7 +32,9 @@ class TestJoinRoom:
 
     @pytest.fixture
     def mock_user_repo(self):
-        return MagicMock(spec=UserRepository)
+        mock = MagicMock(spec=UserRepository)
+        mock.count_by_room.return_value = 1
+        return mock
 
     @pytest.fixture
     def mock_room_repo(self):
@@ -68,6 +70,7 @@ class TestJoinRoom:
         mock_room.host_user_id = uuid4()
         mock_room.room_name = "Public Room"
         mock_room.is_private = False
+        mock_room.settings = {"skip_threshold": 2, "max_members": 50}
         return mock_room
 
     @pytest.fixture
@@ -77,6 +80,7 @@ class TestJoinRoom:
         mock_room.host_user_id = uuid4()
         mock_room.room_name = "Private Room"
         mock_room.is_private = True
+        mock_room.settings = {"skip_threshold": 2, "max_members": 50}
         return mock_room
 
     def test_join_public_room_success(
@@ -269,7 +273,9 @@ class TestLeaveRoom:
 
     @pytest.fixture
     def mock_user_repo(self):
-        return MagicMock(spec=UserRepository)
+        mock = MagicMock(spec=UserRepository)
+        mock.count_by_room.return_value = 1
+        return mock
 
     @pytest.fixture
     def mock_room_repo(self):

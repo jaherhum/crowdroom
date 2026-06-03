@@ -67,4 +67,7 @@ class QueueItem(SQLModel, table=True):
     song: "Song" = Relationship(back_populates="queue_items")
     session: "Session" = Relationship(back_populates="queue_items")
     added_by: "User" = Relationship(back_populates="queue_items")
-    queue_votes: Mapped[list["QueueVote"]] = Relationship(back_populates="queue_item")
+    queue_votes: Mapped[list["QueueVote"]] = Relationship(
+        back_populates="queue_item",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )

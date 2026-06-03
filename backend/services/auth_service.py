@@ -1,8 +1,11 @@
 """Service for handling user authentication and registration."""
 
+from uuid import UUID
+
 from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
+from backend.db.models.user import User
 from backend.schemas.auth import (
     LocalLoginRequest,
     LoginRequest,
@@ -104,3 +107,21 @@ class AuthService:
         )
 
         return TokenResponse(access_token=token, token_type="bearer")
+
+    def resolve_user_from_token(self, token: str) -> User | None:
+        """Decode a JWT token and return the associated user.
+
+        Args:
+            token: Raw JWT access token string.
+
+        Returns:
+            The User if token is valid and user exists, None otherwise.
+        """
+        try:
+            payload = self._security_service.decode_token(
+                token, expected_type=TokenType.ACCESS
+            )
+            user_id = payload.get("sub")
+            return self._user_service.get_by_id(UUID(user_id))
+        except Exception:
+            return None

@@ -372,20 +372,20 @@ class TestRoomService:
 
         result = room_service.create_room(room_data)
 
-        assert result.settings == {"skip_threshold": 2}
+        assert result.settings == {"skip_threshold": 2, "max_members": 50}
 
     def test_create_room_custom_settings(self, room_service, mock_room_repo):
         room_data = CreateRoom(
             host_user_id=uuid4(),
             room_name="Custom",
             is_private=False,
-            settings=RoomSettings(skip_threshold=5),
+            settings=RoomSettings(skip_threshold=5, max_members=20),
         )
         mock_room_repo.create.side_effect = lambda room: room
 
         result = room_service.create_room(room_data)
 
-        assert result.settings == {"skip_threshold": 5}
+        assert result.settings == {"skip_threshold": 5, "max_members": 20}
 
     def test_settings_skip_threshold_too_low(self):
         with pytest.raises(ValueError):

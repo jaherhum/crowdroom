@@ -12,6 +12,7 @@ class SpotifyPlaybackState:
     is_playing: bool
     track_id: str | None
     progress_ms: int | None
+    duration_ms: int | None
     device_id: str | None
 
 
@@ -42,6 +43,23 @@ class SpotifyPlaybackAdapter:
                 headers= self._headers(),
                 params={"device_id": device_id} if device_id else {},
                 json={"uris": [track_uri]},
+            )
+            response.raise_for_status()
+
+    async def resume(self, device_id: str | None = None) -> None:
+        """Resume playback without changing the current track.
+
+        Args:
+            device_id: Target device ID. Uses active device if None.
+
+        Raises:
+            httpx.HTTPStatusError: If Spotify rejects the request.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                url=self.BASE_URL + "/play",
+                headers=self._headers(),
+                params={"device_id": device_id} if device_id else {},
             )
             response.raise_for_status()
 
@@ -92,5 +110,6 @@ class SpotifyPlaybackAdapter:
             is_playing=data.get("is_playing", False),
             track_id=item["id"] if item else None,
             progress_ms=data.get("progress_ms"),
+            duration_ms=item.get("duration_ms") if item else None,
             device_id=data.get("device", {}).get("id"),
         )

@@ -12,12 +12,13 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 logger = logging.getLogger(__name__)
 
+
 def validate_spotify_config() -> None:
     """Log warning if Spotify OAuth config is incomplete."""
     if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
         logger.warning(
             "SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not set. "
-            "All Spotify features (search, queue, playback) will be unavailable."
+            "Per-user Spotify app credentials will be required."
         )
         return
 
@@ -26,6 +27,7 @@ def validate_spotify_config() -> None:
             "SPOTIFY_REDIRECT_URI not set. "
             "Search will work but Spotify OAuth playback flow will fail."
         )
+
 
 class Settings(BaseSettings):
     """Manages global application configuration via environment variables.
@@ -70,7 +72,7 @@ class Settings(BaseSettings):
     SPOTIFY_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/spotify/callback"
     PLAYBACK_POLL_INTERVAL_SECONDS: int = 3
     SPOTIFY_OAUTH_STATE_TTL_SECONDS: int = 600
-    FRONTEND_URL: str = "http://localhost:5500"
+    FRONTEND_URL: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

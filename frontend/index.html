@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrowdRoom</title>
+  <script type="module">
+    import { isAuthenticated } from './js/auth.js';
+    import { apiGet } from './js/api.js';
+    const params = new URLSearchParams(location.search);
+    if (params.has('spotify') || params.has('error')) {
+      if (isAuthenticated()) {
+        try {
+          const me = await apiGet('/auth/me');
+          if (me.room_id) {
+            window.location.href = `/room?id=${me.room_id}`;
+          } else {
+            window.location.href = '/rooms';
+          }
+        } catch {
+          window.location.href = '/rooms';
+        }
+      } else {
+        window.location.href = '/login';
+      }
+    } else {
+      window.location.href = isAuthenticated() ? '/rooms' : '/login';
+    }
+  </script>
+</head>
+<body></body>
+</html>

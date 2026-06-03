@@ -76,6 +76,24 @@ def get_connections(
     return [ReadPlatformConnection.model_validate(c) for c in connections]
 
 
+@router.get("/spotify/has-app-credentials")
+def has_spotify_app_credentials(
+    service: PlatformConnectionService = Depends(get_platform_connection_service),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Check if user has stored Spotify app credentials (client_id/secret).
+
+    Args:
+        service: Platform connection service from DI.
+        current_user: Authenticated user from JWT.
+
+    Returns:
+        Dict with has_credentials boolean.
+    """
+    creds = service.get_spotify_app_credentials(current_user.id)
+    return {"has_credentials": creds is not None}
+
+
 @router.delete("/{platform}", status_code=status.HTTP_204_NO_CONTENT)
 def disconnect_platform(
     platform: StreamingPlatforms,

@@ -51,7 +51,11 @@ class Session(SQLModel, table=True):
 
     # Relations
     room: "Room" = Relationship(back_populates="session")
-    queue_items: Mapped[list["QueueItem"]] = Relationship(back_populates="session")
+    queue_items: Mapped[list["QueueItem"]] = Relationship(
+        back_populates="session",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
     queue_histories: Mapped[list["QueueHistory"]] = Relationship(
         back_populates="session",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
