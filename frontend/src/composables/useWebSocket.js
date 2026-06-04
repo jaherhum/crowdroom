@@ -1,22 +1,19 @@
+import { ref } from 'vue';
+
 let socket = null;
-let roomId = null;
+let currentRoomId = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 const listeners = new Map();
-
-export function connectToRoom(targetRoomId) {
-  disconnect();
-  roomId = targetRoomId;
-  reconnectAttempts = 0;
-  connect();
-}
+const connected = ref(false);
 
 function connect() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  socket = new WebSocket(`${protocol}//${location.host}/ws/${roomId}`);
+  socket = new WebSocket(`${protocol}//${location.host}/ws/${currentRoomId}`);
 
   socket.addEventListener('open', () => {
     reconnectAttempts = 0;
+    connected.value = true;
   });
 
   socket.addEventListener('message', (event) => {
@@ -41,6 +38,7 @@ function connect() {
   });
 
   socket.addEventListener('close', () => {
+    connected.value = false;
     scheduleReconnect();
   });
 
@@ -50,37 +48,45 @@ function connect() {
 }
 
 function scheduleReconnect() {
-  if (!roomId) return;
+  if (!currentRoomId) return;
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
   reconnectAttempts++;
   reconnectTimer = setTimeout(connect, delay);
 }
 
-export function disconnect() {
-  roomId = null;
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+export function useWebSocket() {
+  function connectToRoom(roomId) {
+    disconnect();
+    currentRoomId = roomId;
+    reconnectAttempts = 0;
+    connect();
   }
-  if (socket) {
-    socket.close();
-    socket = null;
-  }
-}
 
-export function onEvent(eventType, callback) {
-  if (!listeners.has(eventType)) {
-    listeners.set(eventType, new Set());
+  function disconnect() {
+    currentRoomId = null;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    if (socket) {
+      socket.close();
+      socket = null;
+    }
+    connected.value = false;
   }
-  listeners.get(eventType).add(callback);
-}
 
-export function offEvent(eventType, callback) {
-  if (listeners.has(eventType)) {
-    listeners.get(eventType).delete(callback);
+  function onEvent(eventType, callback) {
+    if (!listeners.has(eventType)) {
+      listeners.set(eventType, new Set());
+    }
+    listeners.get(eventType).add(callback);
   }
-}
 
-export function isConnected() {
-  return socket && socket.readyState === WebSocket.OPEN;
+  function offEvent(eventType, callback) {
+    if (listeners.has(eventType)) {
+      listeners.get(eventType).delete(callback);
+    }
+  }
+
+  return { connected, connectToRoom, disconnect, onEvent, offEvent };
 }

@@ -7,6 +7,7 @@ from uuid import uuid4
 import anyio
 import pytest
 
+from backend.core.exceptions import EntityNotFoundException
 from backend.db.models.enum import StreamingPlatforms
 from backend.repositories.room_repo import RoomRepository
 from backend.repositories.session_repo import SessionRepository
@@ -32,12 +33,10 @@ class TestMusicServiceSearch:
     def music_service(self, mock_platform_service, mock_room_repo, mock_session_repo):
         return MusicService(mock_platform_service, mock_room_repo, mock_session_repo)
 
-    @patch("backend.services.music_service.settings")
     @patch("backend.services.music_service.AdapterFactory")
-    def test_search_spotify_uses_app_credentials(
+    def test_search_spotify_uses_host_app_credentials(
         self,
         mock_factory,
-        mock_settings,
         music_service,
         mock_platform_service,
         mock_room_repo,
@@ -45,9 +44,6 @@ class TestMusicServiceSearch:
     ):
         room_id = uuid4()
         host_id = uuid4()
-
-        mock_settings.SPOTIFY_CLIENT_ID = "app_client_id"
-        mock_settings.SPOTIFY_CLIENT_SECRET = "app_client_secret"
 
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
@@ -57,7 +53,10 @@ class TestMusicServiceSearch:
         mock_room.host_user_id = host_id
         mock_room_repo.get_by_id.return_value = mock_room
 
-        mock_platform_service.get_spotify_app_credentials.return_value = None
+        mock_platform_service.get_spotify_app_credentials.return_value = {
+            "client_id": "host_client_id",
+            "client_secret": "host_client_secret",
+        }
 
         mock_adapter = AsyncMock()
         expected = [MagicMock(spec=ReadSongMetadata)]
@@ -76,9 +75,35 @@ class TestMusicServiceSearch:
         )
         mock_factory.create.assert_called_once_with(
             StreamingPlatforms.SPOTIFY,
-            {"client_id": "app_client_id", "client_secret": "app_client_secret"},
+            {"client_id": "host_client_id", "client_secret": "host_client_secret"},
         )
         mock_adapter.search.assert_called_once_with("query")
+
+    def test_search_spotify_raises_when_no_credentials(
+        self,
+        music_service,
+        mock_platform_service,
+        mock_room_repo,
+        mock_session_repo,
+    ):
+        room_id = uuid4()
+        host_id = uuid4()
+
+        mock_session = MagicMock()
+        mock_session.current_platform = StreamingPlatforms.SPOTIFY
+        mock_session_repo.get_by_room.return_value = mock_session
+
+        mock_room = MagicMock()
+        mock_room.host_user_id = host_id
+        mock_room_repo.get_by_id.return_value = mock_room
+
+        mock_platform_service.get_spotify_app_credentials.return_value = None
+
+        async def _run():
+            return await music_service.search(room_id, "query")
+
+        with pytest.raises(EntityNotFoundException):
+            anyio.run(_run)
 
     @patch("backend.services.music_service.AdapterFactory")
     def test_search_non_spotify_uses_host_credentials(
@@ -145,12 +170,10 @@ class TestMusicServiceGetMetadata:
     def music_service(self, mock_platform_service, mock_room_repo, mock_session_repo):
         return MusicService(mock_platform_service, mock_room_repo, mock_session_repo)
 
-    @patch("backend.services.music_service.settings")
     @patch("backend.services.music_service.AdapterFactory")
     def test_get_metadata_delegates_to_adapter(
         self,
         mock_factory,
-        mock_settings,
         music_service,
         mock_platform_service,
         mock_room_repo,
@@ -158,9 +181,6 @@ class TestMusicServiceGetMetadata:
     ):
         room_id = uuid4()
         host_id = uuid4()
-
-        mock_settings.SPOTIFY_CLIENT_ID = "app_client_id"
-        mock_settings.SPOTIFY_CLIENT_SECRET = "app_client_secret"
 
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
@@ -170,7 +190,10 @@ class TestMusicServiceGetMetadata:
         mock_room.host_user_id = host_id
         mock_room_repo.get_by_id.return_value = mock_room
 
-        mock_platform_service.get_spotify_app_credentials.return_value = None
+        mock_platform_service.get_spotify_app_credentials.return_value = {
+            "client_id": "host_id",
+            "client_secret": "host_secret",
+        }
 
         expected_metadata = MagicMock(spec=ReadSongMetadata)
         mock_adapter = AsyncMock()
@@ -185,12 +208,10 @@ class TestMusicServiceGetMetadata:
         assert result == expected_metadata
         mock_adapter.get_metadata.assert_called_once_with("track123")
 
-    @patch("backend.services.music_service.settings")
     @patch("backend.services.music_service.AdapterFactory")
     def test_get_metadata_returns_none_when_not_found(
         self,
         mock_factory,
-        mock_settings,
         music_service,
         mock_platform_service,
         mock_room_repo,
@@ -199,9 +220,6 @@ class TestMusicServiceGetMetadata:
         room_id = uuid4()
         host_id = uuid4()
 
-        mock_settings.SPOTIFY_CLIENT_ID = "app_client_id"
-        mock_settings.SPOTIFY_CLIENT_SECRET = "app_client_secret"
-
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
         mock_session_repo.get_by_room.return_value = mock_session
@@ -209,7 +227,11 @@ class TestMusicServiceGetMetadata:
         mock_room = MagicMock()
         mock_room.host_user_id = host_id
         mock_room_repo.get_by_id.return_value = mock_room
-        mock_platform_service.get_spotify_app_credentials.return_value = None
+
+        mock_platform_service.get_spotify_app_credentials.return_value = {
+            "client_id": "host_id",
+            "client_secret": "host_secret",
+        }
 
         mock_adapter = AsyncMock()
         mock_adapter.get_metadata.return_value = None
@@ -239,12 +261,10 @@ class TestMusicServiceGetTrackUri:
     def music_service(self, mock_platform_service, mock_room_repo, mock_session_repo):
         return MusicService(mock_platform_service, mock_room_repo, mock_session_repo)
 
-    @patch("backend.services.music_service.settings")
     @patch("backend.services.music_service.AdapterFactory")
     def test_get_track_uri_delegates_to_adapter(
         self,
         mock_factory,
-        mock_settings,
         music_service,
         mock_platform_service,
         mock_room_repo,
@@ -253,9 +273,6 @@ class TestMusicServiceGetTrackUri:
         room_id = uuid4()
         host_id = uuid4()
 
-        mock_settings.SPOTIFY_CLIENT_ID = "app_client_id"
-        mock_settings.SPOTIFY_CLIENT_SECRET = "app_client_secret"
-
         mock_session = MagicMock()
         mock_session.current_platform = StreamingPlatforms.SPOTIFY
         mock_session_repo.get_by_room.return_value = mock_session
@@ -263,7 +280,11 @@ class TestMusicServiceGetTrackUri:
         mock_room = MagicMock()
         mock_room.host_user_id = host_id
         mock_room_repo.get_by_id.return_value = mock_room
-        mock_platform_service.get_spotify_app_credentials.return_value = None
+
+        mock_platform_service.get_spotify_app_credentials.return_value = {
+            "client_id": "host_id",
+            "client_secret": "host_secret",
+        }
 
         mock_adapter = AsyncMock()
         mock_adapter.get_track_uri.return_value = "spotify:track:abc"

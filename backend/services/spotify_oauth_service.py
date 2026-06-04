@@ -151,22 +151,38 @@ class SpotifyOAuthService:
             return response.json()
 
     def _resolve_client_id(self, user_id: UUID) -> str:
-        """Get client_id for OAuth: per-user first, then settings fallback."""
+        """Get client_id for OAuth from user's stored app credentials.
+
+        Raises:
+            InvalidPlatformCredentialsException: If no credentials stored.
+        """
         creds = self._platform_connection_service.get_spotify_app_credentials(
             user_id
         )
         if creds and creds.get("client_id"):
             return creds["client_id"]
-        return settings.SPOTIFY_CLIENT_ID
+        from backend.core.exceptions import InvalidPlatformCredentialsException
+
+        raise InvalidPlatformCredentialsException(
+            "No Spotify app credentials found. Set up your Spotify app first."
+        )
 
     def _resolve_credentials(self, user_id: UUID) -> tuple[str, str]:
-        """Get client_id and client_secret: per-user first, then settings."""
+        """Get client_id and client_secret from user's stored app credentials.
+
+        Raises:
+            InvalidPlatformCredentialsException: If no credentials stored.
+        """
         creds = self._platform_connection_service.get_spotify_app_credentials(
             user_id
         )
         if creds and creds.get("client_id") and creds.get("client_secret"):
             return creds["client_id"], creds["client_secret"]
-        return settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET
+        from backend.core.exceptions import InvalidPlatformCredentialsException
+
+        raise InvalidPlatformCredentialsException(
+            "No Spotify app credentials found. Set up your Spotify app first."
+        )
 
     @staticmethod
     def _derive_code_challenge(code_verifier: str) -> str:

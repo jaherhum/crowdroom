@@ -160,12 +160,11 @@ def initiate_spotify_oauth(
             detail="Not authenticated",
         )
 
-    has_global = settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
     has_user_creds = bool(
         spotify_oauth_service._platform_connection_service
         .get_spotify_app_credentials(user.id)
     )
-    if not has_global and not has_user_creds:
+    if not has_user_creds:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No Spotify credentials configured. "

@@ -55,23 +55,14 @@ app.include_router(songs_router, prefix=settings.API_V1_STR, tags=["songs"])
 app.include_router(user_router, prefix=settings.API_V1_STR, tags=["users"])
 app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
-frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
-if frontend_dir.exists():
-    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
 
     @app.get("/{path:path}")
     async def serve_frontend(request: Request, path: str):
-        """Serve frontend pages with clean URLs (no .html extension)."""
-        # Try exact file first (for css/js/assets)
-        file_path = frontend_dir / path
+        """Serve Vue SPA — all routes fall back to index.html."""
+        file_path = frontend_dist / path
         if file_path.is_file():
             return FileResponse(file_path)
-
-        # Try with .html extension (clean URLs: /rooms → rooms.html)
-        html_path = frontend_dir / f"{path}.html"
-        if html_path.is_file():
-            return FileResponse(html_path)
-
-        # Fallback to index.html
-        index_path = frontend_dir / "index.html"
-        return FileResponse(index_path)
+        return FileResponse(frontend_dist / "index.html")
