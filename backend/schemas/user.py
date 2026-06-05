@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, model_validator
 
 
 class UserBase(BaseModel):
@@ -32,7 +32,7 @@ class UserCreate(UserBase):
 
     password: SecretStr | None = Field(
         default=None,
-        min_length=8,
+        min_length=6,
         max_length=255,
         description="Plain text password. Will be hashed before storage.",
     )
@@ -69,6 +69,7 @@ class UserRead(UserBase):
         username (str): The unique username for the user.
         email (EmailStr | None): The user's email address.
         room_id (UUID | None): The room the user is currently in.
+        has_password (bool): Whether the user has a password set.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -78,3 +79,22 @@ class UserRead(UserBase):
     room_id: UUID | None = Field(
         default=None, description="The room the user is currently in."
     )
+    has_password: bool = Field(
+        default=False, description="Whether the user has a password set."
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def compute_has_password(cls, data):
+        """Derive has_password from hashed_password on the source object."""
+        if hasattr(data, "hashed_password"):
+            data = {
+                "id": data.id,
+                "username": data.username,
+                "email": data.email,
+                "room_id": data.room_id,
+                "has_password": data.hashed_password is not None,
+            }
+        elif isinstance(data, dict) and "has_password" not in data:
+            data["has_password"] = data.get("hashed_password") is not None
+        return data

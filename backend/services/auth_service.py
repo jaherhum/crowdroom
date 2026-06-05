@@ -2,7 +2,11 @@
 
 from uuid import UUID
 
-from backend.core.exceptions import EntityExistsException, InvalidCredentialsException
+from backend.core.exceptions import (
+    EntityExistsException,
+    InvalidCredentialsException,
+    PasswordRequiredException,
+)
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
 from backend.db.models.user import User
@@ -12,7 +16,7 @@ from backend.schemas.auth import (
     RegisterRequest,
     TokenResponse,
 )
-from backend.schemas.user import UserCreate, UserRead
+from backend.schemas.user import UserCreate
 from backend.services.user_service import UserService
 
 
@@ -29,45 +33,70 @@ class AuthService:
         self._user_service = user_service
         self._security_service = security_service
 
-    def register_user(self, user_data: RegisterRequest) -> UserRead:
-        """Registers a new user in the system.
+    def register_user(self, user_data: RegisterRequest) -> TokenResponse:
+        """Registers a new user and returns an access token.
 
         Args:
             user_data (RegisterRequest): The schema containing registration details.
 
         Returns:
-            UserRead: The newly created user schema.
+            TokenResponse: Access token for immediate login.
 
         Raises:
             EntityExistsException: If the username or email is already taken.
         """
         if self._user_service.get_by_username(user_data.username):
-            raise EntityExistsException("User")
-        if self._user_service.get_by_email(str(user_data.email)):
-            raise EntityExistsException("User")
+            raise EntityExistsException("Username already taken")
+        if user_data.email and self._user_service.get_by_email(str(user_data.email)):
+            raise EntityExistsException("Email already in use")
 
         user_to_create = UserCreate(
             username=user_data.username,
             email=user_data.email,
             password=user_data.password,
         )
-        return self._user_service.create_user(user_to_create)
+        created_user = self._user_service.create_user(user_to_create)
+
+        token = self._security_service.create_token(
+            token_type=TokenType.ACCESS,
+            data={"sub": str(created_user.id)},
+        )
+        return TokenResponse(access_token=token, token_type="bearer")
 
     def local_login(self, user_data: LocalLoginRequest) -> TokenResponse:
-        """Authenticate or auto-register a user by username only.
+        """Authenticate or auto-register a user in LOCAL mode.
+
+        If a password is provided and the user doesn't exist, creates a
+        password-protected account. If the user exists with a password,
+        verifies it. Passwordless users can login without a password.
 
         Args:
-            user_data: The schema containing the username.
+            user_data: The schema containing username and optional password.
 
         Returns:
             TokenResponse with access token.
+
+        Raises:
+            InvalidCredentialsException: If password verification fails.
         """
         username = user_data.username.strip().lower()
+        plain_password = (
+            user_data.password.get_secret_value() if user_data.password else None
+        )
         user = self._user_service.get_by_username(username)
 
         if not user:
-            user_to_create = UserCreate(username=username, email=None, password=None)
+            user_to_create = UserCreate(
+                username=username, email=None, password=plain_password
+            )
             user = self._user_service.create_user(user_to_create)
+        elif user.hashed_password:
+            if not plain_password:
+                raise PasswordRequiredException()
+            if not self._security_service.verify_password(
+                plain_password, user.hashed_password
+            ):
+                raise InvalidCredentialsException()
 
         token = self._security_service.create_token(
             token_type=TokenType.ACCESS,
@@ -107,6 +136,16 @@ class AuthService:
         )
 
         return TokenResponse(access_token=token, token_type="bearer")
+
+    def set_password(self, user_id: UUID, plain_password: str) -> None:
+        """Set a password on a user account that doesn't have one.
+
+        Args:
+            user_id: The user's ID.
+            plain_password: The plain-text password to hash and store.
+        """
+        hashed = self._security_service.generate_password_hash(plain_password)
+        self._user_service.update_user_password(user_id, hashed)
 
     def resolve_user_from_token(self, token: str) -> User | None:
         """Decode a JWT token and return the associated user.

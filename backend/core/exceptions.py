@@ -81,9 +81,25 @@ class InvalidCredentialsException(AppException):
         message (str): The error message.
     """
 
+    def __init__(self, message: str = "Invalid username/email or password."):
+        """Initializes the exception.
+
+        Args:
+            message: Human-readable error description.
+        """
+        super().__init__(message)
+
+
+class PasswordRequiredException(AppException):
+    """Exception raised when a password-protected user tries to login without one.
+
+    Attributes:
+        message (str): The error message.
+    """
+
     def __init__(self):
         """Initializes the exception."""
-        super().__init__("Invalid username/email or password.")
+        super().__init__("This account has a password. Please enter it to log in.")
 
 
 class InvalidPlatformCredentialsException(AppException):

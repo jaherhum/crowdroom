@@ -32,6 +32,7 @@ class TestAuthServiceLocalLogin:
         user_id = uuid4()
         mock_user = MagicMock()
         mock_user.id = user_id
+        mock_user.hashed_password = None
         mock_user_service.get_by_username.return_value = mock_user
         mock_security_service.create_token.return_value = "mock_token"
 
@@ -67,6 +68,7 @@ class TestAuthServiceLocalLogin:
     ):
         mock_user = MagicMock()
         mock_user.id = uuid4()
+        mock_user.hashed_password = None
         mock_user_service.get_by_username.return_value = mock_user
         mock_security_service.create_token.return_value = "tok"
 

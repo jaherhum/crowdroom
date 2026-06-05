@@ -39,9 +39,25 @@ class LocalLoginRequest(BaseModel):
 
     Attributes:
         username (str): The username to login or auto-register with.
+        password (Optional[SecretStr]): Optional password. Required to create rooms.
     """
 
     username: str = Field(..., min_length=1, max_length=32, description="The username.")
+    password: SecretStr | None = Field(
+        None, description="Password. Required for users who want to create rooms."
+    )
+
+
+class SetPasswordRequest(BaseModel):
+    """Request schema for setting a password on a passwordless account.
+
+    Attributes:
+        password (SecretStr): The new password to set.
+    """
+
+    password: SecretStr = Field(
+        ..., min_length=6, description="The new password to set."
+    )
 
 
 class TokenResponse(BaseModel):

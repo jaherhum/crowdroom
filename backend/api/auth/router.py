@@ -13,12 +13,18 @@ from backend.api.auth.dependencies import (
     get_spotify_oauth_service,
 )
 from backend.core.config import settings
-from backend.core.exceptions import OAuthStateException
+from backend.core.exceptions import (
+    EntityExistsException,
+    InvalidCredentialsException,
+    OAuthStateException,
+    PasswordRequiredException,
+)
 from backend.db.models.user import User
 from backend.schemas.auth import (
     LocalLoginRequest,
     LoginRequest,
     RegisterRequest,
+    SetPasswordRequest,
     TokenResponse,
 )
 from backend.schemas.user import UserRead
@@ -53,29 +59,37 @@ def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
     return UserRead.model_validate(current_user)
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
+)
 def register(
     register_request: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
-) -> UserRead:
-    """Registers a new user (ONLINE mode only).
+) -> TokenResponse:
+    """Registers a new user and returns a token (ONLINE mode only).
 
     Args:
         register_request (RegisterRequest): The registration details.
         auth_service (AuthService): The authentication service.
 
     Returns:
-        UserRead: The newly created user.
+        TokenResponse: Access token for immediate login.
 
     Raises:
-        HTTPException: 404 if AUTH_MODE is LOCAL.
+        HTTPException: 404 if AUTH_MODE is LOCAL, 409 if user exists.
     """
     if settings.AUTH_MODE != "ONLINE":
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Endpoint not available in LOCAL mode",
         )
-    return auth_service.register_user(register_request)
+    try:
+        return auth_service.register_user(register_request)
+    except EntityExistsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -100,7 +114,13 @@ def login(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Endpoint not available in LOCAL mode",
         )
-    return auth_service.login_user(login_request)
+    try:
+        return auth_service.login_user(login_request)
+    except InvalidCredentialsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post("/local-login", response_model=TokenResponse)
@@ -128,7 +148,45 @@ def local_login(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Endpoint not available in ONLINE mode",
         )
-    return auth_service.local_login(login_request)
+    try:
+        return auth_service.local_login(login_request)
+    except PasswordRequiredException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+    except InvalidCredentialsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/set-password", status_code=status.HTTP_204_NO_CONTENT)
+def set_password(
+    body: SetPasswordRequest,
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> None:
+    """Set a password on a passwordless account.
+
+    Allows guest users to upgrade their account so they can create rooms.
+    Fails if the user already has a password set.
+
+    Args:
+        body: The new password.
+        current_user: The authenticated user from JWT.
+        auth_service: The authentication service.
+
+    Raises:
+        HTTPException: 409 if user already has a password.
+    """
+    if current_user.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Password already set. Use change-password instead.",
+        )
+    auth_service.set_password(current_user.id, body.password.get_secret_value())
 
 
 @router.get("/spotify")
