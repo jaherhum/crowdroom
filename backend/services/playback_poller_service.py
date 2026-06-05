@@ -15,10 +15,12 @@ from backend.api.websocket import manager
 from backend.core.config import settings
 from backend.db.database import engine
 from backend.db.models.enum import ItemStatus, StreamingPlatforms
+from backend.db.models.song import Song
 from backend.repositories.platform_connection_repo import PlatformConnectionRepo
 from backend.repositories.queue_history_repo import QueueHistoryRepository
 from backend.repositories.queue_repo import QueueRepository
 from backend.repositories.session_repo import SessionRepository
+from backend.repositories.song_repo import SongRepository
 from backend.services.platform_connection_service import PlatformConnectionService
 from backend.services.playback_service import PlaybackService
 from backend.services.queue_service import QueueService
@@ -101,6 +103,19 @@ class PlaybackPollerService:
                 host_user_id, StreamingPlatforms.SPOTIFY
             )
 
+    def _get_current_queue_item(self, session_id: UUID):
+        """Get the current (position 0) queue item from a fresh DB session."""
+        with DBSession(engine) as db_session:
+            queue_repo = QueueRepository(db_session)
+            return queue_repo.get_first_item(session_id)
+
+    def _get_next_queue_item(self, session_id: UUID):
+        """Get the second queue item (next after current) from a fresh DB session."""
+        with DBSession(engine) as db_session:
+            queue_repo = QueueRepository(db_session)
+            items = queue_repo.get_all_by_session(session_id)
+            return items[1] if len(items) > 1 else None
+
     def _build_playback_service_with_queue(
         self,
     ) -> tuple[PlaybackService, QueueService]:
@@ -138,6 +153,55 @@ class PlaybackPollerService:
             return True
         remaining = state.duration_ms - state.progress_ms
         return remaining < 5000
+
+    def _adopt_external_track(
+        self, session, state: SpotifyPlaybackState
+    ) -> None:
+        """Upsert external track metadata and update session state.
+
+        Args:
+            session: Current session object.
+            state: Spotify playback state with track metadata.
+        """
+        from datetime import datetime, timezone
+
+        from sqlalchemy.exc import IntegrityError
+
+        with DBSession(engine) as db_session:
+            song_repo = SongRepository(db_session)
+            existing = song_repo.get_by_external_id(
+                state.track_id, StreamingPlatforms.SPOTIFY.value
+            )
+            if not existing:
+                song = Song(
+                    external_id=state.track_id,
+                    title=state.track_name or "Unknown",
+                    artist=state.track_artist or "Unknown",
+                    platform=StreamingPlatforms.SPOTIFY,
+                    duration=(state.duration_ms or 0) / 1000.0,
+                    album_art_url=state.album_art_url,
+                )
+                try:
+                    song_repo.create(song)
+                except IntegrityError:
+                    pass
+
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        with DBSession(engine) as db_session:
+            repo = SessionRepository(db_session)
+            repo.update(
+                session.id,
+                {
+                    "current_song_id": state.track_id,
+                    "playback_status": (
+                        ItemStatus.PLAYING
+                        if state.is_playing
+                        else ItemStatus.PAUSED
+                    ),
+                    "playback_started_at": now_naive,
+                    "playback_position_ms": state.progress_ms or 0,
+                },
+            )
 
     async def _advance_queue(
         self,
@@ -304,14 +368,10 @@ class PlaybackPollerService:
                     )
 
                     if state is None:
-                        if session.playback_status in (
-                            ItemStatus.PLAYING,
-                            ItemStatus.PAUSED,
-                        ):
+                        if session.playback_status == ItemStatus.PLAYING:
                             logger.info(
-                                "Room %s: Spotify idle (was %s), advancing",
+                                "Room %s: Spotify idle (was playing), advancing",
                                 room_id,
-                                session.playback_status,
                             )
                             await self._advance_queue(
                                 session, room_id, host_user_id, adapter
@@ -320,15 +380,60 @@ class PlaybackPollerService:
                         continue
 
                     if state.track_id != session.current_song_id:
-                        logger.info(
-                            "Room %s: track changed %s -> %s, advancing",
-                            room_id,
-                            session.current_song_id,
-                            state.track_id,
+                        next_item = self._get_next_queue_item(session.id)
+                        next_external_id = (
+                            next_item.song.external_id
+                            if next_item and next_item.song
+                            else None
                         )
-                        await self._advance_queue(
-                            session, room_id, host_user_id, adapter
-                        )
+                        if state.track_id == next_external_id:
+                            logger.info(
+                                "Room %s: next queue item %s, advancing",
+                                room_id,
+                                state.track_id,
+                            )
+                            await self._advance_queue(
+                                session, room_id, host_user_id, adapter
+                            )
+                        else:
+                            logger.info(
+                                "Room %s: external track detected %s, adopting",
+                                room_id,
+                                state.track_id,
+                            )
+                            current_item = self._get_current_queue_item(
+                                session.id
+                            )
+                            if current_item:
+                                svc, _ = (
+                                    self._build_playback_service_with_queue()
+                                )
+                                await svc.finish_song(session.id)
+                            await asyncio.to_thread(
+                                self._adopt_external_track,
+                                session,
+                                state,
+                            )
+                            await self._broadcast_state_changed(
+                                room_id,
+                                "playing" if state.is_playing else "paused",
+                                state.track_id,
+                            )
+                            await manager.broadcast(
+                                {
+                                    "type": "song_changed",
+                                    "room_id": str(room_id),
+                                    "song": {
+                                        "title": state.track_name or "Unknown",
+                                        "artist": state.track_artist or "Unknown",
+                                        "album_art_url": state.album_art_url,
+                                        "external_id": state.track_id,
+                                        "duration": (state.duration_ms or 0) / 1000.0,
+                                        "platform": "spotify",
+                                    },
+                                },
+                                str(room_id),
+                            )
 
                     elif (
                         not state.is_playing

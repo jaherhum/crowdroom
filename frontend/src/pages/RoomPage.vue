@@ -22,7 +22,7 @@
             <h3>{{ currentSong.song.title }}</h3>
             <p class="text-secondary">{{ currentSong.song.artist }}</p>
           </div>
-          <div class="now-playing-actions">
+          <div v-if="currentSong.id" class="now-playing-actions">
             <button class="btn btn-icon" title="Vote to skip" @click="voteSkip(currentSong.id)">
               <i class="ph ph-skip-forward"></i>
             </button>
@@ -71,7 +71,7 @@
         <div v-if="spotifyBanner" class="empty-state">
           <i class="ph ph-spotify-logo"></i>
           <p>{{ spotifyBanner.message }}</p>
-          <a v-if="spotifyBanner.connectUrl" :href="spotifyBanner.connectUrl" class="btn btn-primary" style="margin-top: var(--space-3);">Connect Spotify</a>
+          <a v-if="spotifyBanner.connectUrl" :href="spotifyBanner.connectUrl" class="btn btn-primary" style="margin-top: var(--space-3);" @click="saveReturnRoom">Connect Spotify</a>
           <button v-else-if="spotifyBanner.showSetup" class="btn btn-primary" style="margin-top: var(--space-3);" @click="showSpotifyModal = true">Set up Spotify</button>
         </div>
         <div class="search-input-wrapper">
@@ -283,11 +283,16 @@ async function loadHistory() {
 async function loadPlaybackState() {
   try {
     await syncPlaybackPosition();
+    if (isPlaying.value && !currentSong.value) {
+      await loadExternalTrack();
+    }
     if (isPlaying.value) startProgressAnimation();
   } catch {
     // ignore
   }
 }
+
+let currentExternalId = null;
 
 async function syncPlaybackPosition() {
   const state = await apiGet(`/rooms/${roomId.value}/playback`);
@@ -301,7 +306,18 @@ async function syncPlaybackPosition() {
     isPlaying.value = false;
     playbackPositionMs.value = 0;
   }
+  currentExternalId = state.current_song_id || null;
   elapsedMs.value = playbackPositionMs.value;
+}
+
+async function loadExternalTrack() {
+  if (!currentExternalId) return;
+  try {
+    const song = await apiGet(`/songs/by-external/${currentExternalId}?platform=spotify`);
+    currentSong.value = { id: null, votes_skip: 0, song };
+  } catch {
+    // song not yet in DB
+  }
 }
 
 function startProgressAnimation() {
@@ -323,6 +339,10 @@ function startProgressAnimation() {
   progressFrame = requestAnimationFrame(update);
 }
 
+function saveReturnRoom() {
+  sessionStorage.setItem('spotify_return_room', roomId.value);
+}
+
 async function checkSpotifyConnection() {
   try {
     const connections = await apiGet('/platform-connections/');
@@ -330,7 +350,8 @@ async function checkSpotifyConnection() {
     if (!hasSpotify) {
       const { has_credentials } = await apiGet('/platform-connections/spotify/has-app-credentials');
       if (has_credentials) {
-        spotifyBanner.value = { message: 'Connect Spotify to enable search and playback', connectUrl: `/api/v1/auth/spotify?token=${token.value}` };
+        const connectUrl = `/api/v1/auth/spotify?token=${token.value}`;
+        spotifyBanner.value = { message: 'Connect Spotify to enable search and playback', connectUrl };
       } else {
         spotifyBanner.value = { message: 'Set up your Spotify app to enable search and playback', showSetup: true };
       }
@@ -351,6 +372,7 @@ async function saveSpotifyCredentials() {
       credentials: { client_id: spotifyClientId.value.trim(), client_secret: spotifyClientSecret.value.trim() },
     });
     showSpotifyModal.value = false;
+    saveReturnRoom();
     window.location.href = `/api/v1/auth/spotify?token=${token.value}`;
   } catch (err) {
     showToast(err.detail || 'Invalid credentials');
@@ -438,18 +460,29 @@ function setupWebSocket() {
     }
   });
 
-  onEvent('song_changed', async () => {
-    await loadCurrentSong();
-    loadQueue();
-    loadHistory();
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    if (isHost.value && !isPlaying.value && currentSong.value) {
-      try {
-        await apiPost('/playback/play', { song_id: currentSong.value.song.id });
-      } catch (err) {
-        console.error('[auto-play failed]', err.detail || err.message);
+  onEvent('song_changed', async (msg) => {
+    if (msg.song && !msg.song.id) {
+      currentSong.value = {
+        id: null,
+        votes_skip: 0,
+        song: msg.song,
+      };
+      isPlaying.value = true;
+      await syncPlaybackPosition();
+      startProgressAnimation();
+    } else {
+      await loadCurrentSong();
+      loadHistory();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (isHost.value && !isPlaying.value && currentSong.value) {
+        try {
+          await apiPost('/playback/play', { song_id: currentSong.value.song.id });
+        } catch (err) {
+          console.error('[auto-play failed]', err.detail || err.message);
+        }
       }
     }
+    loadQueue();
   });
 
   onEvent('skip_vote', (msg) => {
@@ -457,8 +490,11 @@ function setupWebSocket() {
       currentSong.value = { ...currentSong.value, votes_skip: msg.current_votes };
     }
     if (msg.skip_triggered) {
+      isPlaying.value = false;
+      if (progressFrame) cancelAnimationFrame(progressFrame);
       loadCurrentSong();
       loadQueue();
+      loadHistory();
     }
   });
 
@@ -466,7 +502,14 @@ function setupWebSocket() {
     if (msg.status === 'playing') {
       isPlaying.value = true;
       await syncPlaybackPosition();
+      if (!currentSong.value && currentExternalId) {
+        await loadExternalTrack();
+      }
       startProgressAnimation();
+    } else if (msg.status === 'stopped') {
+      isPlaying.value = false;
+      currentSong.value = null;
+      if (progressFrame) cancelAnimationFrame(progressFrame);
     } else {
       isPlaying.value = false;
       if (progressFrame) cancelAnimationFrame(progressFrame);

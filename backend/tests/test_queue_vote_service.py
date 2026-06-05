@@ -172,7 +172,9 @@ class TestSkipVoteBroadcast:
         payload = mock_manager.broadcast.call_args[0][0]
         assert payload["skip_triggered"] is True
         assert payload["current_votes"] == 3
-        mock_playback.finish_song.assert_called_once_with(session_id)
+        mock_playback.finish_song.assert_called_once_with(
+            session_id, expected_item_id=mock_vote.queue_item_id
+        )
 
     def test_broadcast_targets_correct_room(
         self, mock_repo, mock_manager, mock_playback, mock_vote_context

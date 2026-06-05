@@ -14,6 +14,9 @@ class SpotifyPlaybackState:
     progress_ms: int | None
     duration_ms: int | None
     device_id: str | None
+    track_name: str | None = None
+    track_artist: str | None = None
+    album_art_url: str | None = None
 
 
 class SpotifyPlaybackAdapter:
@@ -106,10 +109,18 @@ class SpotifyPlaybackAdapter:
 
         data = response.json()
         item = data.get("item")
+        images = item.get("album", {}).get("images", []) if item else []
         return SpotifyPlaybackState(
             is_playing=data.get("is_playing", False),
             track_id=item["id"] if item else None,
             progress_ms=data.get("progress_ms"),
             duration_ms=item.get("duration_ms") if item else None,
             device_id=data.get("device", {}).get("id"),
+            track_name=item.get("name") if item else None,
+            track_artist=(
+                item["artists"][0]["name"]
+                if item and item.get("artists")
+                else None
+            ),
+            album_art_url=images[0]["url"] if images else None,
         )

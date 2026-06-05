@@ -86,6 +86,7 @@ class QueueVoteService:
             threshold = room_obj.settings.get("skip_threshold", 2)
 
         current_votes = self._repo.count_by_item(vote_obj.queue_item_id)
+        queue_item.votes_skip = current_votes
         skip_triggered = current_votes >= threshold
 
         await manager.broadcast(
@@ -102,7 +103,9 @@ class QueueVoteService:
         )
 
         if skip_triggered and self._playback_service:
-            await self._playback_service.finish_song(session_obj.id)
+            await self._playback_service.finish_song(
+                session_obj.id, expected_item_id=vote_obj.queue_item_id
+            )
 
     def vote_count(self, queue_item_id: UUID) -> int:
         """Return the total number of skip votes for a queue item.

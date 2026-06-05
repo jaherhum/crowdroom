@@ -95,7 +95,7 @@ class TestPollLoopTrackChanged:
 
     @patch("backend.services.playback_poller_service.SpotifyPlaybackAdapter")
     @patch("backend.services.playback_poller_service.settings")
-    def test_track_mismatch_calls_advance_queue(
+    def test_track_mismatch_advances_when_next_in_queue(
         self, mock_settings, mock_adapter_cls
     ):
         mock_settings.PLAYBACK_POLL_INTERVAL_SECONDS = 0
@@ -109,6 +109,9 @@ class TestPollLoopTrackChanged:
         mock_session.id = session_id
         mock_session.current_song_id = "old_track"
         mock_session.playback_status = ItemStatus.PLAYING
+
+        mock_next_item = MagicMock()
+        mock_next_item.song.external_id = "new_track"
 
         call_count = 0
 
@@ -146,6 +149,11 @@ class TestPollLoopTrackChanged:
                 ),
                 patch.object(
                     poller,
+                    "_get_next_queue_item",
+                    return_value=mock_next_item,
+                ),
+                patch.object(
+                    poller,
                     "_advance_queue",
                     new_callable=AsyncMock,
                 ) as mock_advance,
@@ -155,6 +163,88 @@ class TestPollLoopTrackChanged:
             mock_advance.assert_called_once_with(
                 mock_session, room_id, host_user_id, mock_adapter
             )
+
+        anyio.run(_run)
+
+    @patch("backend.services.playback_poller_service.manager")
+    @patch("backend.services.playback_poller_service.SpotifyPlaybackAdapter")
+    @patch("backend.services.playback_poller_service.settings")
+    def test_track_mismatch_adopts_external_track(
+        self, mock_settings, mock_adapter_cls, mock_manager
+    ):
+        mock_settings.PLAYBACK_POLL_INTERVAL_SECONDS = 0
+        mock_manager.broadcast = AsyncMock()
+
+        poller = PlaybackPollerService()
+        room_id = uuid4()
+        host_user_id = uuid4()
+        session_id = uuid4()
+
+        mock_session = MagicMock()
+        mock_session.id = session_id
+        mock_session.current_song_id = "old_track"
+        mock_session.playback_status = ItemStatus.PLAYING
+
+        call_count = 0
+
+        def get_session_side_effect(rid):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 1:
+                return mock_session
+            return None
+
+        mock_adapter = AsyncMock()
+        mock_adapter.get_current_playback = AsyncMock(
+            return_value=SpotifyPlaybackState(
+                is_playing=True,
+                track_id="external_track",
+                progress_ms=5000,
+                duration_ms=200000,
+                device_id="device1",
+                track_name="External Song",
+                track_artist="External Artist",
+                album_art_url="https://example.com/art.jpg",
+            )
+        )
+        mock_adapter_cls.return_value = mock_adapter
+
+        async def _run():
+            with (
+                patch.object(
+                    poller,
+                    "_get_session_state",
+                    side_effect=get_session_side_effect,
+                ),
+                patch.object(
+                    poller,
+                    "_get_valid_token",
+                    new_callable=AsyncMock,
+                    return_value="token",
+                ),
+                patch.object(
+                    poller,
+                    "_get_next_queue_item",
+                    return_value=None,
+                ),
+                patch.object(
+                    poller,
+                    "_get_current_queue_item",
+                    return_value=None,
+                ),
+                patch.object(
+                    poller,
+                    "_adopt_external_track",
+                ),
+                patch.object(
+                    poller,
+                    "_advance_queue",
+                    new_callable=AsyncMock,
+                ) as mock_advance,
+            ):
+                await poller._poll_loop(room_id, host_user_id)
+
+            mock_advance.assert_not_called()
 
         anyio.run(_run)
 

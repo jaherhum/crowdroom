@@ -112,17 +112,25 @@ async def get_room_members(
 @router.post("/", response_model=ReadRoom, status_code=status.HTTP_201_CREATED)
 async def create_room(
     room_data: CreateRoom,
+    current_user: User = Depends(get_current_user),
     room_service: RoomService = Depends(get_room_service),
 ) -> ReadRoom:
-    """Creates a new room.
+    """Creates a new room. Requires an authenticated user with a password.
 
     Args:
         room_data (CreateRoom): The schema containing room creation details.
+        current_user (User): The authenticated user (must have a password set).
         room_service (RoomService): The injected room service.
 
     Returns:
         ReadRoom: The newly created room schema.
     """
+    if not current_user.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password required to create a room. Set a password first.",
+        )
+    room_data.host_user_id = current_user.id
     return room_service.create_room(room_data)
 
 
@@ -297,16 +305,8 @@ async def get_room_playback(
 
     from datetime import datetime, timezone
 
-    from backend.db.models.enum import ItemStatus
-
     poller = request.app.state.playback_poller
-    if (
-        session.playback_status in (ItemStatus.PLAYING, ItemStatus.PAUSED)
-        and poller
-        and not poller.is_polling(room_id)
-        and session.current_song_id
-        and session.room
-    ):
+    if poller and not poller.is_polling(room_id) and session.room:
         await poller.start_polling(room_id, session.room.host_user_id)
 
     playback_status = (

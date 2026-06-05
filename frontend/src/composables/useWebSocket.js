@@ -4,16 +4,33 @@ let socket = null;
 let currentRoomId = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
+let heartbeatTimer = null;
+const HEARTBEAT_TIMEOUT_MS = 45000;
 const listeners = new Map();
 const connected = ref(false);
 
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible' && currentRoomId) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      reconnectAttempts = 0;
+      connect();
+    }
+  }
+}
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 function connect() {
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   socket = new WebSocket(`${protocol}//${location.host}/ws/${currentRoomId}`);
 
   socket.addEventListener('open', () => {
     reconnectAttempts = 0;
     connected.value = true;
+    resetHeartbeatTimer();
   });
 
   socket.addEventListener('message', (event) => {
@@ -26,6 +43,7 @@ function connect() {
 
     if (msg.type === 'ping') {
       socket.send(JSON.stringify({ type: 'pong' }));
+      resetHeartbeatTimer();
       return;
     }
 
@@ -39,12 +57,29 @@ function connect() {
 
   socket.addEventListener('close', () => {
     connected.value = false;
+    clearHeartbeatTimer();
     scheduleReconnect();
   });
 
   socket.addEventListener('error', () => {
     socket.close();
   });
+}
+
+function resetHeartbeatTimer() {
+  clearHeartbeatTimer();
+  heartbeatTimer = setTimeout(() => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.close(4000, 'heartbeat timeout');
+    }
+  }, HEARTBEAT_TIMEOUT_MS);
+}
+
+function clearHeartbeatTimer() {
+  if (heartbeatTimer) {
+    clearTimeout(heartbeatTimer);
+    heartbeatTimer = null;
+  }
 }
 
 function scheduleReconnect() {
@@ -64,6 +99,7 @@ export function useWebSocket() {
 
   function disconnect() {
     currentRoomId = null;
+    clearHeartbeatTimer();
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
