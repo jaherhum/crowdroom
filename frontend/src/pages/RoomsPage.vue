@@ -18,7 +18,7 @@
               <input v-model="joinCode" type="text" class="input" placeholder="Room code" maxlength="6" style="width: 120px;">
               <button type="submit" class="btn btn-secondary">Join</button>
             </form>
-            <button class="btn btn-primary" @click="showCreateModal = true">
+            <button class="btn btn-primary" @click="handleCreateRoom">
               <i class="ph ph-plus"></i> Create Room
             </button>
           </div>
@@ -98,6 +98,23 @@
       </div>
     </div>
 
+    <!-- Set Password Modal -->
+    <div v-if="showPasswordModal" class="modal-overlay" @click.self="showPasswordModal = false">
+      <div class="modal">
+        <h3>Set a password</h3>
+        <p class="text-secondary">A password is required to create rooms.</p>
+        <form class="login-form" @submit.prevent="submitPassword">
+          <input v-model="newPassword" type="password" class="input" placeholder="Password (min 6 chars)" minlength="6" required>
+          <input v-model="confirmPassword" type="password" class="input" placeholder="Confirm password" minlength="6" required>
+          <p v-if="passwordError" class="error-text">{{ passwordError }}</p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="showPasswordModal = false">Cancel</button>
+            <button type="submit" class="btn btn-primary">Set Password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Join PIN Modal -->
     <div v-if="showPinModal" class="modal-overlay" @click.self="closePinModal">
       <div class="modal">
@@ -123,15 +140,19 @@ import { useToast } from '../composables/useToast.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
 
 const router = useRouter();
-const { username, userId, logout } = useAuth();
+const { username, userId, hasPassword, setHasPassword, logout } = useAuth();
 const { showToast } = useToast();
 
 const rooms = ref([]);
 const showCreateModal = ref(false);
 const showPinModal = ref(false);
+const showPasswordModal = ref(false);
 const joinPin = ref('');
 const joinCode = ref('');
 const joinTargetRoomId = ref(null);
+const newPassword = ref('');
+const confirmPassword = ref('');
+const passwordError = ref('');
 
 const newRoom = ref({
   name: '',
@@ -148,6 +169,7 @@ const otherRooms = computed(() => rooms.value.filter((room) => room.host_user_id
 onMounted(async () => {
   try {
     const me = await apiGet('/auth/me');
+    setHasPassword(me.has_password);
     if (me.room_id) {
       router.push(`/room/${me.room_id}`);
       return;
@@ -215,10 +237,35 @@ function submitPin() {
   }
 }
 
+function handleCreateRoom() {
+  if (!hasPassword.value) {
+    showPasswordModal.value = true;
+    return;
+  }
+  showCreateModal.value = true;
+}
+
+async function submitPassword() {
+  passwordError.value = '';
+  if (newPassword.value !== confirmPassword.value) {
+    passwordError.value = 'Passwords do not match';
+    return;
+  }
+  try {
+    await apiPost('/auth/set-password', { password: newPassword.value });
+    setHasPassword(true);
+    showPasswordModal.value = false;
+    newPassword.value = '';
+    confirmPassword.value = '';
+    showCreateModal.value = true;
+  } catch (err) {
+    passwordError.value = err.detail || 'Failed to set password';
+  }
+}
+
 async function createRoom() {
   try {
     const room = await apiPost('/rooms/', {
-      host_user_id: userId.value,
       room_name: newRoom.value.name,
       is_private: newRoom.value.isPrivate,
       pin: newRoom.value.isPrivate ? newRoom.value.pin : null,

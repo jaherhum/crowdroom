@@ -95,7 +95,7 @@ class PlaybackControlService:
         self,
         room_id: UUID,
         user_id: UUID,
-        song_id: UUID,
+        song_id: UUID | None = None,
         device_id: str | None = None,
     ) -> None:
         """Start playback of a song on the host's Spotify.
@@ -103,7 +103,7 @@ class PlaybackControlService:
         Args:
             room_id: The room the user is controlling.
             user_id: The authenticated user (must be host).
-            song_id: Internal song UUID to resolve to a Spotify track URI.
+            song_id: Internal song UUID. Omit to resume current playback.
             device_id: Optional target device.
 
         Raises:
@@ -111,6 +111,35 @@ class PlaybackControlService:
             ForbiddenException: If user is not room host.
         """
         self._room_service.assert_host(room_id, user_id)
+
+        if song_id is None:
+            adapter = await self._get_adapter(user_id)
+            try:
+                await adapter.resume(device_id)
+            except httpx.HTTPStatusError as error:
+                if error.response.status_code == 401:
+                    adapter = await self._get_fresh_adapter(user_id)
+                    await adapter.resume(device_id)
+                else:
+                    raise SpotifyUpstreamException(
+                        status_code=error.response.status_code,
+                        detail=self._spotify_error_detail(error),
+                    ) from error
+            session = self._session_repo.get_by_room(room_id)
+            if session:
+                self._session_repo.update(
+                    session.id,
+                    {
+                        "playback_status": ItemStatus.PLAYING,
+                        "playback_started_at": _utcnow(),
+                    },
+                )
+            await self._broadcast_state_changed(
+                room_id, "playing", session.current_song_id if session else None
+            )
+            if self._playback_poller and session:
+                await self._playback_poller.start_polling(room_id, user_id)
+            return
 
         song = self._song_repo.get_by_id(song_id)
         if not song:

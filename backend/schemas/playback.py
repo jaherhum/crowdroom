@@ -24,7 +24,9 @@ class PlayRequest(BaseModel):
         device_id: Optional Spotify device ID to target.
     """
 
-    song_id: UUID = Field(..., description="Internal song UUID to play.")
+    song_id: UUID | None = Field(
+        None, description="Internal song UUID to play. Omit to resume current."
+    )
     device_id: str | None = Field(
         None, description="Spotify device ID. Uses active device if omitted."
     )

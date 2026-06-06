@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 
 const token = ref(localStorage.getItem('access_token'));
 const username = ref(localStorage.getItem('username') || '');
+const hasPassword = ref(localStorage.getItem('has_password') === 'true');
 
 export function useAuth() {
   const isAuthenticated = computed(() => !!token.value);
@@ -26,19 +27,27 @@ export function useAuth() {
     localStorage.setItem('username', newUsername);
   }
 
+  function setHasPassword(value) {
+    hasPassword.value = value;
+    localStorage.setItem('has_password', value ? 'true' : 'false');
+  }
+
   function logout() {
     token.value = null;
     username.value = '';
+    hasPassword.value = false;
     localStorage.clear();
   }
 
   return {
     token,
     username,
+    hasPassword,
     isAuthenticated,
     userId,
     setToken,
     setUsername,
+    setHasPassword,
     logout,
   };
 }

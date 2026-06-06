@@ -52,6 +52,12 @@ const router = createRouter({
 router.beforeEach((to) => {
   const { isAuthenticated } = useAuth();
 
+  const returnRoom = sessionStorage.getItem('spotify_return_room');
+  if (returnRoom && isAuthenticated.value && to.path !== `/room/${returnRoom}`) {
+    sessionStorage.removeItem('spotify_return_room');
+    return `/room/${returnRoom}`;
+  }
+
   if (to.meta.requiresAuth && !isAuthenticated.value) {
     return '/login';
   }

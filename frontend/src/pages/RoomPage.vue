@@ -428,8 +428,10 @@ async function togglePlayPause() {
   try {
     if (isPlaying.value) {
       await apiPost('/playback/pause');
-    } else if (currentSong.value) {
+    } else if (currentSong.value?.song?.id) {
       await apiPost('/playback/play', { song_id: currentSong.value.song.id });
+    } else {
+      await apiPost('/playback/play', {});
     }
   } catch (err) {
     handlePlaybackError(err);
