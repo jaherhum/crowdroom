@@ -242,6 +242,7 @@ function handleCreateRoom() {
     showPasswordModal.value = true;
     return;
   }
+  newRoom.value.name = `${username.value}'s Room`;
   showCreateModal.value = true;
 }
 
@@ -257,6 +258,7 @@ async function submitPassword() {
     showPasswordModal.value = false;
     newPassword.value = '';
     confirmPassword.value = '';
+    newRoom.value.name = `${username.value}'s Room`;
     showCreateModal.value = true;
   } catch (err) {
     passwordError.value = err.detail || 'Failed to set password';
