@@ -187,6 +187,25 @@ class OAuthStateException(AppException):
         else:
             super().__init__(f"OAuth state validation failed: {reason}")
 
+class ProfileIncompleteException(AppException):
+    """Exception raised when an ONLINE-mode user lacks email or password.
+
+    Attributes:
+        missing_fields (list[str]): Fields the user still needs to provide.
+    """
+
+    def __init__(self, missing_fields: list[str]):
+        """Initializes the exception.
+
+        Args:
+            missing_fields: List of field names that are not yet set.
+        """
+        self.missing_fields = missing_fields
+        super().__init__(
+            "Profile incomplete. Please set your email and password."
+        )
+
+
 class SpotifyUpstreamException(AppException):
     """Exception raised when Spotify API returns an error response.
 

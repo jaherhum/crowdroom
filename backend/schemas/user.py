@@ -82,11 +82,15 @@ class UserRead(UserBase):
     has_password: bool = Field(
         default=False, description="Whether the user has a password set."
     )
+    profile_complete: bool = Field(
+        default=False,
+        description="Whether the user has both email and password set.",
+    )
 
     @model_validator(mode="before")
     @classmethod
-    def compute_has_password(cls, data):
-        """Derive has_password from hashed_password on the source object."""
+    def compute_derived_fields(cls, data):
+        """Derive has_password and profile_complete from the source object."""
         if hasattr(data, "hashed_password"):
             data = {
                 "id": data.id,
@@ -94,7 +98,16 @@ class UserRead(UserBase):
                 "email": data.email,
                 "room_id": data.room_id,
                 "has_password": data.hashed_password is not None,
+                "profile_complete": (
+                    data.hashed_password is not None and data.email is not None
+                ),
             }
-        elif isinstance(data, dict) and "has_password" not in data:
-            data["has_password"] = data.get("hashed_password") is not None
+        elif isinstance(data, dict):
+            if "has_password" not in data:
+                data["has_password"] = data.get("hashed_password") is not None
+            if "profile_complete" not in data:
+                data["profile_complete"] = (
+                    data.get("hashed_password") is not None
+                    and data.get("email") is not None
+                )
         return data

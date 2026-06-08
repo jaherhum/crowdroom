@@ -147,6 +147,36 @@ class AuthService:
         hashed = self._security_service.generate_password_hash(plain_password)
         self._user_service.update_user_password(user_id, hashed)
 
+    def complete_profile(
+        self, user: User, email: str, plain_password: str
+    ) -> None:
+        """Set email and password on an incomplete profile.
+
+        Only updates fields that are currently missing. Skips if already set.
+
+        Args:
+            user: The authenticated user to complete.
+            email: The email to set (if user has no email).
+            plain_password: The plain-text password to hash and set (if no password).
+
+        Raises:
+            EntityExistsException: If the email is already taken by another user.
+        """
+        normalized_email = email.strip().lower()
+
+        if not user.email:
+            existing = self._user_service.get_by_email(normalized_email)
+            if existing and existing.id != user.id:
+                raise EntityExistsException("Email already in use")
+            from backend.schemas.user import UserUpdate
+
+            self._user_service.update_user(
+                user.id, UserUpdate(email=normalized_email)
+            )
+
+        if not user.hashed_password:
+            self.set_password(user.id, plain_password)
+
     def resolve_user_from_token(self, token: str) -> User | None:
         """Decode a JWT token and return the associated user.
 

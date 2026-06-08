@@ -60,6 +60,20 @@ class SetPasswordRequest(BaseModel):
     )
 
 
+class CompleteProfileRequest(BaseModel):
+    """Request schema for completing a user profile (LOCAL→ONLINE migration).
+
+    Attributes:
+        email (EmailStr): The email address to set.
+        password (SecretStr): The password to set.
+    """
+
+    email: EmailStr = Field(..., description="The email address to set.")
+    password: SecretStr = Field(
+        ..., min_length=8, description="The password to set."
+    )
+
+
 class TokenResponse(BaseModel):
     """Response schema for successful authentication.
 

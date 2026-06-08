@@ -1,22 +1,25 @@
 """Tests for authentication dependencies."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 
-from backend.api.auth.dependencies import get_current_user
+from backend.api.auth.dependencies import (
+    get_current_user,
+    get_current_user_unchecked,
+)
+from backend.core.exceptions import ProfileIncompleteException
 from backend.core.security import SecurityService
 from backend.db.models.enum import TokenType
 from backend.db.models.user import User
 from backend.services.user_service import UserService
 
 
-def test_get_current_user_success():
-    """Tests get_current_user with a valid token and existing user."""
-    # Setup mocks
+def test_get_current_user_unchecked_success():
+    """Tests get_current_user_unchecked with a valid token and existing user."""
     mock_user_service = MagicMock(spec=UserService)
     mock_security_service = MagicMock(spec=SecurityService)
 
@@ -28,8 +31,7 @@ def test_get_current_user_success():
     mock_user_service.get_by_id.return_value = mock_user
     mock_security_service.decode_token.return_value = {"sub": str(user_id)}
 
-    # Call the dependency directly
-    user = get_current_user(
+    user = get_current_user_unchecked(
         user_service=mock_user_service,
         security_service=mock_security_service,
         token="valid_token",
@@ -42,15 +44,15 @@ def test_get_current_user_success():
     mock_user_service.get_by_id.assert_called_once_with(user_id)
 
 
-def test_get_current_user_invalid_token():
-    """Tests get_current_user when the token is invalid (decode_token raises error)."""
+def test_get_current_user_unchecked_invalid_token():
+    """Tests get_current_user_unchecked when the token is invalid."""
     mock_user_service = MagicMock(spec=UserService)
     mock_security_service = MagicMock(spec=SecurityService)
 
     mock_security_service.decode_token.side_effect = Exception("Invalid token")
 
     with pytest.raises(HTTPException) as excinfo:
-        get_current_user(
+        get_current_user_unchecked(
             user_service=mock_user_service,
             security_service=mock_security_service,
             token="invalid_token",
@@ -60,8 +62,8 @@ def test_get_current_user_invalid_token():
     assert excinfo.value.detail == "Could not validate credentials"
 
 
-def test_get_current_user_user_not_found():
-    """Tests get_current_user when the token is valid but the user does not exist."""
+def test_get_current_user_unchecked_user_not_found():
+    """Tests get_current_user_unchecked when user does not exist."""
     mock_user_service = MagicMock(spec=UserService)
     mock_security_service = MagicMock(spec=SecurityService)
 
@@ -70,7 +72,7 @@ def test_get_current_user_user_not_found():
     mock_user_service.get_by_id.return_value = None
 
     with pytest.raises(HTTPException) as excinfo:
-        get_current_user(
+        get_current_user_unchecked(
             user_service=mock_user_service,
             security_service=mock_security_service,
             token="valid_token",
@@ -78,6 +80,48 @@ def test_get_current_user_user_not_found():
 
     assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert excinfo.value.detail == "Could not validate credentials"
+
+
+@patch("backend.api.auth.dependencies.settings")
+def test_get_current_user_online_mode_incomplete_profile(mock_settings):
+    """Tests get_current_user raises ProfileIncompleteException in ONLINE mode."""
+    mock_settings.AUTH_MODE = "ONLINE"
+
+    mock_user = MagicMock(spec=User)
+    mock_user.email = None
+    mock_user.hashed_password = None
+
+    with pytest.raises(ProfileIncompleteException) as excinfo:
+        get_current_user(current_user=mock_user)
+
+    assert "email" in excinfo.value.missing_fields
+    assert "password" in excinfo.value.missing_fields
+
+
+@patch("backend.api.auth.dependencies.settings")
+def test_get_current_user_online_mode_complete_profile(mock_settings):
+    """Tests get_current_user passes in ONLINE mode with complete profile."""
+    mock_settings.AUTH_MODE = "ONLINE"
+
+    mock_user = MagicMock(spec=User)
+    mock_user.email = "test@example.com"
+    mock_user.hashed_password = "hashed"
+
+    result = get_current_user(current_user=mock_user)
+    assert result == mock_user
+
+
+@patch("backend.api.auth.dependencies.settings")
+def test_get_current_user_local_mode_no_check(mock_settings):
+    """Tests get_current_user skips profile check in LOCAL mode."""
+    mock_settings.AUTH_MODE = "LOCAL"
+
+    mock_user = MagicMock(spec=User)
+    mock_user.email = None
+    mock_user.hashed_password = None
+
+    result = get_current_user(current_user=mock_user)
+    assert result == mock_user
 
 
 def test_integration_protected_route():

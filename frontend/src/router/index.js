@@ -9,6 +9,12 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/complete-profile',
+    name: 'CompleteProfile',
+    component: () => import('../pages/CompleteProfilePage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/rooms',
     name: 'Rooms',
     component: () => import('../pages/RoomsPage.vue'),

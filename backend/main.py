@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.api.auth.router import router as auth_router
@@ -21,6 +21,7 @@ from backend.api.songs.router import router as songs_router
 from backend.api.users.router import router as user_router
 from backend.api.websocket import router as websocket_router
 from backend.core.config import settings, validate_spotify_config
+from backend.core.exceptions import ProfileIncompleteException
 from backend.db.database import create_db_and_tables
 from backend.services.playback_poller_service import PlaybackPollerService
 
@@ -38,6 +39,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.exception_handler(ProfileIncompleteException)
+async def profile_incomplete_handler(
+    request: Request, exc: ProfileIncompleteException
+) -> JSONResponse:
+    """Return 403 with PROFILE_INCOMPLETE code when user profile is missing fields."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "detail": str(exc),
+            "code": "PROFILE_INCOMPLETE",
+            "missing_fields": exc.missing_fields,
+        },
+    )
+
 
 app.include_router(
     platform_connections_router,

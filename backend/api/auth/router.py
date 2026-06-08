@@ -9,7 +9,7 @@ from httpx import HTTPStatusError
 
 from backend.api.auth.dependencies import (
     get_auth_service,
-    get_current_user,
+    get_current_user_unchecked,
     get_spotify_oauth_service,
 )
 from backend.core.config import settings
@@ -21,6 +21,7 @@ from backend.core.exceptions import (
 )
 from backend.db.models.user import User
 from backend.schemas.auth import (
+    CompleteProfileRequest,
     LocalLoginRequest,
     LoginRequest,
     RegisterRequest,
@@ -47,7 +48,7 @@ def get_auth_mode() -> dict:
 
 
 @router.get("/me", response_model=UserRead)
-def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
+def get_me(current_user: User = Depends(get_current_user_unchecked)) -> UserRead:
     """Return the authenticated user's profile.
 
     Args:
@@ -165,7 +166,7 @@ def local_login(
 @router.post("/set-password", status_code=status.HTTP_204_NO_CONTENT)
 def set_password(
     body: SetPasswordRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_unchecked),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> None:
     """Set a password on a passwordless account.
@@ -187,6 +188,38 @@ def set_password(
             detail="Password already set. Use change-password instead.",
         )
     auth_service.set_password(current_user.id, body.password.get_secret_value())
+
+
+@router.post("/complete-profile", status_code=status.HTTP_204_NO_CONTENT)
+def complete_profile(
+    body: CompleteProfileRequest,
+    current_user: User = Depends(get_current_user_unchecked),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> None:
+    """Complete a user's profile by setting email and password.
+
+    Required when switching from LOCAL to ONLINE mode and the user is
+    missing email or password. Skips fields that are already set.
+
+    Args:
+        body: The email and password to set.
+        current_user: The authenticated user from JWT.
+        auth_service: The authentication service.
+
+    Raises:
+        HTTPException: 409 if email is already taken by another user.
+    """
+    try:
+        auth_service.complete_profile(
+            user=current_user,
+            email=str(body.email),
+            plain_password=body.password.get_secret_value(),
+        )
+    except EntityExistsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/spotify")

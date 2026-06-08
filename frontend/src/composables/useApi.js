@@ -35,9 +35,14 @@ export function useApi() {
     const data = await response.json();
 
     if (!response.ok) {
+      if (response.status === 403 && data.code === 'PROFILE_INCOMPLETE') {
+        router.push('/complete-profile');
+        return;
+      }
       const error = new Error(data.detail || 'Request failed');
       error.status = response.status;
       error.detail = data.detail;
+      error.code = data.code;
       throw error;
     }
 
@@ -81,9 +86,14 @@ export async function apiRequest(method, path, body = null) {
   const data = await response.json();
 
   if (!response.ok) {
+    if (response.status === 403 && data.code === 'PROFILE_INCOMPLETE') {
+      window.location.href = '/complete-profile';
+      return;
+    }
     const error = new Error(data.detail || 'Request failed');
     error.status = response.status;
     error.detail = data.detail;
+    error.code = data.code;
     throw error;
   }
 

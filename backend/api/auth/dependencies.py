@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session as DBSession
 
 from backend.api.users.dependencies import get_user_service
+from backend.core.config import settings
+from backend.core.exceptions import ProfileIncompleteException
 from backend.core.security import SecurityService
 from backend.db.database import get_session
 from backend.db.models.enum import TokenType
@@ -47,20 +49,23 @@ def get_auth_service(
     return AuthService(user_service, security_service)
 
 
-def get_current_user(
+def get_current_user_unchecked(
     user_service: UserService = Depends(get_user_service),
     security_service: SecurityService = Depends(get_security_service),
     token: str = Depends(oauth2_scheme),
 ) -> User:
-    """Retrieves the current authenticated user from the JWT token.
+    """Retrieves the current user without profile completeness checks.
+
+    Use this for auth-related endpoints (e.g., /me, /complete-profile)
+    that must remain accessible to incomplete profiles.
 
     Args:
-        user_service (UserService): The user service instance.
-        security_service (SecurityService): The security service instance.
-        token (str): The JWT token extracted from the Authorization header.
+        user_service: The user service instance.
+        security_service: The security service instance.
+        token: The JWT token extracted from the Authorization header.
 
     Returns:
-        User: The authenticated user model.
+        The authenticated user model.
 
     Raises:
         HTTPException: If the token is invalid, expired, or the user is not found.
@@ -80,6 +85,35 @@ def get_current_user(
         return user
     except Exception as exc:
         raise credentials_exception from exc
+
+
+def get_current_user(
+    current_user: User = Depends(get_current_user_unchecked),
+) -> User:
+    """Retrieves the current authenticated user, enforcing profile completeness.
+
+    In ONLINE mode, raises ProfileIncompleteException if the user is missing
+    email or password. This forces LOCAL-mode users to complete their profile
+    after a mode switch.
+
+    Args:
+        current_user: The authenticated user (unchecked).
+
+    Returns:
+        The authenticated user model.
+
+    Raises:
+        ProfileIncompleteException: If ONLINE mode and profile is incomplete.
+    """
+    if settings.AUTH_MODE == "ONLINE":
+        missing_fields = []
+        if not current_user.email:
+            missing_fields.append("email")
+        if not current_user.hashed_password:
+            missing_fields.append("password")
+        if missing_fields:
+            raise ProfileIncompleteException(missing_fields)
+    return current_user
 
 
 def _get_platform_connection_repo(
