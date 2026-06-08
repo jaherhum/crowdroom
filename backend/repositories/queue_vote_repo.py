@@ -83,6 +83,15 @@ class QueueVoteRepository:
                 self._session.rollback()
                 raise
 
+    def delete(self, vote: QueueVote) -> None:
+        """Delete a vote record from the database.
+
+        Args:
+            vote: The QueueVote instance to remove.
+        """
+        self._session.delete(vote)
+        self._session.commit()
+
     def get_by_id(self, vote_id: UUID) -> QueueVote | None:
         """Fetch a single queue vote by its primary key.
 

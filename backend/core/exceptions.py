@@ -206,6 +206,23 @@ class ProfileIncompleteException(AppException):
         )
 
 
+class TooManyRequestsException(AppException):
+    """Exception raised when a user exceeds a rate limit.
+
+    Attributes:
+        retry_after (float): Seconds the client should wait before retrying.
+    """
+
+    def __init__(self, retry_after: float = 1.0):
+        """Initializes the exception.
+
+        Args:
+            retry_after: How many seconds until the action is allowed again.
+        """
+        self.retry_after = retry_after
+        super().__init__(f"Too many requests. Try again in {retry_after:.1f}s.")
+
+
 class SpotifyUpstreamException(AppException):
     """Exception raised when Spotify API returns an error response.
 

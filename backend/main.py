@@ -21,7 +21,7 @@ from backend.api.songs.router import router as songs_router
 from backend.api.users.router import router as user_router
 from backend.api.websocket import router as websocket_router
 from backend.core.config import settings, validate_spotify_config
-from backend.core.exceptions import ProfileIncompleteException
+from backend.core.exceptions import ProfileIncompleteException, TooManyRequestsException
 from backend.db.database import create_db_and_tables
 from backend.services.playback_poller_service import PlaybackPollerService
 
@@ -56,6 +56,18 @@ async def profile_incomplete_handler(
     )
 
 
+@app.exception_handler(TooManyRequestsException)
+async def too_many_requests_handler(
+    request: Request, exc: TooManyRequestsException
+) -> JSONResponse:
+    """Return 429 when a user exceeds a rate limit."""
+    return JSONResponse(
+        status_code=429,
+        content={"detail": str(exc), "retry_after": exc.retry_after},
+        headers={"Retry-After": str(int(exc.retry_after))},
+    )
+
+
 app.include_router(
     platform_connections_router,
     prefix=settings.API_V1_STR,
@@ -71,6 +83,10 @@ app.include_router(session_router, prefix=settings.API_V1_STR, tags=["session"])
 app.include_router(songs_router, prefix=settings.API_V1_STR, tags=["songs"])
 app.include_router(user_router, prefix=settings.API_V1_STR, tags=["users"])
 app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
+
+avatars_dir = Path(__file__).resolve().parent / "static" / "avatars"
+avatars_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/avatars", StaticFiles(directory=avatars_dir), name="avatars")
 
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if frontend_dist.exists():

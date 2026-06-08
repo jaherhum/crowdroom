@@ -23,10 +23,15 @@
             <p class="text-secondary">{{ currentSong.song.artist }}</p>
           </div>
           <div v-if="currentSong.id" class="now-playing-actions">
-            <button class="btn btn-icon" title="Vote to skip" @click="voteSkip(currentSong.id)">
-              <i class="ph ph-skip-forward"></i>
+            <button
+              class="btn btn-ghost"
+              :class="{ active: hasVotedSkip }"
+              :disabled="voteOnCooldown"
+              :title="hasVotedSkip ? 'Undo skip vote' : 'Vote to skip'"
+              @click="voteSkip(currentSong.id)"
+            >
+              <i class="ph ph-skip-forward"></i> VoteSkip <span class="skip-vote-badge">{{ currentSong.votes_skip || 0 }}</span>
             </button>
-            <span class="skip-vote-badge">{{ currentSong.votes_skip || 0 }}</span>
           </div>
           <div class="progress-container">
             <div class="progress-bar">
@@ -71,8 +76,7 @@
         <div v-if="spotifyBanner" class="empty-state">
           <i class="ph ph-spotify-logo"></i>
           <p>{{ spotifyBanner.message }}</p>
-          <a v-if="spotifyBanner.connectUrl" :href="spotifyBanner.connectUrl" class="btn btn-primary" style="margin-top: var(--space-3);" @click="saveReturnRoom">Connect Spotify</a>
-          <button v-else-if="spotifyBanner.showSetup" class="btn btn-primary" style="margin-top: var(--space-3);" @click="showSpotifyModal = true">Set up Spotify</button>
+          <router-link to="/profile" class="btn btn-primary" style="margin-top: var(--space-3);">Set up in Profile</router-link>
         </div>
         <div class="search-input-wrapper">
           <i class="ph ph-magnifying-glass"></i>
@@ -97,7 +101,8 @@
         <h3><i class="ph ph-users"></i> Members <span class="badge">{{ members.length }}</span></h3>
         <ul class="members-list">
           <li v-for="member in members" :key="member.id" class="member-item">
-            <span class="member-avatar">{{ (member.username || '?')[0].toUpperCase() }}</span>
+            <img v-if="member.avatar_url" :src="member.avatar_url" class="member-avatar member-avatar-img" alt="">
+            <span v-else class="member-avatar">{{ (member.username || '?')[0].toUpperCase() }}</span>
             <span>{{ member.username || 'Unknown' }}</span>
           </li>
         </ul>
@@ -121,39 +126,13 @@
       </section>
     </main>
 
-    <!-- Spotify Credentials Modal -->
-    <div v-if="showSpotifyModal" class="modal-overlay" @click.self="showSpotifyModal = false">
-      <div class="modal">
-        <h3>Set up Spotify App</h3>
-        <p class="text-secondary" style="margin-bottom: var(--space-4);">
-          Create a Spotify Developer app at
-          <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com</a>.
-          Set the redirect URI to:
-        </p>
-        <code class="redirect-uri-display">{{ redirectUri }}</code>
-        <form style="margin-top: var(--space-4);" @submit.prevent="saveSpotifyCredentials">
-          <div class="form-group">
-            <label class="input-label" for="spotify-client-id">Client ID</label>
-            <input v-model="spotifyClientId" type="text" id="spotify-client-id" class="input" placeholder="Your Spotify Client ID" required>
-          </div>
-          <div class="form-group" style="margin-top: var(--space-3);">
-            <label class="input-label" for="spotify-client-secret">Client Secret</label>
-            <input v-model="spotifyClientSecret" type="password" id="spotify-client-secret" class="input" placeholder="Your Spotify Client Secret" required>
-          </div>
-          <div class="modal-actions" style="margin-top: var(--space-4);">
-            <button type="button" class="btn btn-secondary" @click="showSpotifyModal = false">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save & Connect</button>
-          </div>
-        </form>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { apiGet, apiPost } from '../composables/useApi.js';
+import { apiGet, apiPost, apiDelete } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useWebSocket } from '../composables/useWebSocket.js';
 import { useToast } from '../composables/useToast.js';
@@ -165,7 +144,7 @@ const props = defineProps({
 });
 
 const router = useRouter();
-const { userId, token } = useAuth();
+const { userId } = useAuth();
 const { connectToRoom, disconnect, onEvent } = useWebSocket();
 const { showToast } = useToast();
 
@@ -184,16 +163,14 @@ const searchResults = ref([]);
 const searching = ref(false);
 
 const isPlaying = ref(false);
+const hasVotedSkip = ref(false);
+const voteOnCooldown = ref(false);
 const playbackPositionMs = ref(0);
 const elapsedMs = ref(0);
 let progressFrame = null;
 let progressStartTime = null;
 
-const showSpotifyModal = ref(false);
 const spotifyBanner = ref(null);
-const spotifyClientId = ref('');
-const spotifyClientSecret = ref('');
-const redirectUri = computed(() => window.location.origin + '/api/v1/auth/spotify/callback');
 
 const progressPercent = computed(() => {
   if (!currentSong.value) return 0;
@@ -339,43 +316,15 @@ function startProgressAnimation() {
   progressFrame = requestAnimationFrame(update);
 }
 
-function saveReturnRoom() {
-  sessionStorage.setItem('spotify_return_room', roomId.value);
-}
-
 async function checkSpotifyConnection() {
   try {
     const connections = await apiGet('/platform-connections/');
     const hasSpotify = connections.some((conn) => conn.platform === 'spotify');
     if (!hasSpotify) {
-      const { has_credentials } = await apiGet('/platform-connections/spotify/has-app-credentials');
-      if (has_credentials) {
-        const connectUrl = `/api/v1/auth/spotify?token=${token.value}`;
-        spotifyBanner.value = { message: 'Connect Spotify to enable search and playback', connectUrl };
-      } else {
-        spotifyBanner.value = { message: 'Set up your Spotify app to enable search and playback', showSetup: true };
-      }
+      spotifyBanner.value = { message: 'Connect Spotify in your profile to enable search and playback' };
     }
   } catch {
     // ignore
-  }
-}
-
-async function saveSpotifyCredentials() {
-  if (!spotifyClientId.value.trim() || !spotifyClientSecret.value.trim()) {
-    showToast('Both fields are required');
-    return;
-  }
-  try {
-    await apiPost('/platform-connections/', {
-      platform: 'spotify',
-      credentials: { client_id: spotifyClientId.value.trim(), client_secret: spotifyClientSecret.value.trim() },
-    });
-    showSpotifyModal.value = false;
-    saveReturnRoom();
-    window.location.href = `/api/v1/auth/spotify?token=${token.value}`;
-  } catch (err) {
-    showToast(err.detail || 'Invalid credentials');
   }
 }
 
@@ -416,12 +365,23 @@ async function addToQueue(externalId) {
   }
 }
 
+const VOTE_COOLDOWN_MS = 2500;
+
 async function voteSkip(queueItemId) {
+  if (voteOnCooldown.value) return;
+  voteOnCooldown.value = true;
   try {
-    await apiPost('/queue/vote', { queue_item_id: queueItemId, user_id: userId.value });
+    if (hasVotedSkip.value) {
+      await apiDelete(`/queue/vote?queue_item_id=${queueItemId}&user_id=${userId.value}`);
+      hasVotedSkip.value = false;
+    } else {
+      await apiPost('/queue/vote', { queue_item_id: queueItemId, user_id: userId.value });
+      hasVotedSkip.value = true;
+    }
   } catch (err) {
     showToast(err.detail || 'Vote failed');
   }
+  setTimeout(() => { voteOnCooldown.value = false; }, VOTE_COOLDOWN_MS);
 }
 
 async function togglePlayPause() {
@@ -463,6 +423,7 @@ function setupWebSocket() {
   });
 
   onEvent('song_changed', async (msg) => {
+    hasVotedSkip.value = false;
     if (msg.song && !msg.song.id) {
       currentSong.value = {
         id: null,
@@ -492,6 +453,7 @@ function setupWebSocket() {
       currentSong.value = { ...currentSong.value, votes_skip: msg.current_votes };
     }
     if (msg.skip_triggered) {
+      hasVotedSkip.value = false;
       isPlaying.value = false;
       if (progressFrame) cancelAnimationFrame(progressFrame);
       loadCurrentSong();

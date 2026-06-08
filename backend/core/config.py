@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     METADATA_CACHE_TTL_SECONDS: int = 86400
     METADATA_CACHE_MAX_SIZE: int = 2048
 
+    # Vote Skip
+    VOTE_SKIP_COOLDOWN_SECONDS: int = 2
+
     # WebSocket Heartbeat
     WS_HEARTBEAT_INTERVAL_SECONDS: int = 30
     WS_HEARTBEAT_TIMEOUT_SECONDS: int = 10

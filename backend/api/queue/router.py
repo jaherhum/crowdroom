@@ -104,26 +104,6 @@ async def add_to_queue(
     return ReadQueueItem.model_validate(item)
 
 
-@router.delete("/{queue_item_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_from_queue(
-    queue_item_id: UUID,
-    queue_service: QueueService = Depends(get_queue_service),
-) -> None:
-    """Remove a song from the queue.
-
-    Deletes the specified queue item and renumbers subsequent items to
-    fill the gap. Requires the item to exist.
-
-    Args:
-        queue_item_id: The unique identifier of the queue item to remove.
-        queue_service: Dependency-injected queue service instance.
-
-    Raises:
-        EntityNotFoundException: If no queue item exists with the given ID.
-    """
-    await queue_service.remove_from_queue(queue_item_id)
-
-
 @router.post("/vote", response_model=ReadQueueVote, status_code=status.HTTP_201_CREATED)
 async def vote_skip(
     data: CreateQueueVote,
@@ -150,6 +130,48 @@ async def vote_skip(
         user_id=data.user_id,
     )
     return ReadQueueVote.model_validate(vote)
+
+
+@router.delete("/vote", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_vote_skip(
+    queue_item_id: UUID,
+    user_id: UUID,
+    queue_vote_service: QueueVoteService = Depends(get_queue_vote_service),
+) -> None:
+    """Retract a previously cast skip vote (undo).
+
+    Args:
+        queue_item_id: UUID of the queue item to retract the vote from.
+        user_id: UUID of the user retracting their vote.
+        queue_vote_service: Dependency-injected queue vote service instance.
+
+    Raises:
+        EntityNotFoundException: If no vote exists for this user/item pair.
+    """
+    await queue_vote_service.remove_vote(
+        queue_item_id=queue_item_id,
+        user_id=user_id,
+    )
+
+
+@router.delete("/{queue_item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_from_queue(
+    queue_item_id: UUID,
+    queue_service: QueueService = Depends(get_queue_service),
+) -> None:
+    """Remove a song from the queue.
+
+    Deletes the specified queue item and renumbers subsequent items to
+    fill the gap. Requires the item to exist.
+
+    Args:
+        queue_item_id: The unique identifier of the queue item to remove.
+        queue_service: Dependency-injected queue service instance.
+
+    Raises:
+        EntityNotFoundException: If no queue item exists with the given ID.
+    """
+    await queue_service.remove_from_queue(queue_item_id)
 
 
 @router.get(
