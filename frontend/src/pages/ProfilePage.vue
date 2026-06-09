@@ -184,7 +184,7 @@ import { useToast } from '../composables/useToast.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
 
 const router = useRouter();
-const { username } = useAuth();
+const { username, avatarUrl, setAvatarUrl } = useAuth();
 const { showToast } = useToast();
 
 const currentPassword = ref('');
@@ -194,7 +194,6 @@ const passwordError = ref('');
 const passwordSuccess = ref('');
 const passwordLoading = ref(false);
 
-const avatarUrl = ref(null);
 const spotifyConnected = ref(false);
 const hasAppCredentials = ref(false);
 const showSpotifySetup = ref(false);
@@ -222,18 +221,8 @@ async function connectSpotify() {
 }
 
 onMounted(async () => {
-  await loadProfile();
   await loadConnections();
 });
-
-async function loadProfile() {
-  try {
-    const me = await apiGet('/auth/me');
-    avatarUrl.value = me.avatar_url || null;
-  } catch {
-    // ignore
-  }
-}
 
 async function loadConnections() {
   try {
@@ -307,7 +296,7 @@ async function uploadAvatar(event) {
   try {
     const user = await apiPost('/auth/avatar', formData);
     if (!user) return;
-    avatarUrl.value = user.avatar_url;
+    setAvatarUrl(user.avatar_url);
     showToast('Avatar updated');
   } catch (err) {
     showToast(err.detail || 'Upload failed');

@@ -20,6 +20,65 @@ function handleVisibilityChange() {
 
 document.addEventListener('visibilitychange', handleVisibilityChange);
 
+function handleOpen() {
+  reconnectAttempts = 0;
+  connected.value = true;
+  resetHeartbeatTimer();
+}
+
+function handleMessage(event) {
+  let msg;
+  try {
+    msg = JSON.parse(event.data);
+  } catch {
+    return;
+  }
+
+  if (msg.type === 'ping') {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'pong' }));
+    }
+    resetHeartbeatTimer();
+    return;
+  }
+
+  const eventType = msg.type || msg.event;
+  if (eventType && listeners.has(eventType)) {
+    for (const callback of listeners.get(eventType)) {
+      callback(msg);
+    }
+  }
+}
+
+function handleClose() {
+  connected.value = false;
+  clearHeartbeatTimer();
+  scheduleReconnect();
+}
+
+function handleError() {
+  // Drop the failed socket without letting its close handler trigger a
+  // second reconnect — detachAndClose strips the listeners first.
+  detachAndClose();
+  scheduleReconnect();
+}
+
+// Remove our listeners and close the current socket so a stale connection can
+// never fire callbacks or schedule reconnects after we've moved on.
+function detachAndClose() {
+  if (!socket) return;
+  socket.removeEventListener('open', handleOpen);
+  socket.removeEventListener('message', handleMessage);
+  socket.removeEventListener('close', handleClose);
+  socket.removeEventListener('error', handleError);
+  try {
+    socket.close();
+  } catch {
+    // ignore — socket may already be closing
+  }
+  socket = null;
+}
+
 function connect() {
   if (
     socket &&
@@ -27,46 +86,16 @@ function connect() {
   ) {
     return;
   }
+  // Ensure any prior socket is fully detached before opening a new one.
+  detachAndClose();
+
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   socket = new WebSocket(`${protocol}//${location.host}/ws/${currentRoomId}`);
 
-  socket.addEventListener('open', () => {
-    reconnectAttempts = 0;
-    connected.value = true;
-    resetHeartbeatTimer();
-  });
-
-  socket.addEventListener('message', (event) => {
-    let msg;
-    try {
-      msg = JSON.parse(event.data);
-    } catch {
-      return;
-    }
-
-    if (msg.type === 'ping') {
-      socket.send(JSON.stringify({ type: 'pong' }));
-      resetHeartbeatTimer();
-      return;
-    }
-
-    const eventType = msg.type || msg.event;
-    if (eventType && listeners.has(eventType)) {
-      for (const callback of listeners.get(eventType)) {
-        callback(msg);
-      }
-    }
-  });
-
-  socket.addEventListener('close', () => {
-    connected.value = false;
-    clearHeartbeatTimer();
-    scheduleReconnect();
-  });
-
-  socket.addEventListener('error', () => {
-    socket.close();
-  });
+  socket.addEventListener('open', handleOpen);
+  socket.addEventListener('message', handleMessage);
+  socket.addEventListener('close', handleClose);
+  socket.addEventListener('error', handleError);
 }
 
 function resetHeartbeatTimer() {
@@ -87,6 +116,7 @@ function clearHeartbeatTimer() {
 
 function scheduleReconnect() {
   if (!currentRoomId) return;
+  if (reconnectTimer) clearTimeout(reconnectTimer);
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
   reconnectAttempts++;
   reconnectTimer = setTimeout(connect, delay);
@@ -107,10 +137,7 @@ export function useWebSocket() {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
-    if (socket) {
-      socket.close();
-      socket = null;
-    }
+    detachAndClose();
     connected.value = false;
   }
 

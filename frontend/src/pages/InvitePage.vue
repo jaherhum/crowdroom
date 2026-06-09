@@ -56,7 +56,7 @@ import ThemeToggle from '../components/ThemeToggle.vue';
 
 const route = useRoute();
 const router = useRouter();
-const { isAuthenticated, setToken, setUsername, setHasPassword } = useAuth();
+const { isAuthenticated, fetchMe } = useAuth();
 
 const loading = ref(true);
 const error = ref('');
@@ -94,10 +94,8 @@ async function loginAndJoin() {
   const name = inviteUsername.value.trim();
   if (!name) return;
   try {
-    const loginResult = await apiPost('/auth/local-login', { username: name });
-    setToken(loginResult.access_token);
-    setUsername(name);
-    setHasPassword(false);
+    await apiPost('/auth/local-login', { username: name });
+    await fetchMe();
     const joinResult = await apiPost(`/rooms/invite/${inviteToken}/join`);
     router.push(`/room/${joinResult.room_id}`);
   } catch (err) {

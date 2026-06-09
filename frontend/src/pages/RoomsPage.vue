@@ -212,10 +212,9 @@ import { useToast } from '../composables/useToast.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
 
 const router = useRouter();
-const { username, userId, hasPassword, setHasPassword, logout } = useAuth();
+const { username, userId, hasPassword, avatarUrl, setHasPassword, fetchMe, logout } = useAuth();
 const { showToast } = useToast();
 
-const avatarUrl = ref(null);
 const rooms = ref([]);
 const showCreateModal = ref(false);
 const showPinModal = ref(false);
@@ -241,10 +240,8 @@ const otherRooms = computed(() => rooms.value.filter((room) => room.host_user_id
 
 onMounted(async () => {
   try {
-    const me = await apiGet('/auth/me');
-    setHasPassword(me.has_password);
-    avatarUrl.value = me.avatar_url || null;
-    if (me.room_id) {
+    const me = await fetchMe();
+    if (me && me.room_id) {
       router.push(`/room/${me.room_id}`);
       return;
     }
@@ -262,8 +259,8 @@ async function loadRooms() {
   }
 }
 
-function handleLogout() {
-  logout();
+async function handleLogout() {
+  await logout();
   router.push('/login');
 }
 
