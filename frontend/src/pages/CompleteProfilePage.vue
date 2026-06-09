@@ -9,17 +9,45 @@
       <form class="login-form" @submit.prevent="submit">
         <div class="input-group">
           <label for="email">Email</label>
-          <input id="email" v-model="email" type="email" class="input" placeholder="you@example.com" autocomplete="email" required>
+          <input
+            id="email"
+            v-model="email"
+            type="email"
+            class="input"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          />
         </div>
         <div class="input-group">
           <label for="password">Password</label>
-          <input id="password" v-model="password" type="password" class="input" placeholder="Min 8 characters" minlength="8" autocomplete="new-password" required>
+          <input
+            id="password"
+            v-model="password"
+            type="password"
+            class="input"
+            placeholder="Min 8 characters"
+            minlength="8"
+            autocomplete="new-password"
+            required
+          />
         </div>
         <div class="input-group">
           <label for="confirm-password">Confirm password</label>
-          <input id="confirm-password" v-model="confirmPassword" type="password" class="input" placeholder="Repeat password" minlength="8" autocomplete="new-password" required>
+          <input
+            id="confirm-password"
+            v-model="confirmPassword"
+            type="password"
+            class="input"
+            placeholder="Repeat password"
+            minlength="8"
+            autocomplete="new-password"
+            required
+          />
         </div>
-        <button type="submit" class="btn btn-primary btn-full" :disabled="loading">Save &amp; Continue</button>
+        <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
+          Save &amp; Continue
+        </button>
       </form>
 
       <p v-if="error" class="error-text">{{ error }}</p>

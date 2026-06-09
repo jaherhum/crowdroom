@@ -1,5 +1,5 @@
 :root,
-[data-theme="light"] {
+[data-theme='light'] {
   --bg-primary: #faf9f7;
   --bg-secondary: #f2f0ed;
   --bg-tertiary: #e8e6e3;
@@ -25,7 +25,7 @@
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="dark"] {
+[data-theme='dark'] {
   --bg-primary: #0d0d0d;
   --bg-secondary: #161616;
   --bg-tertiary: #1f1f1f;

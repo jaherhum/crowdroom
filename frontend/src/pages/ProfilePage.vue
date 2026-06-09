@@ -1,7 +1,9 @@
 <template>
   <div class="page">
     <header class="app-header">
-      <button class="btn btn-ghost" @click="router.push('/rooms')"><i class="ph ph-arrow-left"></i> Back</button>
+      <button class="btn btn-ghost" @click="router.push('/rooms')">
+        <i class="ph ph-arrow-left"></i> Back
+      </button>
       <h2>Profile</h2>
       <div class="header-actions">
         <ThemeToggle />
@@ -12,12 +14,25 @@
       <!-- Avatar & Username -->
       <section class="panel profile-header-panel">
         <div class="profile-avatar-section">
-          <button type="button" class="profile-avatar-wrapper" aria-label="Change avatar" @click="$refs.avatarInput.click()">
-            <img v-if="avatarUrl" :src="avatarUrl" class="profile-avatar" alt="avatar">
-            <span v-else class="profile-avatar profile-avatar-fallback">{{ (username || '?')[0].toUpperCase() }}</span>
+          <button
+            type="button"
+            class="profile-avatar-wrapper"
+            aria-label="Change avatar"
+            @click="$refs.avatarInput.click()"
+          >
+            <img v-if="avatarUrl" :src="avatarUrl" class="profile-avatar" alt="avatar" />
+            <span v-else class="profile-avatar profile-avatar-fallback">{{
+              (username || '?')[0].toUpperCase()
+            }}</span>
             <div class="avatar-overlay"><i class="ph ph-camera"></i></div>
           </button>
-          <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="uploadAvatar">
+          <input
+            ref="avatarInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+            @change="uploadAvatar"
+          />
         </div>
         <h2 class="profile-username">{{ username }}</h2>
       </section>
@@ -28,19 +43,44 @@
         <form class="profile-form" @submit.prevent="changePassword">
           <div class="input-group">
             <label for="current-password">Current password</label>
-            <input id="current-password" v-model="currentPassword" type="password" class="input" placeholder="Current password" required>
+            <input
+              id="current-password"
+              v-model="currentPassword"
+              type="password"
+              class="input"
+              placeholder="Current password"
+              required
+            />
           </div>
           <div class="input-group">
             <label for="new-password">New password</label>
-            <input id="new-password" v-model="newPassword" type="password" class="input" placeholder="Min 6 characters" minlength="6" required>
+            <input
+              id="new-password"
+              v-model="newPassword"
+              type="password"
+              class="input"
+              placeholder="Min 6 characters"
+              minlength="6"
+              required
+            />
           </div>
           <div class="input-group">
             <label for="confirm-password">Confirm new password</label>
-            <input id="confirm-password" v-model="confirmPassword" type="password" class="input" placeholder="Repeat password" minlength="6" required>
+            <input
+              id="confirm-password"
+              v-model="confirmPassword"
+              type="password"
+              class="input"
+              placeholder="Repeat password"
+              minlength="6"
+              required
+            />
           </div>
           <p v-if="passwordError" class="error-text">{{ passwordError }}</p>
           <p v-if="passwordSuccess" class="success-text">{{ passwordSuccess }}</p>
-          <button type="submit" class="btn btn-primary" :disabled="passwordLoading">Change Password</button>
+          <button type="submit" class="btn btn-primary" :disabled="passwordLoading">
+            Change Password
+          </button>
         </form>
       </section>
 
@@ -53,17 +93,29 @@
               <i class="ph ph-spotify-logo connection-icon"></i>
               <div>
                 <strong>Spotify</strong>
-                <p v-if="spotifyConnected" class="text-secondary connection-status connected">Connected</p>
+                <p v-if="spotifyConnected" class="text-secondary connection-status connected">
+                  Connected
+                </p>
                 <p v-else class="text-secondary connection-status">Not connected</p>
               </div>
             </div>
             <div class="connection-actions">
               <template v-if="spotifyConnected">
-                <button class="btn btn-secondary" :disabled="spotifyLoading" @click="connectSpotify">{{ spotifyLoading ? 'Connecting…' : 'Reconnect' }}</button>
-                <button class="btn btn-ghost btn-danger" @click="disconnectSpotify">Disconnect</button>
+                <button
+                  class="btn btn-secondary"
+                  :disabled="spotifyLoading"
+                  @click="connectSpotify"
+                >
+                  {{ spotifyLoading ? 'Connecting…' : 'Reconnect' }}
+                </button>
+                <button class="btn btn-ghost btn-danger" @click="disconnectSpotify">
+                  Disconnect
+                </button>
               </template>
               <template v-else-if="hasAppCredentials">
-                <button class="btn btn-primary" :disabled="spotifyLoading" @click="connectSpotify">{{ spotifyLoading ? 'Connecting…' : 'Connect' }}</button>
+                <button class="btn btn-primary" :disabled="spotifyLoading" @click="connectSpotify">
+                  {{ spotifyLoading ? 'Connecting…' : 'Connect' }}
+                </button>
                 <button class="btn btn-ghost" @click="showSpotifySetup = true">Change App</button>
               </template>
               <template v-else>
@@ -78,24 +130,43 @@
       <div v-if="showSpotifySetup" class="modal-overlay" @click.self="showSpotifySetup = false">
         <div class="modal">
           <h3>Set up Spotify App</h3>
-          <p class="text-secondary" style="margin-bottom: var(--space-4);">
+          <p class="text-secondary" style="margin-bottom: var(--space-4)">
             Create a Spotify Developer app at
-            <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com</a>.
-            Set the redirect URI to:
+            <a href="https://developer.spotify.com/dashboard" target="_blank"
+              >developer.spotify.com</a
+            >. Set the redirect URI to:
           </p>
           <code class="redirect-uri-display">{{ redirectUri }}</code>
-          <form style="margin-top: var(--space-4);" @submit.prevent="saveSpotifyCredentials">
+          <form style="margin-top: var(--space-4)" @submit.prevent="saveSpotifyCredentials">
             <div class="input-group">
               <label for="spotify-client-id">Client ID</label>
-              <input v-model="spotifyClientId" type="text" id="spotify-client-id" class="input" placeholder="Your Spotify Client ID" required>
+              <input
+                id="spotify-client-id"
+                v-model="spotifyClientId"
+                type="text"
+                class="input"
+                placeholder="Your Spotify Client ID"
+                required
+              />
             </div>
-            <div class="input-group" style="margin-top: var(--space-3);">
+            <div class="input-group" style="margin-top: var(--space-3)">
               <label for="spotify-client-secret">Client Secret</label>
-              <input v-model="spotifyClientSecret" type="password" id="spotify-client-secret" class="input" placeholder="Your Spotify Client Secret" required>
+              <input
+                id="spotify-client-secret"
+                v-model="spotifyClientSecret"
+                type="password"
+                class="input"
+                placeholder="Your Spotify Client Secret"
+                required
+              />
             </div>
-            <div class="modal-actions" style="margin-top: var(--space-4);">
-              <button type="button" class="btn btn-secondary" @click="showSpotifySetup = false">Cancel</button>
-              <button type="submit" class="btn btn-primary" :disabled="spotifyLoading">{{ spotifyLoading ? 'Connecting…' : 'Save & Connect' }}</button>
+            <div class="modal-actions" style="margin-top: var(--space-4)">
+              <button type="button" class="btn btn-secondary" @click="showSpotifySetup = false">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="spotifyLoading">
+                {{ spotifyLoading ? 'Connecting…' : 'Save & Connect' }}
+              </button>
             </div>
           </form>
         </div>
@@ -213,7 +284,10 @@ async function saveSpotifyCredentials() {
   try {
     await apiPost('/platform-connections/', {
       platform: 'spotify',
-      credentials: { client_id: spotifyClientId.value.trim(), client_secret: spotifyClientSecret.value.trim() },
+      credentials: {
+        client_id: spotifyClientId.value.trim(),
+        client_secret: spotifyClientSecret.value.trim(),
+      },
     });
     showSpotifySetup.value = false;
     await connectSpotify();

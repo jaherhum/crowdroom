@@ -65,7 +65,8 @@ img {
   max-width: 100%;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
@@ -77,7 +78,8 @@ button {
   background: none;
 }
 
-input, select {
+input,
+select {
   font-family: inherit;
   font-size: inherit;
 }

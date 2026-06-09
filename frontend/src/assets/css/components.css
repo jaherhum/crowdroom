@@ -7,7 +7,9 @@
   font-weight: var(--font-weight-medium);
   font-size: var(--font-size-sm);
   border-radius: var(--radius-md);
-  transition: background var(--transition-fast), color var(--transition-fast),
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
     border-color var(--transition-fast);
   white-space: nowrap;
 }
@@ -312,7 +314,7 @@ select.input {
   cursor: pointer;
 }
 
-.checkbox-label input[type="checkbox"] {
+.checkbox-label input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: var(--accent);
@@ -360,9 +362,15 @@ select.input {
 }
 
 @keyframes shimmer {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 .tab-switcher {
@@ -377,7 +385,9 @@ select.input {
   font-weight: var(--font-weight-medium);
   color: var(--text-tertiary);
   border-bottom: 2px solid transparent;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .tab:hover {

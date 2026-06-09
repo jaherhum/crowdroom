@@ -1,6 +1,9 @@
 import { ref } from 'vue';
 
-const theme = ref(localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+const theme = ref(
+  localStorage.getItem('theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+);
 
 function applyTheme(value) {
   document.documentElement.setAttribute('data-theme', value);

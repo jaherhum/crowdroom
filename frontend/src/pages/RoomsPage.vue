@@ -4,8 +4,10 @@
       <h2>CrowdRoom</h2>
       <div class="header-actions">
         <router-link to="/profile" class="avatar-link" title="Profile">
-          <img v-if="avatarUrl" :src="avatarUrl" class="nav-avatar" alt="avatar">
-          <span v-else class="nav-avatar nav-avatar-fallback">{{ (username || '?')[0].toUpperCase() }}</span>
+          <img v-if="avatarUrl" :src="avatarUrl" class="nav-avatar" alt="avatar" />
+          <span v-else class="nav-avatar nav-avatar-fallback">{{
+            (username || '?')[0].toUpperCase()
+          }}</span>
         </router-link>
         <ThemeToggle />
         <button class="btn btn-ghost" @click="handleLogout">Logout</button>
@@ -18,7 +20,14 @@
           <h3>Rooms</h3>
           <div class="header-actions">
             <form class="join-code-form" @submit.prevent="joinByCode">
-              <input v-model="joinCode" type="text" class="input" placeholder="Room code" maxlength="6" style="width: 120px;">
+              <input
+                v-model="joinCode"
+                type="text"
+                class="input"
+                placeholder="Room code"
+                maxlength="6"
+                style="width: 120px"
+              />
               <button type="submit" class="btn btn-secondary">Join</button>
             </form>
             <button class="btn btn-primary" @click="handleCreateRoom">
@@ -27,7 +36,12 @@
           </div>
         </div>
         <div class="rooms-grid">
-          <div v-for="room in otherRooms" :key="room.id" class="card room-card" @click="handleJoin(room)">
+          <div
+            v-for="room in otherRooms"
+            :key="room.id"
+            class="card room-card"
+            @click="handleJoin(room)"
+          >
             <div class="room-card-header">
               <span class="room-card-name">{{ room.room_name }}</span>
               <span v-if="room.is_private" class="badge"><i class="ph ph-lock"></i> Private</span>
@@ -51,7 +65,12 @@
           <h3>My Rooms</h3>
         </div>
         <div class="rooms-grid">
-          <div v-for="room in myRooms" :key="room.id" class="card room-card" @click="handleJoin(room)">
+          <div
+            v-for="room in myRooms"
+            :key="room.id"
+            class="card room-card"
+            @click="handleJoin(room)"
+          >
             <div class="room-card-header">
               <span class="room-card-name">{{ room.room_name }}</span>
               <span v-if="room.is_private" class="badge"><i class="ph ph-lock"></i> Private</span>
@@ -72,12 +91,25 @@
       <div class="modal">
         <h3>Create Room</h3>
         <form class="login-form" @submit.prevent="createRoom">
-          <input v-model="newRoom.name" type="text" class="input" placeholder="Room name" maxlength="255" required>
+          <input
+            v-model="newRoom.name"
+            type="text"
+            class="input"
+            placeholder="Room name"
+            maxlength="255"
+            required
+          />
           <label class="checkbox-label">
-            <input v-model="newRoom.isPrivate" type="checkbox"> Private room
+            <input v-model="newRoom.isPrivate" type="checkbox" /> Private room
           </label>
           <div v-if="newRoom.isPrivate">
-            <input v-model="newRoom.pin" type="text" class="input" placeholder="PIN (4-6 digits)" pattern="\d{4,6}">
+            <input
+              v-model="newRoom.pin"
+              type="text"
+              class="input"
+              placeholder="PIN (4-6 digits)"
+              pattern="\d{4,6}"
+            />
           </div>
           <select v-model="newRoom.platform" class="input">
             <option value="spotify">Spotify</option>
@@ -86,15 +118,29 @@
           <div class="form-row">
             <label class="input-label">
               Max members
-              <input v-model.number="newRoom.maxMembers" type="number" class="input" min="2" max="200">
+              <input
+                v-model.number="newRoom.maxMembers"
+                type="number"
+                class="input"
+                min="2"
+                max="200"
+              />
             </label>
             <label class="input-label">
               Skip votes needed
-              <input v-model.number="newRoom.skipThreshold" type="number" class="input" min="1" max="50">
+              <input
+                v-model.number="newRoom.skipThreshold"
+                type="number"
+                class="input"
+                min="1"
+                max="50"
+              />
             </label>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" @click="showCreateModal = false">Cancel</button>
+            <button type="button" class="btn btn-secondary" @click="showCreateModal = false">
+              Cancel
+            </button>
             <button type="submit" class="btn btn-primary">Create</button>
           </div>
         </form>
@@ -107,11 +153,27 @@
         <h3>Set a password</h3>
         <p class="text-secondary">A password is required to create rooms.</p>
         <form class="login-form" @submit.prevent="submitPassword">
-          <input v-model="newPassword" type="password" class="input" placeholder="Password (min 6 chars)" minlength="6" required>
-          <input v-model="confirmPassword" type="password" class="input" placeholder="Confirm password" minlength="6" required>
+          <input
+            v-model="newPassword"
+            type="password"
+            class="input"
+            placeholder="Password (min 6 chars)"
+            minlength="6"
+            required
+          />
+          <input
+            v-model="confirmPassword"
+            type="password"
+            class="input"
+            placeholder="Confirm password"
+            minlength="6"
+            required
+          />
           <p v-if="passwordError" class="error-text">{{ passwordError }}</p>
           <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" @click="showPasswordModal = false">Cancel</button>
+            <button type="button" class="btn btn-secondary" @click="showPasswordModal = false">
+              Cancel
+            </button>
             <button type="submit" class="btn btn-primary">Set Password</button>
           </div>
         </form>
@@ -123,7 +185,14 @@
       <div class="modal">
         <h3>Enter PIN</h3>
         <form class="login-form" @submit.prevent="submitPin">
-          <input v-model="joinPin" type="text" class="input" placeholder="Room PIN" pattern="\d{4,6}" required>
+          <input
+            v-model="joinPin"
+            type="text"
+            class="input"
+            placeholder="Room PIN"
+            pattern="\d{4,6}"
+            required
+          />
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="closePinModal">Cancel</button>
             <button type="submit" class="btn btn-primary">Join</button>

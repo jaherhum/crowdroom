@@ -15,13 +15,29 @@
       <div v-else-if="isAuthenticated && preview" class="card">
         <h3>{{ preview.room_name }}</h3>
         <p class="text-secondary">{{ preview.is_private ? 'Private room' : 'Public room' }}</p>
-        <button class="btn btn-primary btn-full" style="margin-top: var(--space-4);" @click="joinInvite">Join Room</button>
+        <button
+          class="btn btn-primary btn-full"
+          style="margin-top: var(--space-4)"
+          @click="joinInvite"
+        >
+          Join Room
+        </button>
       </div>
 
       <div v-else-if="!isAuthenticated && preview">
-        <p class="text-secondary" style="margin-bottom: var(--space-4);">Login first to join this room.</p>
+        <p class="text-secondary" style="margin-bottom: var(--space-4)">
+          Login first to join this room.
+        </p>
         <form class="login-form" @submit.prevent="loginAndJoin">
-          <input v-model="inviteUsername" type="text" class="input" placeholder="Pick a username" maxlength="32" autocomplete="off" required>
+          <input
+            v-model="inviteUsername"
+            type="text"
+            class="input"
+            placeholder="Pick a username"
+            maxlength="32"
+            autocomplete="off"
+            required
+          />
           <button type="submit" class="btn btn-primary btn-full">Enter & Join</button>
         </form>
       </div>
