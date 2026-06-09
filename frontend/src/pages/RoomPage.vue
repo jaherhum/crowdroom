@@ -17,7 +17,12 @@
           <p>Nothing playing</p>
         </div>
         <div v-else>
-          <img class="album-art" :src="currentSong.song.album_art_url || ALBUM_ART_PLACEHOLDER" :alt="`${currentSong.song.title} album art`" @error="onArtError">
+          <img
+            class="album-art"
+            :src="currentSong.song.album_art_url || ALBUM_ART_PLACEHOLDER"
+            :alt="`${currentSong.song.title} album art`"
+            @error="onArtError"
+          />
           <div class="track-info">
             <h3>{{ currentSong.song.title }}</h3>
             <p class="text-secondary">{{ currentSong.song.artist }}</p>
@@ -30,7 +35,8 @@
               :title="hasVotedSkip ? 'Undo skip vote' : 'Vote to skip'"
               @click="voteSkip(currentSong.id)"
             >
-              <i class="ph ph-skip-forward"></i> VoteSkip <span class="skip-vote-badge">{{ currentSong.votes_skip || 0 }}</span>
+              <i class="ph ph-skip-forward"></i> VoteSkip
+              <span class="skip-vote-badge">{{ currentSong.votes_skip || 0 }}</span>
             </button>
           </div>
           <div class="progress-container">
@@ -76,33 +82,59 @@
         <div v-if="spotifyBanner" class="empty-state">
           <i class="ph ph-spotify-logo"></i>
           <p>{{ spotifyBanner.message }}</p>
-          <router-link to="/profile" class="btn btn-primary" style="margin-top: var(--space-3);">Set up in Profile</router-link>
+          <router-link to="/profile" class="btn btn-primary" style="margin-top: var(--space-3)"
+            >Set up in Profile</router-link
+          >
         </div>
         <div class="search-input-wrapper">
           <i class="ph ph-magnifying-glass"></i>
-          <input v-model="searchQuery" type="text" class="input" placeholder="Search for songs..." autocomplete="off" :disabled="!!spotifyBanner" @input="debouncedSearch">
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="input"
+            placeholder="Search for songs..."
+            autocomplete="off"
+            :disabled="!!spotifyBanner"
+            @input="debouncedSearch"
+          />
         </div>
         <div class="track-list">
           <TrackItem v-for="track in searchResults" :key="track.external_id" :track="track">
             <template #actions>
-              <button class="btn btn-secondary" title="Add to queue" @click="addToQueue(track.external_id)">
+              <button
+                class="btn btn-secondary"
+                title="Add to queue"
+                @click="addToQueue(track.external_id)"
+              >
                 <i class="ph ph-plus"></i>
               </button>
             </template>
           </TrackItem>
         </div>
-        <div v-if="searchQuery.length >= 2 && searchResults.length === 0 && !searching" class="empty-state">
+        <div
+          v-if="searchQuery.length >= 2 && searchResults.length === 0 && !searching"
+          class="empty-state"
+        >
           <p>No results found.</p>
         </div>
       </section>
 
       <!-- Members -->
       <aside class="panel members-panel">
-        <h3><i class="ph ph-users"></i> Members <span class="badge">{{ members.length }}</span></h3>
+        <h3>
+          <i class="ph ph-users"></i> Members <span class="badge">{{ members.length }}</span>
+        </h3>
         <ul class="members-list">
           <li v-for="member in members" :key="member.id" class="member-item">
-            <img v-if="member.avatar_url" :src="member.avatar_url" class="member-avatar member-avatar-img" alt="">
-            <span v-else class="member-avatar">{{ (member.username || '?')[0].toUpperCase() }}</span>
+            <img
+              v-if="member.avatar_url"
+              :src="member.avatar_url"
+              class="member-avatar member-avatar-img"
+              alt=""
+            />
+            <span v-else class="member-avatar">{{
+              (member.username || '?')[0].toUpperCase()
+            }}</span>
             <span>{{ member.username || 'Unknown' }}</span>
           </li>
         </ul>
@@ -111,21 +143,32 @@
       <!-- History -->
       <section class="panel history-panel">
         <details>
-          <summary><h3><i class="ph ph-clock-counter-clockwise"></i> Recently Played</h3></summary>
+          <summary>
+            <h3><i class="ph ph-clock-counter-clockwise"></i> Recently Played</h3>
+          </summary>
           <div class="track-list">
             <div v-for="(entry, index) in history" :key="index" class="track-item">
-              <img v-if="entry.song?.album_art_url" class="track-item-art" :src="entry.song.album_art_url" alt="">
+              <img
+                v-if="entry.song?.album_art_url"
+                class="track-item-art"
+                :src="entry.song.album_art_url"
+                alt=""
+              />
               <div class="track-item-info">
                 <div class="track-item-title">{{ entry.song?.title || entry.song_id }}</div>
-                <div class="track-item-artist">{{ entry.song?.artist || '' }} &middot; {{ new Date(entry.played_at).toLocaleTimeString() }}</div>
+                <div class="track-item-artist">
+                  {{ entry.song?.artist || '' }} &middot;
+                  {{ new Date(entry.played_at).toLocaleTimeString() }}
+                </div>
               </div>
             </div>
           </div>
-          <p v-if="history.length === 0" class="text-tertiary" style="padding: var(--space-3);">No history yet.</p>
+          <p v-if="history.length === 0" class="text-tertiary" style="padding: var(--space-3)">
+            No history yet.
+          </p>
         </details>
       </section>
     </main>
-
   </div>
 </template>
 
@@ -324,7 +367,9 @@ async function checkSpotifyConnection() {
     const connections = await apiGet('/platform-connections/');
     const hasSpotify = connections.some((conn) => conn.platform === 'spotify');
     if (!hasSpotify) {
-      spotifyBanner.value = { message: 'Connect Spotify in your profile to enable search and playback' };
+      spotifyBanner.value = {
+        message: 'Connect Spotify in your profile to enable search and playback',
+      };
     }
   } catch {
     // ignore
@@ -344,7 +389,9 @@ function debouncedSearch() {
 async function handleSearch(query) {
   searching.value = true;
   try {
-    searchResults.value = await apiGet(`/search/?room_id=${roomId.value}&q=${encodeURIComponent(query)}`);
+    searchResults.value = await apiGet(
+      `/search/?room_id=${roomId.value}&q=${encodeURIComponent(query)}`,
+    );
   } catch (err) {
     showToast(err.detail || 'Search failed');
   } finally {
@@ -384,7 +431,9 @@ async function voteSkip(queueItemId) {
   } catch (err) {
     showToast(err.detail || 'Vote failed');
   }
-  setTimeout(() => { voteOnCooldown.value = false; }, VOTE_COOLDOWN_MS);
+  setTimeout(() => {
+    voteOnCooldown.value = false;
+  }, VOTE_COOLDOWN_MS);
 }
 
 async function togglePlayPause() {
@@ -488,8 +537,24 @@ function setupWebSocket() {
     }
   });
 
-  register('member_joined', () => loadMembers());
-  register('member_left', () => loadMembers());
+  const refreshMembers = async () => {
+    if (leaving) return;
+    try {
+      await loadMembers();
+    } catch {
+      // The room may have just been closed; the room_closed handler redirects.
+    }
+  };
+  register('member_joined', refreshMembers);
+  register('member_left', refreshMembers);
+
+  register('room_closed', () => {
+    if (leaving) return;
+    leaving = true;
+    showToast('This room was closed by the host');
+    teardownWebSocket();
+    router.push('/rooms');
+  });
 }
 
 function teardownWebSocket() {
@@ -501,6 +566,7 @@ function teardownWebSocket() {
 }
 
 async function sendLeave() {
+  leaving = true;
   try {
     await apiPost(`/rooms/${roomId.value}/leave`);
   } catch {
@@ -510,7 +576,6 @@ async function sendLeave() {
 }
 
 async function leaveRoom() {
-  leaving = true;
   await sendLeave();
   router.push('/rooms');
 }
