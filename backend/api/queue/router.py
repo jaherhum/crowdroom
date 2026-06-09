@@ -108,16 +108,19 @@ async def add_to_queue(
 async def vote_skip(
     data: CreateQueueVote,
     queue_vote_service: QueueVoteService = Depends(get_queue_vote_service),
+    current_user: User = Depends(get_current_user),
 ) -> ReadQueueVote:
     """Cast a skip vote for a specific queue item.
 
     A user may only vote once per queue item. If the vote count reaches
     the room's skip threshold (configurable via room settings), the
-    song will automatically advance to the next track.
+    song will automatically advance to the next track. The voting user
+    is taken from the authenticated request.
 
     Args:
-        data: Schema containing queue_item_id and user_id.
+        data: Schema containing the queue_item_id to vote on.
         queue_vote_service: Dependency-injected queue vote service instance.
+        current_user: Authenticated user casting the vote.
 
     Returns:
         ReadQueueVote schema for the newly cast vote.
@@ -127,7 +130,7 @@ async def vote_skip(
     """
     vote = await queue_vote_service.cast_vote(
         queue_item_id=data.queue_item_id,
-        user_id=data.user_id,
+        user_id=current_user.id,
     )
     return ReadQueueVote.model_validate(vote)
 
@@ -135,22 +138,22 @@ async def vote_skip(
 @router.delete("/vote", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_vote_skip(
     queue_item_id: UUID,
-    user_id: UUID,
     queue_vote_service: QueueVoteService = Depends(get_queue_vote_service),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """Retract a previously cast skip vote (undo).
 
     Args:
         queue_item_id: UUID of the queue item to retract the vote from.
-        user_id: UUID of the user retracting their vote.
         queue_vote_service: Dependency-injected queue vote service instance.
+        current_user: Authenticated user retracting the vote.
 
     Raises:
         EntityNotFoundException: If no vote exists for this user/item pair.
     """
     await queue_vote_service.remove_vote(
         queue_item_id=queue_item_id,
-        user_id=user_id,
+        user_id=current_user.id,
     )
 
 

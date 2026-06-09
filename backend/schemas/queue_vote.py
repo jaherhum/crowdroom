@@ -11,20 +11,16 @@ class CreateQueueVote(BaseModel):
 
     Each user can only vote once per queue item. When the total votes
     reach the room's skip_threshold (default 50% of members), the song
-    is automatically skipped and moved to history.
+    is automatically skipped and moved to history. The voting user is
+    derived from the authenticated request, not supplied by the client.
 
     Attributes:
         queue_item_id: The queue item the user wants to skip.
-        user_id: The user casting the vote.
     """
 
     queue_item_id: UUID = Field(
         ...,
         description="The unique identifier of the queue item to vote for skipping.",
-    )
-    user_id: UUID = Field(
-        ...,
-        description="The unique identifier of the user casting the skip vote.",
     )
 
 
