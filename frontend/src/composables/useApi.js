@@ -1,61 +1,7 @@
-import { useAuth } from './useAuth.js';
-import { useRouter } from 'vue-router';
+import router from '../router/index.js';
+import { clearAuth } from './useAuth.js';
 
 const API_BASE = '/api/v1';
-
-export function useApi() {
-  const { token } = useAuth();
-  const router = useRouter();
-
-  async function request(method, path, body = null) {
-    const headers = {};
-    if (token.value) {
-      headers['Authorization'] = `Bearer ${token.value}`;
-    }
-    if (body !== null) {
-      headers['Content-Type'] = 'application/json';
-    }
-
-    const response = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      body: body !== null ? JSON.stringify(body) : undefined,
-    });
-
-    if (response.status === 401) {
-      localStorage.clear();
-      router.push('/login');
-      return;
-    }
-
-    if (response.status === 204) {
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      if (response.status === 403 && data.code === 'PROFILE_INCOMPLETE') {
-        router.push('/complete-profile');
-        return;
-      }
-      const error = new Error(data.detail || 'Request failed');
-      error.status = response.status;
-      error.detail = data.detail;
-      error.code = data.code;
-      throw error;
-    }
-
-    return data;
-  }
-
-  return {
-    apiGet: (path) => request('GET', path),
-    apiPost: (path, body = {}) => request('POST', path, body),
-    apiPatch: (path, body = {}) => request('PATCH', path, body),
-    apiDelete: (path) => request('DELETE', path),
-  };
-}
 
 export async function apiRequest(method, path, body = null) {
   const headers = {};
@@ -63,19 +9,27 @@ export async function apiRequest(method, path, body = null) {
   if (tokenValue) {
     headers['Authorization'] = `Bearer ${tokenValue}`;
   }
-  if (body !== null) {
+
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  let payload;
+  if (body === null) {
+    payload = undefined;
+  } else if (isFormData) {
+    payload = body;
+  } else {
     headers['Content-Type'] = 'application/json';
+    payload = JSON.stringify(body);
   }
 
   const response = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
-    body: body !== null ? JSON.stringify(body) : undefined,
+    body: payload,
   });
 
-  if (response.status === 401) {
-    localStorage.clear();
-    window.location.href = '/login';
+  if (response.status === 401 && tokenValue) {
+    clearAuth();
+    router.push('/login');
     return;
   }
 
@@ -87,7 +41,7 @@ export async function apiRequest(method, path, body = null) {
 
   if (!response.ok) {
     if (response.status === 403 && data.code === 'PROFILE_INCOMPLETE') {
-      window.location.href = '/complete-profile';
+      router.push('/complete-profile');
       return;
     }
     const error = new Error(data.detail || 'Request failed');

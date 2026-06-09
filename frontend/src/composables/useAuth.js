@@ -1,8 +1,19 @@
 import { ref, computed } from 'vue';
 
+const AUTH_KEYS = ['access_token', 'username', 'has_password'];
+
 const token = ref(localStorage.getItem('access_token'));
 const username = ref(localStorage.getItem('username') || '');
 const hasPassword = ref(localStorage.getItem('has_password') === 'true');
+
+export function clearAuth() {
+  for (const key of AUTH_KEYS) {
+    localStorage.removeItem(key);
+  }
+  token.value = null;
+  username.value = '';
+  hasPassword.value = false;
+}
 
 export function useAuth() {
   const isAuthenticated = computed(() => !!token.value);
@@ -33,10 +44,7 @@ export function useAuth() {
   }
 
   function logout() {
-    token.value = null;
-    username.value = '';
-    hasPassword.value = false;
-    localStorage.clear();
+    clearAuth();
   }
 
   return {
