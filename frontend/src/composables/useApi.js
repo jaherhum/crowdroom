@@ -3,12 +3,8 @@ import { clearAuth } from './useAuth.js';
 
 const API_BASE = '/api/v1';
 
-export async function apiRequest(method, path, body = null) {
+export async function apiRequest(method, path, body = null, options = {}) {
   const headers = {};
-  const tokenValue = localStorage.getItem('access_token');
-  if (tokenValue) {
-    headers['Authorization'] = `Bearer ${tokenValue}`;
-  }
 
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   let payload;
@@ -25,9 +21,11 @@ export async function apiRequest(method, path, body = null) {
     method,
     headers,
     body: payload,
+    credentials: 'include',
+    signal: options.signal,
   });
 
-  if (response.status === 401 && tokenValue) {
+  if (response.status === 401) {
     clearAuth();
     if (router.currentRoute.value.path !== '/login') {
       router.push('/login');
@@ -50,13 +48,14 @@ export async function apiRequest(method, path, body = null) {
     error.status = response.status;
     error.detail = data.detail;
     error.code = data.code;
+    error.retryAfter = data.retry_after;
     throw error;
   }
 
   return data;
 }
 
-export const apiGet = (path) => apiRequest('GET', path);
-export const apiPost = (path, body = {}) => apiRequest('POST', path, body);
-export const apiPatch = (path, body = {}) => apiRequest('PATCH', path, body);
-export const apiDelete = (path) => apiRequest('DELETE', path);
+export const apiGet = (path, options) => apiRequest('GET', path, null, options);
+export const apiPost = (path, body = {}, options) => apiRequest('POST', path, body, options);
+export const apiPatch = (path, body = {}, options) => apiRequest('PATCH', path, body, options);
+export const apiDelete = (path, options) => apiRequest('DELETE', path, null, options);

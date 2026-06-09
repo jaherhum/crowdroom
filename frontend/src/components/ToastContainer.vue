@@ -1,10 +1,12 @@
 <template>
-  <div class="toast-container" role="status" aria-live="polite" aria-atomic="false">
+  <div class="toast-container">
     <div
       v-for="toast in toasts"
       :key="toast.id"
       :class="['toast', `toast-${toast.type}`]"
-      role="alert"
+      :role="toast.type === 'error' ? 'alert' : 'status'"
+      :aria-live="toast.type === 'error' ? 'assertive' : 'polite'"
+      aria-atomic="true"
     >
       {{ toast.message }}
     </div>

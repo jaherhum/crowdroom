@@ -68,6 +68,11 @@
   text-align: center;
 }
 
+.btn.on-cooldown {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .btn-full {
   width: 100%;
 }

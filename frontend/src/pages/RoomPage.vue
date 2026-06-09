@@ -30,8 +30,7 @@
           <div v-if="currentSong.id" class="now-playing-actions">
             <button
               class="btn btn-ghost"
-              :class="{ active: hasVotedSkip }"
-              :disabled="voteOnCooldown"
+              :class="{ active: hasVotedSkip, 'on-cooldown': voteOnCooldown }"
               :title="hasVotedSkip ? 'Undo skip vote' : 'Vote to skip'"
               @click="voteSkip(currentSong.id)"
             >
@@ -104,6 +103,7 @@
               <button
                 class="btn btn-secondary"
                 title="Add to queue"
+                :disabled="addingIds.has(track.external_id)"
                 @click="addToQueue(track.external_id)"
               >
                 <i class="ph ph-plus"></i>
@@ -147,7 +147,7 @@
             <h3><i class="ph ph-clock-counter-clockwise"></i> Recently Played</h3>
           </summary>
           <div class="track-list">
-            <div v-for="(entry, index) in history" :key="index" class="track-item">
+            <div v-for="entry in history" :key="entry.id" class="track-item">
               <img
                 v-if="entry.song?.album_art_url"
                 class="track-item-art"
@@ -169,6 +169,21 @@
         </details>
       </section>
     </main>
+
+    <div
+      v-if="showLeaveModal"
+      class="modal-overlay"
+      @click.self="cancelLeave"
+    >
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="leave-modal-title">
+        <h3 id="leave-modal-title">Leave this room?</h3>
+        <p class="text-tertiary">You can rejoin later with the room code.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" @click="cancelLeave">Cancel</button>
+          <button type="button" class="btn btn-danger" @click="confirmLeave">Leave</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -215,6 +230,12 @@ let progressFrame = null;
 let progressStartTime = null;
 
 const spotifyBanner = ref(null);
+const addingIds = ref(new Set());
+
+const showLeaveModal = ref(false);
+// Resolver for the pending leave confirmation. onBeforeRouteLeave awaits this
+// promise so navigation pauses until the user picks Cancel or Leave.
+let leaveResolver = null;
 
 const progressPercent = computed(() => {
   if (!currentSong.value) return 0;
@@ -223,6 +244,7 @@ const progressPercent = computed(() => {
 });
 
 let searchTimeout = null;
+let searchController = null;
 const wsHandlers = [];
 let leaving = false;
 
@@ -245,16 +267,43 @@ onMounted(async () => {
 
 onUnmounted(() => {
   teardownWebSocket();
+  clearTimeout(searchTimeout);
+  if (searchController) searchController.abort();
   if (progressFrame) cancelAnimationFrame(progressFrame);
 });
 
 onBeforeRouteLeave(async () => {
   if (leaving) return true;
-  const confirmed = window.confirm('Leave this room?');
+  const confirmed = await requestLeaveConfirmation();
   if (!confirmed) return false;
   await sendLeave();
   return true;
 });
+
+function requestLeaveConfirmation() {
+  // If a confirmation is already pending, reuse it instead of stacking modals.
+  if (leaveResolver) return new Promise((resolve) => (leaveResolver = resolve));
+  showLeaveModal.value = true;
+  return new Promise((resolve) => {
+    leaveResolver = resolve;
+  });
+}
+
+function resolveLeave(confirmed) {
+  showLeaveModal.value = false;
+  if (leaveResolver) {
+    leaveResolver(confirmed);
+    leaveResolver = null;
+  }
+}
+
+function cancelLeave() {
+  resolveLeave(false);
+}
+
+function confirmLeave() {
+  resolveLeave(true);
+}
 
 async function loadRoom() {
   const room = await apiGet(`/rooms/${roomId.value}`);
@@ -282,6 +331,10 @@ async function loadSession() {
 async function loadQueue() {
   if (!sessionId.value) return;
   const items = await apiGet(`/queue/?session_id=${sessionId.value}`);
+  // COUPLING: the backend returns the full queue with index 0 being the
+  // currently-playing track (see queue_repo.get_first_item ordering). The
+  // "up next" list must exclude it, so we drop index 0 here. If the backend
+  // ever stops putting the current song first, update this slice too.
   queueItems.value = items.slice(1);
 }
 
@@ -387,15 +440,23 @@ function debouncedSearch() {
 }
 
 async function handleSearch(query) {
+  // Cancel any in-flight search so out-of-order responses can't overwrite
+  // results from a newer query.
+  if (searchController) searchController.abort();
+  searchController = new AbortController();
+  const signal = searchController.signal;
+
   searching.value = true;
   try {
     searchResults.value = await apiGet(
       `/search/?room_id=${roomId.value}&q=${encodeURIComponent(query)}`,
+      { signal },
     );
   } catch (err) {
+    if (err.name === 'AbortError') return;
     showToast(err.detail || 'Search failed');
   } finally {
-    searching.value = false;
+    if (!signal.aborted) searching.value = false;
   }
 }
 
@@ -404,6 +465,8 @@ async function addToQueue(externalId) {
     showToast('No active session');
     return;
   }
+  if (addingIds.value.has(externalId)) return;
+  addingIds.value = new Set(addingIds.value).add(externalId);
   try {
     await apiGet(`/search/${externalId}?room_id=${roomId.value}`);
     const dbSong = await apiGet(`/songs/by-external/${externalId}?platform=spotify`);
@@ -412,14 +475,25 @@ async function addToQueue(externalId) {
     loadQueue();
   } catch (err) {
     showToast(err.detail || 'Failed to add song');
+  } finally {
+    const next = new Set(addingIds.value);
+    next.delete(externalId);
+    addingIds.value = next;
   }
 }
 
 const VOTE_COOLDOWN_MS = 2500;
+let voteCooldownUntil = 0;
 
 async function voteSkip(queueItemId) {
-  if (voteOnCooldown.value) return;
+  if (voteOnCooldown.value) {
+    const remainingMs = Math.max(0, voteCooldownUntil - Date.now());
+    const seconds = Math.ceil(remainingMs / 1000) || 1;
+    showToast(`Slow down — you can vote again in ${seconds}s`);
+    return;
+  }
   voteOnCooldown.value = true;
+  voteCooldownUntil = Date.now() + VOTE_COOLDOWN_MS;
   try {
     if (hasVotedSkip.value) {
       await apiDelete(`/queue/vote?queue_item_id=${queueItemId}`);
@@ -429,7 +503,13 @@ async function voteSkip(queueItemId) {
       hasVotedSkip.value = true;
     }
   } catch (err) {
-    showToast(err.detail || 'Vote failed');
+    // The server enforces its own cooldown and returns 429 with retry_after.
+    if (err.status === 429) {
+      const seconds = Math.ceil(err.retryAfter || 0) || 1;
+      showToast(`Too many votes — please wait ${seconds}s`);
+    } else {
+      showToast(err.detail || 'Vote failed');
+    }
   }
   setTimeout(() => {
     voteOnCooldown.value = false;
@@ -473,6 +553,8 @@ function setupWebSocket() {
 
   register('queue_updated', (msg) => {
     if (msg.queue) {
+      // COUPLING: mirror loadQueue() — index 0 is the current song, so the
+      // "up next" list drops it. Keep both slices in sync.
       queueItems.value = msg.queue.slice(1);
     } else {
       loadQueue();
@@ -493,6 +575,12 @@ function setupWebSocket() {
     } else {
       await loadCurrentSong();
       loadHistory();
+      // COUPLING: brief delay to let the backend finish persisting the new
+      // current song (finish_song updates session state asynchronously before
+      // this song_changed event settles). Without it, the host's auto-play can
+      // fire against a stale current song. 500ms is a heuristic buffer, not a
+      // guaranteed sync point — the real guard is the isPlaying/currentSong
+      // check below.
       await new Promise((resolve) => setTimeout(resolve, 500));
       if (isHost.value && !isPlaying.value && currentSong.value) {
         try {
@@ -576,7 +664,8 @@ async function sendLeave() {
 }
 
 async function leaveRoom() {
-  await sendLeave();
+  // Navigating triggers onBeforeRouteLeave, which shows the confirmation modal
+  // and performs sendLeave() if the user confirms.
   router.push('/rooms');
 }
 
