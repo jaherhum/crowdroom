@@ -1,9 +1,10 @@
 <template>
-  <div class="toast-container">
+  <div class="toast-container" role="status" aria-live="polite" aria-atomic="false">
     <div
       v-for="toast in toasts"
       :key="toast.id"
       :class="['toast', `toast-${toast.type}`]"
+      role="alert"
     >
       {{ toast.message }}
     </div>
