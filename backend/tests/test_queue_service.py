@@ -7,6 +7,7 @@ import anyio
 import pytest
 
 from backend.core.exceptions import EntityNotFoundException
+from backend.db.models.enum import ItemStatus
 from backend.db.models.queue_item import QueueItem
 from backend.repositories.queue_repo import QueueRepository
 from backend.repositories.session_repo import SessionRepository
@@ -149,6 +150,8 @@ class TestQueueService:
 
         session_obj = MagicMock()
         session_obj.room_id = room_id
+        session_obj.current_song_id = None
+        session_obj.playback_status = None
         mock_session_repo.get_by_id.return_value = session_obj
 
         mock_broadcast = AsyncMock()
@@ -169,6 +172,44 @@ class TestQueueService:
         assert second_call[0]["type"] == "song_changed"
         assert second_call[0]["song"] is not None
         assert second_call[1] == str(room_id)
+
+    def test_add_to_queue_no_song_changed_when_playback_active(
+        self, queue_service, mock_queue_repo, mock_session_repo
+    ):
+        """No song_changed when a track is already occupying the player.
+
+        Even if the new item lands at position 0 (e.g. first song in an empty
+        group), an active playback state must prevent the auto-start broadcast
+        so the player does not jump to the freshly-queued song.
+        """
+        session_id, song_id, user_id = uuid4(), uuid4(), uuid4()
+        room_id = uuid4()
+        mock_item = MagicMock(spec=QueueItem)
+        mock_item.position = 0
+        mock_item.song = MagicMock()
+        mock_queue_repo.add_to_queue_atomic.return_value = mock_item
+        mock_queue_repo.get_all_by_session.return_value = []
+
+        session_obj = MagicMock()
+        session_obj.room_id = room_id
+        session_obj.current_song_id = "spotify:track:already-playing"
+        session_obj.playback_status = ItemStatus.PLAYING
+        mock_session_repo.get_by_id.return_value = session_obj
+
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch("backend.services.queue_service.manager") as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await queue_service.add_to_queue(
+                    session_id, song_id, user_id, group="manual"
+                )
+
+        anyio.run(_run)
+
+        # Only queue_updated should fire — never song_changed.
+        assert mock_broadcast.call_count == 1
+        assert mock_broadcast.call_args_list[0][0][0]["type"] == "queue_updated"
 
     def test_add_to_queue_no_song_changed_when_not_first(
         self, queue_service, mock_queue_repo, mock_session_repo
