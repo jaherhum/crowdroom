@@ -27,6 +27,15 @@
             <h3>{{ currentSong.song.title }}</h3>
             <p class="text-secondary">{{ currentSong.song.artist }}</p>
           </div>
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+            </div>
+            <div class="progress-times">
+              <span>{{ formatTime(elapsedMs) }}</span>
+              <span>{{ formatTime(currentSong.song.duration * 1000) }}</span>
+            </div>
+          </div>
           <div v-if="currentSong.id" class="now-playing-actions">
             <button
               class="btn btn-ghost"
@@ -37,15 +46,6 @@
               <i class="ph ph-skip-forward"></i> VoteSkip
               <span class="skip-vote-badge">{{ currentSong.votes_skip || 0 }}</span>
             </button>
-          </div>
-          <div class="progress-container">
-            <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
-            </div>
-            <div class="progress-times">
-              <span>{{ formatTime(elapsedMs) }}</span>
-              <span>{{ formatTime(currentSong.song.duration * 1000) }}</span>
-            </div>
           </div>
           <div v-if="isHost" class="playback-controls">
             <button class="btn btn-icon" title="Play/Pause" @click="togglePlayPause">
@@ -60,91 +60,107 @@
 
       <!-- Queue -->
       <section class="panel queue-panel">
-        <h3><i class="ph ph-queue"></i> Queue</h3>
-        <div class="track-list">
-          <TrackItem
-            v-for="item in queueItems"
-            :key="item.id"
-            :track="item.song"
-            :added-by="item.added_by?.username || ''"
-          />
-        </div>
-        <div v-if="queueItems.length === 0" class="empty-state">
-          <i class="ph ph-playlist"></i>
-          <p>Queue is empty. Search and add songs!</p>
-        </div>
+        <details open>
+          <summary>
+            <h3><i class="ph ph-queue"></i> Queue <span class="badge">{{ queueItems.length }}</span></h3>
+          </summary>
+          <div class="track-list">
+            <TrackItem
+              v-for="item in queueItems"
+              :key="item.id"
+              :track="item.song"
+              :added-by="item.added_by?.username || ''"
+            />
+          </div>
+          <div v-if="queueItems.length === 0" class="empty-state">
+            <i class="ph ph-playlist"></i>
+            <p>Queue is empty. Search and add songs!</p>
+          </div>
+        </details>
       </section>
 
       <!-- Search -->
       <section class="panel search-panel">
-        <h3><i class="ph ph-magnifying-glass"></i> Search</h3>
-        <div v-if="spotifyBanner" class="empty-state">
-          <i class="ph ph-spotify-logo"></i>
-          <p>{{ spotifyBanner.message }}</p>
-          <router-link to="/profile" class="btn btn-primary" style="margin-top: var(--space-3)"
-            >Set up in Profile</router-link
+        <details @toggle="onSearchToggle">
+          <summary>
+            <h3><i class="ph ph-magnifying-glass"></i> Search</h3>
+          </summary>
+          <div v-if="spotifyBanner" class="empty-state">
+            <i class="ph ph-spotify-logo"></i>
+            <p>{{ spotifyBanner.message }}</p>
+            <router-link to="/profile" class="btn btn-primary" style="margin-top: var(--space-3)"
+              >Set up in Profile</router-link
+            >
+          </div>
+          <div class="search-input-wrapper">
+            <i class="ph ph-magnifying-glass"></i>
+            <input
+              ref="searchInput"
+              v-model="searchQuery"
+              type="text"
+              class="input"
+              placeholder="Search for songs..."
+              autocomplete="off"
+              :disabled="!!spotifyBanner"
+              @input="debouncedSearch"
+            />
+          </div>
+          <div class="track-list">
+            <TrackItem v-for="track in searchResults" :key="track.external_id" :track="track">
+              <template #actions>
+                <button
+                  class="btn btn-secondary"
+                  title="Add to queue"
+                  :disabled="addingIds.has(track.external_id)"
+                  @click="addToQueue(track.external_id)"
+                >
+                  <i class="ph ph-plus"></i>
+                </button>
+              </template>
+            </TrackItem>
+          </div>
+          <div
+            v-if="searchQuery.length >= 2 && searchResults.length === 0 && !searching"
+            class="empty-state"
           >
-        </div>
-        <div class="search-input-wrapper">
-          <i class="ph ph-magnifying-glass"></i>
-          <input
-            v-model="searchQuery"
-            type="text"
-            class="input"
-            placeholder="Search for songs..."
-            autocomplete="off"
-            :disabled="!!spotifyBanner"
-            @input="debouncedSearch"
-          />
-        </div>
-        <div class="track-list">
-          <TrackItem v-for="track in searchResults" :key="track.external_id" :track="track">
-            <template #actions>
-              <button
-                class="btn btn-secondary"
-                title="Add to queue"
-                :disabled="addingIds.has(track.external_id)"
-                @click="addToQueue(track.external_id)"
-              >
-                <i class="ph ph-plus"></i>
-              </button>
-            </template>
-          </TrackItem>
-        </div>
-        <div
-          v-if="searchQuery.length >= 2 && searchResults.length === 0 && !searching"
-          class="empty-state"
-        >
-          <p>No results found.</p>
-        </div>
+            <p>No results found.</p>
+          </div>
+        </details>
       </section>
 
       <!-- Members -->
       <aside class="panel members-panel">
-        <h3>
-          <i class="ph ph-users"></i> Members <span class="badge">{{ members.length }}</span>
-        </h3>
-        <ul class="members-list">
-          <li v-for="member in members" :key="member.id" class="member-item">
-            <img
-              v-if="member.avatar_url"
-              :src="member.avatar_url"
-              class="member-avatar member-avatar-img"
-              alt=""
-            />
-            <span v-else class="member-avatar">{{
-              (member.username || '?')[0].toUpperCase()
-            }}</span>
-            <span>{{ member.username || 'Unknown' }}</span>
-          </li>
-        </ul>
+        <details>
+          <summary>
+            <h3>
+              <i class="ph ph-users"></i> Members <span class="badge">{{ members.length }}</span>
+            </h3>
+          </summary>
+          <ul class="members-list">
+            <li v-for="member in members" :key="member.id" class="member-item">
+              <img
+                v-if="member.avatar_url"
+                :src="member.avatar_url"
+                class="member-avatar member-avatar-img"
+                alt=""
+              />
+              <span v-else class="member-avatar">{{
+                (member.username || '?')[0].toUpperCase()
+              }}</span>
+              <span>{{ member.username || 'Unknown' }}</span>
+            </li>
+          </ul>
+        </details>
       </aside>
 
       <!-- History -->
       <section class="panel history-panel">
         <details>
           <summary>
-            <h3><i class="ph ph-clock-counter-clockwise"></i> Recently Played</h3>
+            <h3>
+              <i class="ph ph-clock-counter-clockwise"></i> Recently Played
+              <span class="badge">{{ history.length }}</span>
+            </h3>
           </summary>
           <div class="track-list">
             <div v-for="entry in history" :key="entry.id" class="track-item">
@@ -188,7 +204,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter, onBeforeRouteLeave } from 'vue-router';
 import { apiGet, apiPost, apiDelete } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
@@ -220,6 +236,16 @@ const history = ref([]);
 const searchQuery = ref('');
 const searchResults = ref([]);
 const searching = ref(false);
+const searchInput = ref(null);
+
+// Focus the search field when the Search panel is expanded so the user can
+// type immediately. The native <details> toggle event fires after the
+// open/closed state has flipped; nextTick ensures the input is in the DOM.
+function onSearchToggle(event) {
+  if (event.target.open) {
+    nextTick(() => searchInput.value?.focus());
+  }
+}
 
 const isPlaying = ref(false);
 const hasVotedSkip = ref(false);

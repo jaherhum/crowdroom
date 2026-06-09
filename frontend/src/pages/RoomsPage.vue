@@ -110,6 +110,10 @@
               placeholder="PIN (4-6 digits)"
               pattern="\d{4,6}"
             />
+            <label class="checkbox-label">
+              <input v-model="newRoom.isVisible" type="checkbox" />
+              List this room publicly (uncheck to hide it; joinable only by code, PIN or invite)
+            </label>
           </div>
           <select v-model="newRoom.platform" class="input">
             <option value="spotify">Spotify</option>
@@ -230,6 +234,7 @@ const newRoom = ref({
   name: '',
   isPrivate: false,
   pin: '',
+  isVisible: true,
   platform: 'spotify',
   maxMembers: 50,
   skipThreshold: 2,
@@ -342,6 +347,8 @@ async function createRoom() {
       room_name: newRoom.value.name,
       is_private: newRoom.value.isPrivate,
       pin: newRoom.value.isPrivate ? newRoom.value.pin : null,
+      // Public rooms are always listed; only private rooms honor the toggle.
+      is_visible: newRoom.value.isPrivate ? newRoom.value.isVisible : true,
       settings: {
         skip_threshold: newRoom.value.skipThreshold,
         max_members: newRoom.value.maxMembers,
@@ -357,6 +364,24 @@ async function createRoom() {
     showCreateModal.value = false;
     router.push(`/room/${room.id}`);
   } catch (err) {
+    // A host may only own one room at a time; the backend returns 409 if they
+    // already have one. Route them to their existing room instead of erroring.
+    if (err.status === 409) {
+      showCreateModal.value = false;
+      try {
+        const mine = await apiGet('/rooms/mine');
+        const existing = mine?.[0];
+        if (existing) {
+          showToast('You already have a room. Taking you there.', 'success');
+          await joinRoom(existing.id, null);
+          return;
+        }
+      } catch {
+        // fall through to the generic message
+      }
+      showToast('You already have a room.');
+      return;
+    }
     showToast(err.detail || 'Failed to create room');
   }
 }

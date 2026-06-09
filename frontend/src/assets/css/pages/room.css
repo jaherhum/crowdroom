@@ -25,6 +25,25 @@
   width: 100%;
 }
 
+/* Panel order (applies in the single-column mobile stack and the desktop
+   sidebar, both of which lay out in source order via grid auto-placement):
+   Now Playing, Queue, Search, Recently Played, then Members last. */
+.now-playing-panel {
+  order: 1;
+}
+.queue-panel {
+  order: 2;
+}
+.search-panel {
+  order: 3;
+}
+.history-panel {
+  order: 4;
+}
+.members-panel {
+  order: 5;
+}
+
 @media (min-width: 768px) {
   .room-layout {
     grid-template-columns: 1fr 1fr;
@@ -38,29 +57,24 @@
 
 @media (min-width: 1024px) {
   .room-layout {
-    grid-template-columns: 2fr 1fr 1fr;
+    /* Hybrid: Now Playing is the protagonist on the left; the collapsible
+       panels (queue, search, members, history) stack in a sidebar column. */
+    grid-template-columns: minmax(320px, 1.2fr) 1fr;
+    align-items: start;
   }
 
   .now-playing-panel {
     grid-column: 1;
-    grid-row: 1 / 3;
+    grid-row: 1 / span 4;
+    position: sticky;
+    top: calc(var(--space-5) + 64px);
   }
 
-  .queue-panel {
-    grid-column: 2;
-    grid-row: 1 / 3;
-  }
-
-  .search-panel {
-    grid-column: 3;
-  }
-
-  .members-panel {
-    grid-column: 3;
-  }
-
+  .queue-panel,
+  .search-panel,
+  .members-panel,
   .history-panel {
-    grid-column: 1 / -1;
+    grid-column: 2;
   }
 }
 
@@ -201,14 +215,33 @@ details summary::-webkit-details-marker {
   display: none;
 }
 
+details summary h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+/* Collapsible panels: keep content from touching the summary when open. */
+.queue-panel details[open] .track-list,
+.search-panel details[open] .search-input-wrapper,
+.members-panel details[open] .members-list,
+.history-panel details[open] .track-list {
+  margin-top: var(--space-3);
+}
+
+details summary h3 .badge {
+  margin-left: auto;
+}
+
 details summary h3::after {
   content: '';
   display: inline-block;
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 256 256'%3E%3Cpath fill='%238a8a8a' d='m216.49 104.49-80 80a12 12 0 0 1-17 0l-80-80a12 12 0 0 1 17-17L128 159l71.51-71.52a12 12 0 0 1 17 17Z'/%3E%3C/svg%3E");
   transition: transform var(--transition-fast);
-  margin-left: var(--space-2);
 }
 
 details[open] summary h3::after {
