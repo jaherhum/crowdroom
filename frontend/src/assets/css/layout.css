@@ -29,6 +29,34 @@
   gap: var(--space-3);
 }
 
+.avatar-link {
+  display: flex;
+  text-decoration: none;
+}
+
+.nav-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.avatar-link:hover .nav-avatar {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.nav-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-3);
+  color: var(--text-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 .section-header {
   display: flex;
   align-items: center;

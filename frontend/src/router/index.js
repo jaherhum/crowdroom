@@ -15,6 +15,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('../pages/ProfilePage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/rooms',
     name: 'Rooms',
     component: () => import('../pages/RoomsPage.vue'),
@@ -57,6 +63,12 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const { isAuthenticated } = useAuth();
+
+  const returnPage = sessionStorage.getItem('spotify_return_page');
+  if (returnPage && isAuthenticated.value && to.path !== returnPage) {
+    sessionStorage.removeItem('spotify_return_page');
+    return returnPage;
+  }
 
   const returnRoom = sessionStorage.getItem('spotify_return_room');
   if (returnRoom && isAuthenticated.value && to.path !== `/room/${returnRoom}`) {

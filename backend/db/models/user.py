@@ -37,6 +37,7 @@ class User(SQLModel, table=True):
     username: str = Field(max_length=32, unique=True, nullable=False)
     email: str | None = Field(default=None, max_length=255, unique=True, nullable=True)
     hashed_password: str | None = Field(default=None, max_length=255, nullable=True)
+    avatar_path: str | None = Field(default=None, max_length=255, nullable=True)
     room_id: UUID | None = Field(default=None, foreign_key="rooms.id", nullable=True)
 
     # Relations

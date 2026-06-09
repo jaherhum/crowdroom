@@ -1,17 +1,21 @@
 """Authentication routes for the API."""
 
 import logging
+from pathlib import Path
+from uuid import uuid4
 
 from cryptography.fernet import InvalidToken
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from fastapi.responses import RedirectResponse
 from httpx import HTTPStatusError
+from PIL import Image
 
 from backend.api.auth.dependencies import (
     get_auth_service,
     get_current_user_unchecked,
     get_spotify_oauth_service,
 )
+from backend.api.users.dependencies import get_user_service
 from backend.core.config import settings
 from backend.core.exceptions import (
     EntityExistsException,
@@ -21,16 +25,19 @@ from backend.core.exceptions import (
 )
 from backend.db.models.user import User
 from backend.schemas.auth import (
+    ChangePasswordRequest,
     CompleteProfileRequest,
     LocalLoginRequest,
     LoginRequest,
     RegisterRequest,
     SetPasswordRequest,
+    SpotifyAuthorizeResponse,
     TokenResponse,
 )
 from backend.schemas.user import UserRead
 from backend.services.auth_service import AuthService
 from backend.services.spotify_oauth_service import SpotifyOAuthService
+from backend.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +197,35 @@ def set_password(
     auth_service.set_password(current_user.id, body.password.get_secret_value())
 
 
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user_unchecked),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> None:
+    """Change the user's password.
+
+    Args:
+        body: The current and new password.
+        current_user: The authenticated user from JWT.
+        auth_service: The authentication service.
+
+    Raises:
+        HTTPException: 401 if current password is incorrect.
+    """
+    try:
+        auth_service.change_password(
+            user=current_user,
+            current_password=body.current_password.get_secret_value(),
+            new_password=body.new_password.get_secret_value(),
+        )
+    except InvalidCredentialsException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect.",
+        ) from exc
+
+
 @router.post("/complete-profile", status_code=status.HTTP_204_NO_CONTENT)
 def complete_profile(
     body: CompleteProfileRequest,
@@ -222,35 +258,94 @@ def complete_profile(
         ) from exc
 
 
-@router.get("/spotify")
-def initiate_spotify_oauth(
-    token: str = Query(...),
-    auth_service: AuthService = Depends(get_auth_service),
-    spotify_oauth_service: SpotifyOAuthService = Depends(get_spotify_oauth_service),
-) -> RedirectResponse:
-    """Redirect the authenticated user to Spotify's authorization page.
+AVATARS_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "avatars"
+MAX_AVATAR_SIZE = 5 * 1024 * 1024
+AVATAR_MAX_PX = 256
 
-    Accepts JWT via ?token= query param for browser redirects where
-    Authorization headers cannot be set.
+
+@router.post("/avatar", response_model=UserRead)
+async def upload_avatar(
+    file: UploadFile,
+    current_user: User = Depends(get_current_user_unchecked),
+    user_service: UserService = Depends(get_user_service),
+) -> UserRead:
+    """Upload and compress a user avatar image.
+
+    Accepts JPEG/PNG/WebP up to 5MB. Compresses to 256x256 WebP.
 
     Args:
-        token: JWT access token from query string.
-        auth_service: The authentication service.
+        file: The uploaded image file.
+        current_user: The authenticated user.
+        user_service: The user service for persisting avatar path.
+
+    Returns:
+        The updated user with avatar_url.
+
+    Raises:
+        HTTPException: 400 if file is too large or not a valid image.
+    """
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JPEG, PNG, and WebP images are accepted.",
+        )
+
+    contents = await file.read()
+    if len(contents) > MAX_AVATAR_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image must be under 5MB.",
+        )
+
+    try:
+        import io
+
+        image = Image.open(io.BytesIO(contents))
+        image = image.convert("RGB")
+        image.thumbnail((AVATAR_MAX_PX, AVATAR_MAX_PX), Image.LANCZOS)
+
+        filename = f"{uuid4().hex}.webp"
+        output_path = AVATARS_DIR / filename
+        image.save(output_path, format="WEBP", quality=80)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not process image.",
+        ) from exc
+
+    if current_user.avatar_path:
+        old_path = AVATARS_DIR / current_user.avatar_path
+        if old_path.exists():
+            old_path.unlink()
+
+    from backend.schemas.user import UserUpdate
+
+    return user_service.update_user(
+        current_user.id, UserUpdate(avatar_path=filename)
+    )
+
+
+@router.post("/spotify/start", response_model=SpotifyAuthorizeResponse)
+def start_spotify_oauth(
+    user: User = Depends(get_current_user_unchecked),
+    spotify_oauth_service: SpotifyOAuthService = Depends(get_spotify_oauth_service),
+) -> SpotifyAuthorizeResponse:
+    """Build the Spotify authorization URL for the authenticated user.
+
+    Authenticates via the standard ``Authorization: Bearer`` header (so the
+    JWT never travels in a URL). The frontend redirects the browser to the
+    returned ``authorize_url``.
+
+    Args:
+        user: Authenticated user initiating the OAuth flow.
         spotify_oauth_service: OAuth service from DI.
 
     Returns:
-        307 redirect to Spotify's authorize URL.
+        SpotifyAuthorizeResponse with the Spotify authorize URL.
 
     Raises:
-        HTTPException: 401 if token invalid, 503 if Spotify not configured.
+        HTTPException: 503 if no Spotify app credentials are configured.
     """
-    user = auth_service.resolve_user_from_token(token)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
     has_user_creds = bool(
         spotify_oauth_service._platform_connection_service
         .get_spotify_app_credentials(user.id)
@@ -263,7 +358,7 @@ def initiate_spotify_oauth(
         )
 
     url = spotify_oauth_service.generate_authorization_url(user.id)
-    return RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    return SpotifyAuthorizeResponse(authorize_url=url)
 
 
 @router.get("/spotify/callback")

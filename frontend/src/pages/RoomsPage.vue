@@ -3,7 +3,10 @@
     <header class="app-header">
       <h2>CrowdRoom</h2>
       <div class="header-actions">
-        <span class="username-display">{{ username }}</span>
+        <router-link to="/profile" class="avatar-link" title="Profile">
+          <img v-if="avatarUrl" :src="avatarUrl" class="nav-avatar" alt="avatar">
+          <span v-else class="nav-avatar nav-avatar-fallback">{{ (username || '?')[0].toUpperCase() }}</span>
+        </router-link>
         <ThemeToggle />
         <button class="btn btn-ghost" @click="handleLogout">Logout</button>
       </div>
@@ -143,6 +146,7 @@ const router = useRouter();
 const { username, userId, hasPassword, setHasPassword, logout } = useAuth();
 const { showToast } = useToast();
 
+const avatarUrl = ref(null);
 const rooms = ref([]);
 const showCreateModal = ref(false);
 const showPinModal = ref(false);
@@ -170,6 +174,7 @@ onMounted(async () => {
   try {
     const me = await apiGet('/auth/me');
     setHasPassword(me.has_password);
+    avatarUrl.value = me.avatar_url || null;
     if (me.room_id) {
       router.push(`/room/${me.room_id}`);
       return;

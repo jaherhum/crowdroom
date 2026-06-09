@@ -147,6 +147,31 @@ class AuthService:
         hashed = self._security_service.generate_password_hash(plain_password)
         self._user_service.update_user_password(user_id, hashed)
 
+    def change_password(
+        self, user: User, current_password: str, new_password: str
+    ) -> None:
+        """Change a user's password after verifying the current one.
+
+        Args:
+            user: The authenticated user.
+            current_password: The current password for verification.
+            new_password: The new password to set.
+
+        Raises:
+            InvalidCredentialsException: If current password is incorrect.
+        """
+        if not user.hashed_password:
+            raise InvalidCredentialsException()
+
+        is_valid = self._security_service.verify_password(
+            current_password, user.hashed_password
+        )
+        if not is_valid:
+            raise InvalidCredentialsException()
+
+        hashed = self._security_service.generate_password_hash(new_password)
+        self._user_service.update_user_password(user.id, hashed)
+
     def complete_profile(
         self, user: User, email: str, plain_password: str
     ) -> None:

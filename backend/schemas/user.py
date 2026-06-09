@@ -59,6 +59,9 @@ class UserUpdate(BaseModel):
         max_length=255,
         description="The new plain text password. Will be hashed before storage.",
     )
+    avatar_path: str | None = Field(
+        None, description="Filename of the user's avatar in static/avatars/."
+    )
 
 
 class UserRead(UserBase):
@@ -86,12 +89,20 @@ class UserRead(UserBase):
         default=False,
         description="Whether the user has both email and password set.",
     )
+    avatar_url: str | None = Field(
+        default=None, description="URL to the user's avatar image."
+    )
 
     @model_validator(mode="before")
     @classmethod
     def compute_derived_fields(cls, data):
-        """Derive has_password and profile_complete from the source object."""
+        """Derive has_password, profile_complete, and avatar_url from the source."""
         if hasattr(data, "hashed_password"):
+            avatar_url = (
+                f"/static/avatars/{data.avatar_path}"
+                if data.avatar_path
+                else None
+            )
             data = {
                 "id": data.id,
                 "username": data.username,
@@ -101,6 +112,7 @@ class UserRead(UserBase):
                 "profile_complete": (
                     data.hashed_password is not None and data.email is not None
                 ),
+                "avatar_url": avatar_url,
             }
         elif isinstance(data, dict):
             if "has_password" not in data:
@@ -109,5 +121,10 @@ class UserRead(UserBase):
                 data["profile_complete"] = (
                     data.get("hashed_password") is not None
                     and data.get("email") is not None
+                )
+            if "avatar_url" not in data:
+                avatar_path = data.get("avatar_path")
+                data["avatar_url"] = (
+                    f"/static/avatars/{avatar_path}" if avatar_path else None
                 )
         return data

@@ -60,6 +60,22 @@ class SetPasswordRequest(BaseModel):
     )
 
 
+class ChangePasswordRequest(BaseModel):
+    """Request schema for changing an existing password.
+
+    Attributes:
+        current_password (SecretStr): The current password for verification.
+        new_password (SecretStr): The new password to set.
+    """
+
+    current_password: SecretStr = Field(
+        ..., description="The current password."
+    )
+    new_password: SecretStr = Field(
+        ..., min_length=6, description="The new password."
+    )
+
+
 class CompleteProfileRequest(BaseModel):
     """Request schema for completing a user profile (LOCAL→ONLINE migration).
 
@@ -84,3 +100,15 @@ class TokenResponse(BaseModel):
 
     access_token: str = Field(..., description="The access token.")
     token_type: str = Field(default="bearer", description="The token type.")
+
+
+class SpotifyAuthorizeResponse(BaseModel):
+    """Response schema for initiating the Spotify OAuth flow.
+
+    Attributes:
+        authorize_url (str): The Spotify authorization URL to redirect to.
+    """
+
+    authorize_url: str = Field(
+        ..., description="The Spotify authorization URL to redirect the user to."
+    )
