@@ -71,14 +71,17 @@ class RoomMembershipService:
             raise ForbiddenException("Room is full")
 
         if room.is_private:
-            token_validation = self._room_invite_service.validate_and_consume_invite(
-                invite_token, room_id
-            )
-            if not token_validation:
-                if pin and self._room_service.verify_pin(room_id, pin):
-                    pass
-                else:
-                    raise ForbiddenException()
+            # The host always has access to their own room and never needs a
+            # PIN or invite to enter it.
+            if room.host_user_id != user.id:
+                token_ok = self._room_invite_service.validate_and_consume_invite(
+                    invite_token, room_id
+                )
+                if not token_ok:
+                    if pin and self._room_service.verify_pin(room_id, pin):
+                        pass
+                    else:
+                        raise ForbiddenException()
 
         user.room_id = room_id
         self._user_repo.save(user)

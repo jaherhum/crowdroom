@@ -186,6 +186,34 @@ class TestJoinRoom:
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
 
+    def test_host_joins_own_private_room_without_credentials(
+        self,
+        membership_service,
+        mock_room_service,
+        mock_invite_service,
+        mock_user_repo,
+        user,
+        private_room,
+    ):
+        # The host owns this private room: entering it must not require a PIN
+        # or invite. Regression for the 403 thrown when creating a private room.
+        private_room.host_user_id = user.id
+        mock_room_service.get_room.return_value = private_room
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await membership_service.join_room(private_room.id, user)
+
+        anyio.run(_run)
+
+        assert user.room_id == private_room.id
+        mock_user_repo.save.assert_called_once_with(user)
+        mock_invite_service.validate_and_consume_invite.assert_not_called()
+
     def test_join_private_room_wrong_pin_forbidden(
         self,
         membership_service,
