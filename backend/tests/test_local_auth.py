@@ -133,3 +133,49 @@ class TestAuthRouterModeGuards:
         )
         assert response.status_code == 404
         assert "LOCAL" in response.json()["detail"]
+
+
+class TestAuthCookie:
+    @pytest.fixture
+    def client_local(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from backend.api.auth.dependencies import get_auth_service
+        from backend.api.auth.router import router
+        from backend.schemas.auth import TokenResponse
+
+        with patch("backend.api.auth.router.settings") as mock_settings:
+            mock_settings.AUTH_MODE = "LOCAL"
+            mock_settings.AUTH_COOKIE_NAME = "access_token"
+            mock_settings.ACCESS_TOKEN_EXPIRE_MINUTES = 30
+            mock_settings.COOKIE_SECURE = False
+            mock_settings.COOKIE_SAMESITE = "lax"
+
+            app = FastAPI()
+            app.include_router(router, prefix="/api/v1")
+
+            mock_auth_service = MagicMock(spec=AuthService)
+            mock_auth_service.local_login.return_value = TokenResponse(
+                access_token="cookie_token_value"
+            )
+            app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
+            yield TestClient(app)
+
+    def test_local_login_sets_httponly_cookie(self, client_local):
+        response = client_local.post(
+            "/api/v1/auth/local-login", json={"username": "alice"}
+        )
+        assert response.status_code == 200
+        assert response.json()["access_token"] == "cookie_token_value"
+
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "access_token=cookie_token_value" in set_cookie
+        assert "HttpOnly" in set_cookie
+        assert "SameSite=lax" in set_cookie
+
+    def test_logout_clears_cookie(self, client_local):
+        response = client_local.post("/api/v1/auth/logout")
+        assert response.status_code == 204
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "access_token=" in set_cookie

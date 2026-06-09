@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session as DBSession
 
@@ -19,7 +19,7 @@ from backend.services.platform_connection_service import PlatformConnectionServi
 from backend.services.spotify_oauth_service import SpotifyOAuthService
 from backend.services.user_service import UserService
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
 
 def get_security_service() -> SecurityService:
@@ -52,17 +52,22 @@ def get_auth_service(
 def get_current_user_unchecked(
     user_service: UserService = Depends(get_user_service),
     security_service: SecurityService = Depends(get_security_service),
-    token: str = Depends(oauth2_scheme),
+    token: str | None = Depends(oauth2_scheme),
+    cookie_token: str | None = Cookie(default=None, alias=settings.AUTH_COOKIE_NAME),
 ) -> User:
     """Retrieves the current user without profile completeness checks.
 
     Use this for auth-related endpoints (e.g., /me, /complete-profile)
     that must remain accessible to incomplete profiles.
 
+    The access token is read from the httpOnly auth cookie first, falling
+    back to the Authorization header (for API clients and tests).
+
     Args:
         user_service: The user service instance.
         security_service: The security service instance.
-        token: The JWT token extracted from the Authorization header.
+        token: The JWT token extracted from the Authorization header (optional).
+        cookie_token: The JWT token extracted from the httpOnly cookie (optional).
 
     Returns:
         The authenticated user model.
@@ -75,14 +80,21 @@ def get_current_user_unchecked(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    access_token = cookie_token or token
+    if not access_token:
+        raise credentials_exception
     try:
-        payload = security_service.decode_token(token, expected_type=TokenType.ACCESS)
+        payload = security_service.decode_token(
+            access_token, expected_type=TokenType.ACCESS
+        )
         user_id = payload.get("sub")
         user = user_service.get_by_id(UUID(user_id))
 
         if not user:
             raise credentials_exception
         return user
+    except HTTPException:
+        raise
     except Exception as exc:
         raise credentials_exception from exc
 

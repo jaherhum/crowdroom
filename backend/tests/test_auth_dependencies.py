@@ -35,6 +35,7 @@ def test_get_current_user_unchecked_success():
         user_service=mock_user_service,
         security_service=mock_security_service,
         token="valid_token",
+        cookie_token=None,
     )
 
     assert user == mock_user
@@ -56,6 +57,7 @@ def test_get_current_user_unchecked_invalid_token():
             user_service=mock_user_service,
             security_service=mock_security_service,
             token="invalid_token",
+            cookie_token=None,
         )
 
     assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
@@ -76,6 +78,7 @@ def test_get_current_user_unchecked_user_not_found():
             user_service=mock_user_service,
             security_service=mock_security_service,
             token="valid_token",
+            cookie_token=None,
         )
 
     assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED

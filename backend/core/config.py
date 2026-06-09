@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Auth Cookie (httpOnly access token)
+    # COOKIE_SECURE must be True in production (HTTPS). Keep False for local http.
+    AUTH_COOKIE_NAME: str = "access_token"
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+
     # Metadata Cache
     METADATA_CACHE_TTL_SECONDS: int = 86400
     METADATA_CACHE_MAX_SIZE: int = 2048

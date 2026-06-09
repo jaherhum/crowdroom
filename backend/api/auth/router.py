@@ -5,7 +5,15 @@ from pathlib import Path
 from uuid import uuid4
 
 from cryptography.fernet import InvalidToken
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import RedirectResponse
 from httpx import HTTPStatusError
 from PIL import Image
@@ -44,6 +52,42 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+def _set_auth_cookie(response: Response, token: str) -> None:
+    """Attach the access token as an httpOnly cookie on the response.
+
+    The cookie is httpOnly (not readable by JS, mitigating XSS token theft),
+    SameSite-scoped, and marked Secure in production (HTTPS).
+
+    Args:
+        response: The response to attach the Set-Cookie header to.
+        token: The JWT access token to store.
+    """
+    response.set_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        value=token,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        path="/",
+    )
+
+
+def _clear_auth_cookie(response: Response) -> None:
+    """Remove the access token cookie from the client.
+
+    Args:
+        response: The response to attach the deletion header to.
+    """
+    response.delete_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        path="/",
+    )
+
+
 @router.get("/mode")
 def get_auth_mode() -> dict:
     """Return the current authentication mode.
@@ -67,17 +111,29 @@ def get_me(current_user: User = Depends(get_current_user_unchecked)) -> UserRead
     return UserRead.model_validate(current_user)
 
 
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response) -> None:
+    """Log out the current user by clearing the auth cookie.
+
+    Args:
+        response: The response used to delete the auth cookie.
+    """
+    _clear_auth_cookie(response)
+
+
 @router.post(
     "/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
 )
 def register(
     register_request: RegisterRequest,
+    response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
     """Registers a new user and returns a token (ONLINE mode only).
 
     Args:
         register_request (RegisterRequest): The registration details.
+        response (Response): The response used to set the auth cookie.
         auth_service (AuthService): The authentication service.
 
     Returns:
@@ -92,7 +148,9 @@ def register(
             detail="Endpoint not available in LOCAL mode",
         )
     try:
-        return auth_service.register_user(register_request)
+        token_response = auth_service.register_user(register_request)
+        _set_auth_cookie(response, token_response.access_token)
+        return token_response
     except EntityExistsException as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -103,12 +161,14 @@ def register(
 @router.post("/login", response_model=TokenResponse)
 def login(
     login_request: LoginRequest,
+    response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
     """Authenticates a user and returns a JWT token (ONLINE mode only).
 
     Args:
         login_request (LoginRequest): The login credentials.
+        response (Response): The response used to set the auth cookie.
         auth_service (AuthService): The authentication service.
 
     Returns:
@@ -123,7 +183,9 @@ def login(
             detail="Endpoint not available in LOCAL mode",
         )
     try:
-        return auth_service.login_user(login_request)
+        token_response = auth_service.login_user(login_request)
+        _set_auth_cookie(response, token_response.access_token)
+        return token_response
     except InvalidCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -134,6 +196,7 @@ def login(
 @router.post("/local-login", response_model=TokenResponse)
 def local_login(
     login_request: LocalLoginRequest,
+    response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
     """Authenticate with username only (LOCAL mode).
@@ -143,6 +206,7 @@ def local_login(
 
     Args:
         login_request: The username to login with.
+        response: The response used to set the auth cookie.
         auth_service: The authentication service.
 
     Returns:
@@ -157,7 +221,9 @@ def local_login(
             detail="Endpoint not available in ONLINE mode",
         )
     try:
-        return auth_service.local_login(login_request)
+        token_response = auth_service.local_login(login_request)
+        _set_auth_cookie(response, token_response.access_token)
+        return token_response
     except PasswordRequiredException as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -320,9 +386,7 @@ async def upload_avatar(
 
     from backend.schemas.user import UserUpdate
 
-    return user_service.update_user(
-        current_user.id, UserUpdate(avatar_path=filename)
-    )
+    return user_service.update_user(current_user.id, UserUpdate(avatar_path=filename))
 
 
 @router.post("/spotify/start", response_model=SpotifyAuthorizeResponse)
@@ -347,8 +411,9 @@ def start_spotify_oauth(
         HTTPException: 503 if no Spotify app credentials are configured.
     """
     has_user_creds = bool(
-        spotify_oauth_service._platform_connection_service
-        .get_spotify_app_credentials(user.id)
+        spotify_oauth_service._platform_connection_service.get_spotify_app_credentials(
+            user.id
+        )
     )
     if not has_user_creds:
         raise HTTPException(
@@ -389,7 +454,7 @@ async def spotify_oauth_callback(
 
     try:
         await spotify_oauth_service.exchange_code_for_tokens(code, state)
-    except (OAuthStateException, InvalidToken):
+    except OAuthStateException, InvalidToken:
         logger.warning("Spotify OAuth callback failed: invalid or expired state")
         return RedirectResponse(url=f"{frontend_url}?error=oauth_state_invalid")
     except HTTPStatusError as exc:
