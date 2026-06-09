@@ -100,6 +100,8 @@ async function onlineLogin() {
     const result = await apiPost('/auth/login', { identifier: identifier.value.trim(), password: password.value });
     setToken(result.access_token);
     setUsername(identifier.value.trim());
+    const me = await apiGet('/auth/me');
+    setHasPassword(me.has_password);
     router.push('/rooms');
   } catch (err) {
     error.value = err.detail || 'Invalid credentials';
