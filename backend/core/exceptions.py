@@ -152,6 +152,7 @@ class InviteExpiredException(AppException):
         """Initializes the exception."""
         super().__init__("Invite is expired or has reached its maximum uses")
 
+
 class UserAlreadyInRoomException(AppException):
     """Exception raised when a user tries to join a room while already in another.
 
@@ -173,6 +174,7 @@ class UserAlreadyInRoomException(AppException):
                 f"User is already in room {current_room_id}. Leave current room first."
             )
 
+
 class OAuthStateException(AppException):
     """Exception raised when an OAuth state parameter is invalid or expired."""
 
@@ -186,6 +188,7 @@ class OAuthStateException(AppException):
             super().__init__("OAuth state validation failed.")
         else:
             super().__init__(f"OAuth state validation failed: {reason}")
+
 
 class ProfileIncompleteException(AppException):
     """Exception raised when an ONLINE-mode user lacks email or password.
@@ -201,9 +204,7 @@ class ProfileIncompleteException(AppException):
             missing_fields: List of field names that are not yet set.
         """
         self.missing_fields = missing_fields
-        super().__init__(
-            "Profile incomplete. Please set your email and password."
-        )
+        super().__init__("Profile incomplete. Please set your email and password.")
 
 
 class TooManyRequestsException(AppException):

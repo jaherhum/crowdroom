@@ -1,4 +1,5 @@
 """Schemas for playback lifecycle responses."""
+
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -15,6 +16,7 @@ class FinishResponse(BaseModel):
         ...,
         description="The updated playback status after finishing the current song.",
     )
+
 
 class PlayRequest(BaseModel):
     """Request body for starting playback of a specific song.

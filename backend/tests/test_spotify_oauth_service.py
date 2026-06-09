@@ -83,9 +83,7 @@ class TestExchangeCodeForTokens:
     def test_exchange_success(self, mock_client_class, service, mock_platform_service):
         user_id = uuid4()
         code_verifier = "test_verifier_123"
-        state = encrypt_data(
-            {"user_id": str(user_id), "code_verifier": code_verifier}
-        )
+        state = encrypt_data({"user_id": str(user_id), "code_verifier": code_verifier})
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -139,15 +137,11 @@ class TestExchangeCodeForTokens:
             anyio.run(_run)
 
     @patch("backend.services.spotify_oauth_service.httpx.AsyncClient")
-    def test_exchange_spotify_error_propagates(
-        self, mock_client_class, service
-    ):
+    def test_exchange_spotify_error_propagates(self, mock_client_class, service):
         import httpx
 
         user_id = uuid4()
-        state = encrypt_data(
-            {"user_id": str(user_id), "code_verifier": "verifier"}
-        )
+        state = encrypt_data({"user_id": str(user_id), "code_verifier": "verifier"})
 
         mock_response = MagicMock()
         mock_response.status_code = 400

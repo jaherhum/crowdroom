@@ -68,12 +68,8 @@ class ChangePasswordRequest(BaseModel):
         new_password (SecretStr): The new password to set.
     """
 
-    current_password: SecretStr = Field(
-        ..., description="The current password."
-    )
-    new_password: SecretStr = Field(
-        ..., min_length=6, description="The new password."
-    )
+    current_password: SecretStr = Field(..., description="The current password.")
+    new_password: SecretStr = Field(..., min_length=6, description="The new password.")
 
 
 class CompleteProfileRequest(BaseModel):
@@ -85,9 +81,7 @@ class CompleteProfileRequest(BaseModel):
     """
 
     email: EmailStr = Field(..., description="The email address to set.")
-    password: SecretStr = Field(
-        ..., min_length=8, description="The password to set."
-    )
+    password: SecretStr = Field(..., min_length=8, description="The password to set.")
 
 
 class TokenResponse(BaseModel):

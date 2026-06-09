@@ -155,9 +155,7 @@ class PlaybackPollerService:
         remaining = state.duration_ms - state.progress_ms
         return remaining < 5000
 
-    def _adopt_external_track(
-        self, session, state: SpotifyPlaybackState
-    ) -> None:
+    def _adopt_external_track(self, session, state: SpotifyPlaybackState) -> None:
         """Upsert external track metadata and update session state.
 
         Args:
@@ -195,9 +193,7 @@ class PlaybackPollerService:
                 {
                     "current_song_id": state.track_id,
                     "playback_status": (
-                        ItemStatus.PLAYING
-                        if state.is_playing
-                        else ItemStatus.PAUSED
+                        ItemStatus.PLAYING if state.is_playing else ItemStatus.PAUSED
                     ),
                     "playback_started_at": now_naive,
                     "playback_position_ms": state.progress_ms or 0,
@@ -228,9 +224,7 @@ class PlaybackPollerService:
             if next_item and next_item.song
             else None
         )
-        logger.info(
-            "Room %s: advance_queue next_uri=%s", room_id, next_uri
-        )
+        logger.info("Room %s: advance_queue next_uri=%s", room_id, next_uri)
 
         if next_uri:
             try:
@@ -360,8 +354,7 @@ class PlaybackPollerService:
                     state = await adapter.get_current_playback()
 
                     logger.info(
-                        "Poll room %s: state=%s, session_status=%s, "
-                        "session_track=%s",
+                        "Poll room %s: state=%s, session_status=%s, session_track=%s",
                         room_id,
                         state,
                         session.playback_status,
@@ -402,13 +395,9 @@ class PlaybackPollerService:
                                 room_id,
                                 state.track_id,
                             )
-                            current_item = self._get_current_queue_item(
-                                session.id
-                            )
+                            current_item = self._get_current_queue_item(session.id)
                             if current_item:
-                                svc, _ = (
-                                    self._build_playback_service_with_queue()
-                                )
+                                svc, _ = self._build_playback_service_with_queue()
                                 await svc.finish_song(session.id)
                             await asyncio.to_thread(
                                 self._adopt_external_track,
@@ -442,8 +431,7 @@ class PlaybackPollerService:
                     ):
                         if self._is_song_ended(state):
                             logger.info(
-                                "Room %s: song ended (progress=%s/%s), "
-                                "advancing",
+                                "Room %s: song ended (progress=%s/%s), advancing",
                                 room_id,
                                 state.progress_ms,
                                 state.duration_ms,

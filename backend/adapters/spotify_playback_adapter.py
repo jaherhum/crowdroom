@@ -43,7 +43,7 @@ class SpotifyPlaybackAdapter:
         async with httpx.AsyncClient() as client:
             response = await client.put(
                 url=self.BASE_URL + "/play",
-                headers= self._headers(),
+                headers=self._headers(),
                 params={"device_id": device_id} if device_id else {},
                 json={"uris": [track_uri]},
             )
@@ -118,9 +118,7 @@ class SpotifyPlaybackAdapter:
             device_id=data.get("device", {}).get("id"),
             track_name=item.get("name") if item else None,
             track_artist=(
-                item["artists"][0]["name"]
-                if item and item.get("artists")
-                else None
+                item["artists"][0]["name"] if item and item.get("artists") else None
             ),
             album_art_url=images[0]["url"] if images else None,
         )

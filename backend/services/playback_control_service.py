@@ -154,9 +154,7 @@ class PlaybackControlService:
             and session.playback_status == ItemStatus.PLAYING
         )
         if already_playing:
-            if self._playback_poller and not self._playback_poller.is_polling(
-                room_id
-            ):
+            if self._playback_poller and not self._playback_poller.is_polling(room_id):
                 await self._playback_poller.start_polling(room_id, user_id)
             return
 

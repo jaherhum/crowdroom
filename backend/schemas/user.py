@@ -99,9 +99,7 @@ class UserRead(UserBase):
         """Derive has_password, profile_complete, and avatar_url from the source."""
         if hasattr(data, "hashed_password"):
             avatar_url = (
-                f"/static/avatars/{data.avatar_path}"
-                if data.avatar_path
-                else None
+                f"/static/avatars/{data.avatar_path}" if data.avatar_path else None
             )
             data = {
                 "id": data.id,

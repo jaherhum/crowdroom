@@ -59,6 +59,7 @@ class SkipVoteEvent(BaseModel):
     threshold: int
     skip_triggered: bool
 
+
 class PlaybackStateChangedEvent(BaseModel):
     """Payload for playback_state_changed WebSocket events.
 

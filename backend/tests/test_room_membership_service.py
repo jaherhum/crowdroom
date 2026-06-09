@@ -129,9 +129,7 @@ class TestJoinRoom:
                 "backend.services.room_membership_service.manager"
             ) as mock_manager:
                 mock_manager.broadcast = mock_broadcast
-                await membership_service.join_room(
-                    private_room.id, user, "1234", None
-                )
+                await membership_service.join_room(private_room.id, user, "1234", None)
 
         anyio.run(_run)
 
@@ -183,9 +181,7 @@ class TestJoinRoom:
                 "backend.services.room_membership_service.manager"
             ) as mock_manager:
                 mock_manager.broadcast = AsyncMock()
-                await membership_service.join_room(
-                    private_room.id, user
-                )
+                await membership_service.join_room(private_room.id, user)
 
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
@@ -207,9 +203,7 @@ class TestJoinRoom:
                 "backend.services.room_membership_service.manager"
             ) as mock_manager:
                 mock_manager.broadcast = AsyncMock()
-                await membership_service.join_room(
-                    private_room.id, user, "0000", None
-                )
+                await membership_service.join_room(private_room.id, user, "0000", None)
 
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
@@ -247,9 +241,7 @@ class TestJoinRoom:
         mock_room_service.get_room.assert_not_called()
         mock_user_repo.save.assert_not_called()
 
-    def test_join_room_not_found(
-        self, membership_service, mock_room_service, user
-    ):
+    def test_join_room_not_found(self, membership_service, mock_room_service, user):
         room_id = uuid4()
         mock_room_service.get_room.side_effect = EntityNotFoundException(
             "Room", room_id

@@ -37,6 +37,7 @@ def decrypt_data(data: str) -> dict:
     decrypted_bytes = _fernet.decrypt(str_bytes)
     return json.loads(decrypted_bytes)
 
+
 def decrypt_data_with_ttl(data: str, ttl_seconds: int) -> dict:
     """Decrypt a Fernet-encoded string, rejecting tokens older than ttl_seconds.
 

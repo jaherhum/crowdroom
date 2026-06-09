@@ -172,9 +172,7 @@ class AuthService:
         hashed = self._security_service.generate_password_hash(new_password)
         self._user_service.update_user_password(user.id, hashed)
 
-    def complete_profile(
-        self, user: User, email: str, plain_password: str
-    ) -> None:
+    def complete_profile(self, user: User, email: str, plain_password: str) -> None:
         """Set email and password on an incomplete profile.
 
         Only updates fields that are currently missing. Skips if already set.
@@ -195,9 +193,7 @@ class AuthService:
                 raise EntityExistsException("Email already in use")
             from backend.schemas.user import UserUpdate
 
-            self._user_service.update_user(
-                user.id, UserUpdate(email=normalized_email)
-            )
+            self._user_service.update_user(user.id, UserUpdate(email=normalized_email))
 
         if not user.hashed_password:
             self.set_password(user.id, plain_password)

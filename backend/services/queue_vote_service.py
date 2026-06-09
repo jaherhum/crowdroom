@@ -153,8 +153,7 @@ class QueueVoteService:
         existing = self._repo.get_by_item_and_user(queue_item_id, user_id)
         if not existing:
             raise EntityNotFoundException(
-                f"QueueVote: No vote from user {user_id} "
-                f"on queue item {queue_item_id}",
+                f"QueueVote: No vote from user {user_id} on queue item {queue_item_id}",
             )
 
         queue_item = existing.queue_item

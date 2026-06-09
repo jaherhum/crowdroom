@@ -19,9 +19,7 @@ from backend.schemas.platform_connection import StoreOAuthTokens
 from backend.services.platform_connection_service import PlatformConnectionService
 
 SPOTIFY_OAUTH_SCOPES = (
-    "user-read-playback-state "
-    "user-modify-playback-state "
-    "user-read-currently-playing"
+    "user-read-playback-state user-modify-playback-state user-read-currently-playing"
 )
 
 SPOTIFY_AUTHORIZE_URL = "https://accounts.spotify.com/authorize"
@@ -156,9 +154,7 @@ class SpotifyOAuthService:
         Raises:
             InvalidPlatformCredentialsException: If no credentials stored.
         """
-        creds = self._platform_connection_service.get_spotify_app_credentials(
-            user_id
-        )
+        creds = self._platform_connection_service.get_spotify_app_credentials(user_id)
         if creds and creds.get("client_id"):
             return creds["client_id"]
         from backend.core.exceptions import InvalidPlatformCredentialsException
@@ -173,9 +169,7 @@ class SpotifyOAuthService:
         Raises:
             InvalidPlatformCredentialsException: If no credentials stored.
         """
-        creds = self._platform_connection_service.get_spotify_app_credentials(
-            user_id
-        )
+        creds = self._platform_connection_service.get_spotify_app_credentials(user_id)
         if creds and creds.get("client_id") and creds.get("client_secret"):
             return creds["client_id"], creds["client_secret"]
         from backend.core.exceptions import InvalidPlatformCredentialsException

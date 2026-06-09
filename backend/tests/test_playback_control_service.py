@@ -120,9 +120,7 @@ class TestPlaybackControlServicePlay:
         assert "playback_started_at" in update_data
         assert update_data["playback_position_ms"] == 0
 
-    def test_play_non_host_forbidden(
-        self, service, mock_room_service
-    ):
+    def test_play_non_host_forbidden(self, service, mock_room_service):
         mock_room_service.assert_host.side_effect = ForbiddenException(
             "Only the room host can perform this action"
         )
@@ -133,9 +131,7 @@ class TestPlaybackControlServicePlay:
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
 
-    def test_play_song_not_found(
-        self, service, mock_room_service, mock_song_repo
-    ):
+    def test_play_song_not_found(self, service, mock_room_service, mock_song_repo):
         mock_room_service.assert_host.return_value = MagicMock()
         mock_song_repo.get_by_id.return_value = None
 

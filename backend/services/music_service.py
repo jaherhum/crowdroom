@@ -40,10 +40,8 @@ class MusicService:
         room = self._room_repo.get_by_id(room_id)
 
         if session.current_platform == StreamingPlatforms.SPOTIFY:
-            user_creds = (
-                self._platform_connection_service.get_spotify_app_credentials(
-                    room.host_user_id
-                )
+            user_creds = self._platform_connection_service.get_spotify_app_credentials(
+                room.host_user_id
             )
             if not user_creds:
                 from backend.core.exceptions import EntityNotFoundException

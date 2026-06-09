@@ -318,9 +318,7 @@ async def get_room_playback(
     if playback_status == "playing" and session.playback_started_at:
         started = session.playback_started_at.replace(tzinfo=None)
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        elapsed_ms = base_position + int(
-            (now - started).total_seconds() * 1000
-        )
+        elapsed_ms = base_position + int((now - started).total_seconds() * 1000)
 
     return {
         "status": playback_status,

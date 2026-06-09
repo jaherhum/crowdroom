@@ -67,9 +67,7 @@ async def pause(
             detail="User is not in any room",
         )
     try:
-        await service.pause(
-            room_id=current_user.room_id, user_id=current_user.id
-        )
+        await service.pause(room_id=current_user.room_id, user_id=current_user.id)
     except ForbiddenException as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
@@ -101,9 +99,7 @@ async def skip(
             detail="User is not in any room",
         )
     try:
-        await service.skip(
-            room_id=current_user.room_id, user_id=current_user.id
-        )
+        await service.skip(room_id=current_user.room_id, user_id=current_user.id)
     except ForbiddenException as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
