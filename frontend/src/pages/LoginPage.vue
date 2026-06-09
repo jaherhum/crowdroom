@@ -121,7 +121,7 @@ import { useAuth } from '../composables/useAuth.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
 
 const router = useRouter();
-const { setToken, setUsername, setHasPassword } = useAuth();
+const { fetchMe } = useAuth();
 
 const mode = ref('LOCAL');
 const activeTab = ref('login');
@@ -151,11 +151,8 @@ async function localLogin() {
     if (localPassword.value) {
       body.password = localPassword.value;
     }
-    const result = await apiPost('/auth/local-login', body);
-    setToken(result.access_token);
-    setUsername(localUsername.value.trim());
-    const me = await apiGet('/auth/me');
-    setHasPassword(me.has_password);
+    await apiPost('/auth/local-login', body);
+    await fetchMe();
     router.push('/rooms');
   } catch (err) {
     error.value = err.detail || 'Login failed';
@@ -165,14 +162,11 @@ async function localLogin() {
 async function onlineLogin() {
   error.value = '';
   try {
-    const result = await apiPost('/auth/login', {
+    await apiPost('/auth/login', {
       identifier: identifier.value.trim(),
       password: password.value,
     });
-    setToken(result.access_token);
-    setUsername(identifier.value.trim());
-    const me = await apiGet('/auth/me');
-    setHasPassword(me.has_password);
+    await fetchMe();
     router.push('/rooms');
   } catch (err) {
     error.value = err.detail || 'Invalid credentials';
@@ -182,14 +176,12 @@ async function onlineLogin() {
 async function onlineRegister() {
   error.value = '';
   try {
-    const result = await apiPost('/auth/register', {
+    await apiPost('/auth/register', {
       username: regUsername.value.trim(),
       email: regEmail.value.trim(),
       password: regPassword.value,
     });
-    setToken(result.access_token);
-    setUsername(regUsername.value.trim());
-    setHasPassword(true);
+    await fetchMe();
     router.push('/rooms');
   } catch (err) {
     error.value = err.detail || 'Registration failed';
