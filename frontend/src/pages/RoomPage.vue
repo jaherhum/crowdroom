@@ -17,7 +17,7 @@
           <p>Nothing playing</p>
         </div>
         <div v-else>
-          <img class="album-art" :src="currentSong.song.album_art_url || ''" :alt="`${currentSong.song.title} album art`">
+          <img class="album-art" :src="currentSong.song.album_art_url || ALBUM_ART_PLACEHOLDER" :alt="`${currentSong.song.title} album art`" @error="onArtError">
           <div class="track-info">
             <h3>{{ currentSong.song.title }}</h3>
             <p class="text-secondary">{{ currentSong.song.artist }}</p>
@@ -131,13 +131,14 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, onBeforeRouteLeave } from 'vue-router';
 import { apiGet, apiPost, apiDelete } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useWebSocket } from '../composables/useWebSocket.js';
 import { useToast } from '../composables/useToast.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
 import TrackItem from '../components/TrackItem.vue';
+import { ALBUM_ART_PLACEHOLDER, onArtError } from '../composables/useAlbumArt.js';
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -145,7 +146,7 @@ const props = defineProps({
 
 const router = useRouter();
 const { userId } = useAuth();
-const { connectToRoom, disconnect, onEvent } = useWebSocket();
+const { connectToRoom, disconnect, onEvent, offEvent } = useWebSocket();
 const { showToast } = useToast();
 
 const roomId = ref(props.id);
@@ -179,15 +180,14 @@ const progressPercent = computed(() => {
 });
 
 let searchTimeout = null;
+const wsHandlers = [];
+let leaving = false;
 
 onMounted(async () => {
   if (!roomId.value) {
     router.push('/rooms');
     return;
   }
-
-  window.history.pushState(null, '', location.href);
-  window.addEventListener('popstate', preventBack);
 
   try {
     await loadRoom();
@@ -201,14 +201,17 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  disconnect();
-  window.removeEventListener('popstate', preventBack);
+  teardownWebSocket();
   if (progressFrame) cancelAnimationFrame(progressFrame);
 });
 
-function preventBack() {
-  window.history.pushState(null, '', location.href);
-}
+onBeforeRouteLeave(async () => {
+  if (leaving) return true;
+  const confirmed = window.confirm('Leave this room?');
+  if (!confirmed) return false;
+  await sendLeave();
+  return true;
+});
 
 async function loadRoom() {
   const room = await apiGet(`/rooms/${roomId.value}`);
@@ -372,10 +375,10 @@ async function voteSkip(queueItemId) {
   voteOnCooldown.value = true;
   try {
     if (hasVotedSkip.value) {
-      await apiDelete(`/queue/vote?queue_item_id=${queueItemId}&user_id=${userId.value}`);
+      await apiDelete(`/queue/vote?queue_item_id=${queueItemId}`);
       hasVotedSkip.value = false;
     } else {
-      await apiPost('/queue/vote', { queue_item_id: queueItemId, user_id: userId.value });
+      await apiPost('/queue/vote', { queue_item_id: queueItemId });
       hasVotedSkip.value = true;
     }
   } catch (err) {
@@ -414,7 +417,12 @@ function handlePlaybackError(err) {
 function setupWebSocket() {
   connectToRoom(roomId.value);
 
-  onEvent('queue_updated', (msg) => {
+  const register = (eventType, handler) => {
+    onEvent(eventType, handler);
+    wsHandlers.push([eventType, handler]);
+  };
+
+  register('queue_updated', (msg) => {
     if (msg.queue) {
       queueItems.value = msg.queue.slice(1);
     } else {
@@ -422,7 +430,7 @@ function setupWebSocket() {
     }
   });
 
-  onEvent('song_changed', async (msg) => {
+  register('song_changed', async (msg) => {
     hasVotedSkip.value = false;
     if (msg.song && !msg.song.id) {
       currentSong.value = {
@@ -441,14 +449,14 @@ function setupWebSocket() {
         try {
           await apiPost('/playback/play', { song_id: currentSong.value.song.id });
         } catch (err) {
-          console.error('[auto-play failed]', err.detail || err.message);
+          handlePlaybackError(err);
         }
       }
     }
     loadQueue();
   });
 
-  onEvent('skip_vote', (msg) => {
+  register('skip_vote', (msg) => {
     if (currentSong.value && currentSong.value.id === msg.queue_item_id) {
       currentSong.value = { ...currentSong.value, votes_skip: msg.current_votes };
     }
@@ -462,7 +470,7 @@ function setupWebSocket() {
     }
   });
 
-  onEvent('playback_state_changed', async (msg) => {
+  register('playback_state_changed', async (msg) => {
     if (msg.status === 'playing') {
       isPlaying.value = true;
       await syncPlaybackPosition();
@@ -480,17 +488,30 @@ function setupWebSocket() {
     }
   });
 
-  onEvent('member_joined', () => loadMembers());
-  onEvent('member_left', () => loadMembers());
+  register('member_joined', () => loadMembers());
+  register('member_left', () => loadMembers());
 }
 
-async function leaveRoom() {
+function teardownWebSocket() {
+  for (const [eventType, handler] of wsHandlers) {
+    offEvent(eventType, handler);
+  }
+  wsHandlers.length = 0;
+  disconnect();
+}
+
+async function sendLeave() {
   try {
     await apiPost(`/rooms/${roomId.value}/leave`);
   } catch {
     // ignore
   }
-  disconnect();
+  teardownWebSocket();
+}
+
+async function leaveRoom() {
+  leaving = true;
+  await sendLeave();
   router.push('/rooms');
 }
 
