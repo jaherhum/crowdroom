@@ -29,7 +29,9 @@ export async function apiRequest(method, path, body = null) {
 
   if (response.status === 401 && tokenValue) {
     clearAuth();
-    router.push('/login');
+    if (router.currentRoute.value.path !== '/login') {
+      router.push('/login');
+    }
     return;
   }
 

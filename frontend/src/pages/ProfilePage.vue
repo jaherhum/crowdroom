@@ -59,11 +59,11 @@
             </div>
             <div class="connection-actions">
               <template v-if="spotifyConnected">
-                <button class="btn btn-secondary" @click="connectSpotify">Reconnect</button>
+                <button class="btn btn-secondary" :disabled="spotifyLoading" @click="connectSpotify">{{ spotifyLoading ? 'Connecting…' : 'Reconnect' }}</button>
                 <button class="btn btn-ghost btn-danger" @click="disconnectSpotify">Disconnect</button>
               </template>
               <template v-else-if="hasAppCredentials">
-                <button class="btn btn-primary" @click="connectSpotify">Connect</button>
+                <button class="btn btn-primary" :disabled="spotifyLoading" @click="connectSpotify">{{ spotifyLoading ? 'Connecting…' : 'Connect' }}</button>
                 <button class="btn btn-ghost" @click="showSpotifySetup = true">Change App</button>
               </template>
               <template v-else>
@@ -95,7 +95,7 @@
             </div>
             <div class="modal-actions" style="margin-top: var(--space-4);">
               <button type="button" class="btn btn-secondary" @click="showSpotifySetup = false">Cancel</button>
-              <button type="submit" class="btn btn-primary">Save & Connect</button>
+              <button type="submit" class="btn btn-primary" :disabled="spotifyLoading">{{ spotifyLoading ? 'Connecting…' : 'Save & Connect' }}</button>
             </div>
           </form>
         </div>
@@ -129,15 +129,23 @@ const hasAppCredentials = ref(false);
 const showSpotifySetup = ref(false);
 const spotifyClientId = ref('');
 const spotifyClientSecret = ref('');
+const spotifyLoading = ref(false);
 
 const redirectUri = computed(() => window.location.origin + '/api/v1/auth/spotify/callback');
 
 async function connectSpotify() {
+  if (spotifyLoading.value) return;
+  spotifyLoading.value = true;
   try {
     sessionStorage.setItem('spotify_return_page', '/profile');
     const { authorize_url } = await apiPost('/auth/spotify/start');
-    if (authorize_url) window.location.href = authorize_url;
+    if (authorize_url) {
+      window.location.href = authorize_url;
+    } else {
+      spotifyLoading.value = false;
+    }
   } catch (err) {
+    spotifyLoading.value = false;
     showToast(err.detail || 'Could not start Spotify connection');
   }
 }
@@ -196,10 +204,12 @@ async function changePassword() {
 }
 
 async function saveSpotifyCredentials() {
+  if (spotifyLoading.value) return;
   if (!spotifyClientId.value.trim() || !spotifyClientSecret.value.trim()) {
     showToast('Both fields are required');
     return;
   }
+  spotifyLoading.value = true;
   try {
     await apiPost('/platform-connections/', {
       platform: 'spotify',
@@ -208,6 +218,7 @@ async function saveSpotifyCredentials() {
     showSpotifySetup.value = false;
     await connectSpotify();
   } catch (err) {
+    spotifyLoading.value = false;
     showToast(err.detail || 'Invalid credentials');
   }
 }
