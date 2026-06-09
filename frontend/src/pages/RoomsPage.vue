@@ -214,7 +214,7 @@ async function joinRoom(targetRoomId, pin) {
 }
 
 async function joinByCode() {
-  const code = joinCode.value.trim();
+  const code = joinCode.value.trim().toUpperCase();
   if (!code) return;
   try {
     const room = await apiGet(`/rooms/code/${code}`);
