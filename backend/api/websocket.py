@@ -4,12 +4,73 @@ import asyncio
 import json
 import time
 from typing import Any
+from uuid import UUID
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    WebSocket,
+    WebSocketDisconnect,
+    WebSocketException,
+)
+from fastapi import status as ws_status
 
+from backend.api.users.dependencies import get_user_service
 from backend.core.config import settings
+from backend.core.security import SecurityService
+from backend.db.models.enum import TokenType
+from backend.db.models.user import User
+from backend.services.user_service import UserService
 
 router = APIRouter()
+
+
+async def authenticate_ws_connection(
+    websocket: WebSocket,
+    room_id: str,
+    user_service: UserService = Depends(get_user_service),
+) -> User:
+    """Authenticate a WebSocket handshake and verify room membership.
+
+    Reads the httpOnly auth cookie from the handshake, decodes the JWT, and
+    confirms the authenticated user is a member of (or the host of) the room.
+    The cookie is attached automatically by the browser since the frontend and
+    backend are served from the same origin.
+
+    Args:
+        websocket: The incoming WebSocket connection.
+        room_id: The room the client is attempting to join.
+        user_service: Service used to look up the authenticated user.
+
+    Returns:
+        The authenticated User who is authorized for this room.
+
+    Raises:
+        WebSocketException: With policy-violation code 1008 if the cookie is
+            missing/invalid, the room id is malformed, the user does not exist,
+            or the user is not a member of the room. FastAPI closes the
+            handshake before it is accepted.
+    """
+    policy_violation = WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION)
+
+    token = websocket.cookies.get(settings.AUTH_COOKIE_NAME)
+    if not token:
+        raise policy_violation
+
+    try:
+        payload = SecurityService(settings).decode_token(
+            token, expected_type=TokenType.ACCESS
+        )
+        user_id = UUID(payload["sub"])
+        room_uuid = UUID(room_id)
+    except Exception as exc:
+        raise policy_violation from exc
+
+    user = user_service.get_by_id(user_id)
+    if user is None or user.room_id != room_uuid:
+        raise policy_violation
+
+    return user
 
 
 class ConnectionManager:
@@ -152,8 +213,16 @@ async def _heartbeat_loop(websocket: WebSocket, room_id: str) -> None:
 
 
 @router.websocket("/{room_id}")
-async def websocket_endpoint(websocket: WebSocket, room_id: str) -> None:
-    """Accept client WebSocket connections with heartbeat monitoring.
+async def websocket_endpoint(
+    websocket: WebSocket,
+    room_id: str,
+    user: User = Depends(authenticate_ws_connection),
+) -> None:
+    """Accept authenticated client WebSocket connections with heartbeat monitoring.
+
+    The connection is authenticated and authorized by
+    :func:`authenticate_ws_connection` before it is accepted; unauthorized
+    handshakes are closed with code 1008 and never reach this body.
 
     Spawns a receive loop and a heartbeat loop as concurrent tasks.
     When either task ends (disconnect or heartbeat timeout), the
@@ -162,6 +231,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str) -> None:
     Args:
         websocket: The incoming WebSocket connection.
         room_id: The identifier of the room to join.
+        user: The authenticated, room-authorized user (injected).
     """
     await manager.connect(websocket, room_id)
     try:

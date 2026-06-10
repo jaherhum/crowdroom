@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+// Hoisted so the vi.mock factory can reference them. Mocks the router so the
+// 1008 redirect is observable without a real router/jsdom navigation.
+const { push, currentRoute } = vi.hoisted(() => ({
+  push: vi.fn(),
+  currentRoute: { value: { path: '/room/room-1' } },
+}));
+
+vi.mock('../router/index.js', () => ({
+  default: { push, currentRoute },
+}));
+
 // A controllable fake WebSocket. Instances are tracked so tests can drive
 // open/message/close/error transitions deterministically.
 const sockets = [];
@@ -44,9 +55,9 @@ class FakeWebSocket {
     this.listeners.message.forEach((fn) => fn({ data: JSON.stringify(obj) }));
   }
 
-  emitClose() {
+  emitClose(code) {
     this.readyState = FakeWebSocket.CLOSED;
-    this.listeners.close.forEach((fn) => fn());
+    this.listeners.close.forEach((fn) => fn({ code }));
   }
 
   emitError() {
@@ -58,6 +69,8 @@ let useWebSocket;
 
 beforeEach(async () => {
   sockets.length = 0;
+  push.mockClear();
+  currentRoute.value = { path: '/room/room-1' };
   vi.stubGlobal('WebSocket', FakeWebSocket);
   vi.stubGlobal('location', { protocol: 'http:', host: 'localhost:3000' });
   vi.useFakeTimers();
@@ -140,5 +153,26 @@ describe('useWebSocket', () => {
     sockets[0].emitError();
     vi.advanceTimersByTime(1000);
     expect(sockets).toHaveLength(2);
+  });
+
+  it('does not reconnect and redirects to /rooms on a 1008 close', () => {
+    const { connectToRoom, connected } = useWebSocket();
+    connectToRoom('room-1');
+    sockets[0].emitOpen();
+    sockets[0].emitClose(1008);
+    expect(connected.value).toBe(false);
+    expect(push).toHaveBeenCalledWith('/rooms');
+    // No reconnect attempt should ever fire.
+    vi.advanceTimersByTime(60000);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it('does not redirect again if already on /rooms', () => {
+    currentRoute.value = { path: '/rooms' };
+    const { connectToRoom } = useWebSocket();
+    connectToRoom('room-1');
+    sockets[0].emitOpen();
+    sockets[0].emitClose(1008);
+    expect(push).not.toHaveBeenCalled();
   });
 });
