@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router/index.js';
 import { fetchMe } from './composables/useAuth.js';
+import './composables/useTheme.js';
 
 // Self-hosted Phosphor icons (regular weight) — vendored via npm instead of a
 // CDN <link> so the app works offline and isn't blocked by third-party outages.
