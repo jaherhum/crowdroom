@@ -4,11 +4,21 @@ import logging
 from pathlib import Path
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Base directory for the backend (the folder where config.py resides is backend/core/)
 # So parent.parent is the 'backend' directory itself.
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+# Default database URLs derived from the deployment mode (AUTH_MODE):
+#   - LOCAL  -> SQLite (file inside the backend directory)
+#   - ONLINE -> PostgreSQL
+# These are only used when DATABASE_URL is not explicitly provided.
+DEFAULT_LOCAL_DATABASE_URL = f"sqlite:///{BACKEND_DIR}/crowdroom.db"
+DEFAULT_ONLINE_DATABASE_URL = (
+    "postgresql://crowdroom:crowdroom@localhost:5432/crowdroom"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +56,10 @@ class Settings(BaseSettings):
     AUTH_MODE: Literal["LOCAL", "ONLINE"] = "LOCAL"
 
     # Database
-    # Default to an absolute path inside the backend directory
-    DATABASE_URL: str = f"sqlite:///{BACKEND_DIR}/crowdroom.db"
+    # If left empty, the URL is derived from AUTH_MODE:
+    #   LOCAL  -> SQLite, ONLINE -> PostgreSQL (see _resolve_database_url below).
+    # Set DATABASE_URL explicitly to override the mode-based default.
+    DATABASE_URL: str = ""
 
     # Security
     SECRET_KEY: str
@@ -88,6 +100,25 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def _resolve_database_url(self) -> "Settings":
+        """Select the database backend based on the deployment mode.
+
+        When DATABASE_URL is not provided, derive it from AUTH_MODE:
+        - LOCAL  -> SQLite (single-file DB, no external service required)
+        - ONLINE -> PostgreSQL
+
+        An explicitly provided DATABASE_URL always takes precedence so that
+        deployments can point at any database they want.
+        """
+        if not self.DATABASE_URL:
+            self.DATABASE_URL = (
+                DEFAULT_ONLINE_DATABASE_URL
+                if self.AUTH_MODE == "ONLINE"
+                else DEFAULT_LOCAL_DATABASE_URL
+            )
+        return self
 
 
 settings = Settings()
