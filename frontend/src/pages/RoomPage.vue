@@ -192,11 +192,17 @@
       @click.self="cancelLeave"
     >
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="leave-modal-title">
-        <h3 id="leave-modal-title">Leave this room?</h3>
-        <p class="text-tertiary">You can rejoin later with the room code.</p>
+        <h3 id="leave-modal-title">{{ isHost ? 'Close this room?' : 'Leave this room?' }}</h3>
+        <p class="text-tertiary">
+          {{ isHost
+            ? 'You are the host. Leaving will close the room for everyone.'
+            : 'You can rejoin later with the room code.' }}
+        </p>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" @click="cancelLeave">Cancel</button>
-          <button type="button" class="btn btn-danger" @click="confirmLeave">Leave</button>
+          <button type="button" class="btn btn-danger" @click="confirmLeave">
+            {{ isHost ? 'Close room' : 'Leave' }}
+          </button>
         </div>
       </div>
     </div>
@@ -274,6 +280,14 @@ let searchController = null;
 const wsHandlers = [];
 let leaving = false;
 
+function handleBeforeUnload() {
+  if (leaving || !roomId.value) return;
+  navigator.sendBeacon(
+    `/api/v1/rooms/${roomId.value}/leave`,
+    new Blob([], { type: 'application/json' })
+  );
+}
+
 onMounted(async () => {
   if (!roomId.value) {
     router.push('/rooms');
@@ -286,12 +300,14 @@ onMounted(async () => {
     await Promise.all([loadQueue(), loadCurrentSong(), loadMembers(), loadHistory()]);
     await loadPlaybackState();
     setupWebSocket();
+    window.addEventListener('beforeunload', handleBeforeUnload);
   } catch (err) {
     showToast(err.detail || 'Failed to load room');
   }
 });
 
 onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
   teardownWebSocket();
   clearTimeout(searchTimeout);
   if (searchController) searchController.abort();
