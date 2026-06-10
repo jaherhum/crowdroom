@@ -26,23 +26,48 @@ class PlatformConnectionService:
     ) -> PlatformConnection:
         """Validate and store platform credentials for a user.
 
+        Upserts: if a connection already exists for this user+platform,
+        updates its credentials. Otherwise creates a new one.
+
         Args:
             user_id: UUID of the user connecting their account.
             data: Platform type and raw credentials to store.
 
         Returns:
-            Created PlatformConnection record.
+            Created or updated PlatformConnection record.
 
         Raises:
             InvalidPlatformCredentialsException: If platform rejects credentials.
         """
         await SpotifyAuthAdapter.validate_credentials(data.credentials)
+
+        existing = self._repo.get_by_user_and_platform(user_id, data.platform)
+        if existing:
+            existing.credentials_encrypted = encrypt_data(data.credentials)
+            return self._repo.update(existing)
+
         connection = PlatformConnection(
             user_id=user_id,
             platform=data.platform,
             credentials_encrypted=encrypt_data(data.credentials),
         )
         return self._repo.create(connection)
+
+    def get_spotify_app_credentials(self, user_id: UUID) -> dict[str, str] | None:
+        """Return decrypted Spotify app credentials (client_id/secret) for user.
+
+        Args:
+            user_id: UUID of the user.
+
+        Returns:
+            Dict with client_id and client_secret, or None if not stored.
+        """
+        connection = self._repo.get_by_user_and_platform(
+            user_id, StreamingPlatforms.SPOTIFY
+        )
+        if not connection or not connection.credentials_encrypted:
+            return None
+        return decrypt_data(connection.credentials_encrypted)
 
     def get_connections(self, user_id: UUID) -> list[PlatformConnection]:
         """Retrieve all platform connections for a user.
@@ -141,27 +166,80 @@ class PlatformConnectionService:
             )
 
         buffer = timedelta(minutes=5)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        if connection.token_expires_at and connection.token_expires_at - now < buffer:
+        expires_at = connection.token_expires_at
+        if expires_at and expires_at.tzinfo is not None:
+            expires_at = expires_at.replace(tzinfo=None)
+
+        if not expires_at or expires_at - now < buffer:
             return await self._refresh_access_token(connection)
 
         token_data = decrypt_data(connection.access_token_encrypted)
         return token_data["access_token"]
 
+    async def force_refresh_token(
+        self, user_id: UUID, platform: StreamingPlatforms
+    ) -> str:
+        """Force a token refresh regardless of expiry time.
+
+        Args:
+            user_id: UUID of the token owner.
+            platform: Target streaming platform.
+
+        Returns:
+            Fresh access token string.
+
+        Raises:
+            EntityNotFoundException: If no OAuth connection exists.
+        """
+        connection = self._repo.get_by_user_and_platform(user_id, platform)
+        if not connection:
+            raise EntityNotFoundException(
+                "PlatformConnection (OAuth)", f"{user_id}:{platform.value}"
+            )
+        return await self._refresh_access_token(connection)
+
+    def _resolve_app_credentials(
+        self, connection: PlatformConnection
+    ) -> tuple[str, str]:
+        """Get client_id and client_secret for a connection.
+
+        Uses per-user credentials if stored, falls back to global settings.
+
+        Args:
+            connection: The PlatformConnection to resolve credentials for.
+
+        Returns:
+            Tuple of (client_id, client_secret).
+        """
+        from backend.core.config import settings
+
+        if connection.credentials_encrypted:
+            creds = decrypt_data(connection.credentials_encrypted)
+            if creds.get("client_id") and creds.get("client_secret"):
+                return creds["client_id"], creds["client_secret"]
+        return settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET
+
     async def _refresh_access_token(self, connection: PlatformConnection) -> str:
         """Refresh an expired OAuth access token via Spotify's token endpoint.
+
+        Uses per-user app credentials if available, falls back to settings.
 
         Args:
             connection: PlatformConnection with refresh token stored.
 
         Returns:
             New decrypted access token string.
+
+        Raises:
+            InvalidPlatformCredentialsException: If refresh token is revoked.
         """
-        from backend.core.config import settings
+        from backend.core.exceptions import InvalidPlatformCredentialsException
 
         refresh_data = decrypt_data(connection.refresh_token_encrypted)
         refresh_token = refresh_data["refresh_token"]
+        client_id, client_secret = self._resolve_app_credentials(connection)
 
         import httpx
 
@@ -171,10 +249,14 @@ class PlatformConnectionService:
                 data={
                     "grant_type": "refresh_token",
                     "refresh_token": refresh_token,
-                    "client_id": settings.SPOTIFY_CLIENT_ID,
-                    "client_secret": settings.SPOTIFY_CLIENT_SECRET,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
                 },
             )
+            if response.status_code in (400, 401):
+                raise InvalidPlatformCredentialsException(
+                    "Spotify refresh token revoked. Please reconnect."
+                )
             response.raise_for_status()
             token_response = response.json()
 
@@ -184,9 +266,9 @@ class PlatformConnectionService:
         connection.access_token_encrypted = encrypt_data(
             {"access_token": new_access_token}
         )
-        connection.token_expires_at = datetime.now(timezone.utc) + timedelta(
-            seconds=expires_in
-        )
+        connection.token_expires_at = datetime.now(timezone.utc).replace(
+            tzinfo=None
+        ) + timedelta(seconds=expires_in)
 
         if "refresh_token" in token_response:
             connection.refresh_token_encrypted = encrypt_data(

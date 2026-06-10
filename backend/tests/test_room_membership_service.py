@@ -32,7 +32,9 @@ class TestJoinRoom:
 
     @pytest.fixture
     def mock_user_repo(self):
-        return MagicMock(spec=UserRepository)
+        mock = MagicMock(spec=UserRepository)
+        mock.count_by_room.return_value = 1
+        return mock
 
     @pytest.fixture
     def mock_room_repo(self):
@@ -68,6 +70,7 @@ class TestJoinRoom:
         mock_room.host_user_id = uuid4()
         mock_room.room_name = "Public Room"
         mock_room.is_private = False
+        mock_room.settings = {"skip_threshold": 2, "max_members": 50}
         return mock_room
 
     @pytest.fixture
@@ -77,6 +80,7 @@ class TestJoinRoom:
         mock_room.host_user_id = uuid4()
         mock_room.room_name = "Private Room"
         mock_room.is_private = True
+        mock_room.settings = {"skip_threshold": 2, "max_members": 50}
         return mock_room
 
     def test_join_public_room_success(
@@ -125,9 +129,7 @@ class TestJoinRoom:
                 "backend.services.room_membership_service.manager"
             ) as mock_manager:
                 mock_manager.broadcast = mock_broadcast
-                await membership_service.join_room(
-                    private_room.id, user, "1234", None
-                )
+                await membership_service.join_room(private_room.id, user, "1234", None)
 
         anyio.run(_run)
 
@@ -179,12 +181,38 @@ class TestJoinRoom:
                 "backend.services.room_membership_service.manager"
             ) as mock_manager:
                 mock_manager.broadcast = AsyncMock()
-                await membership_service.join_room(
-                    private_room.id, user
-                )
+                await membership_service.join_room(private_room.id, user)
 
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
+
+    def test_host_joins_own_private_room_without_credentials(
+        self,
+        membership_service,
+        mock_room_service,
+        mock_invite_service,
+        mock_user_repo,
+        user,
+        private_room,
+    ):
+        # The host owns this private room: entering it must not require a PIN
+        # or invite. Regression for the 403 thrown when creating a private room.
+        private_room.host_user_id = user.id
+        mock_room_service.get_room.return_value = private_room
+        mock_broadcast = AsyncMock()
+
+        async def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = mock_broadcast
+                await membership_service.join_room(private_room.id, user)
+
+        anyio.run(_run)
+
+        assert user.room_id == private_room.id
+        mock_user_repo.save.assert_called_once_with(user)
+        mock_invite_service.validate_and_consume_invite.assert_not_called()
 
     def test_join_private_room_wrong_pin_forbidden(
         self,
@@ -203,9 +231,7 @@ class TestJoinRoom:
                 "backend.services.room_membership_service.manager"
             ) as mock_manager:
                 mock_manager.broadcast = AsyncMock()
-                await membership_service.join_room(
-                    private_room.id, user, "0000", None
-                )
+                await membership_service.join_room(private_room.id, user, "0000", None)
 
         with pytest.raises(ForbiddenException):
             anyio.run(_run)
@@ -243,9 +269,7 @@ class TestJoinRoom:
         mock_room_service.get_room.assert_not_called()
         mock_user_repo.save.assert_not_called()
 
-    def test_join_room_not_found(
-        self, membership_service, mock_room_service, user
-    ):
+    def test_join_room_not_found(self, membership_service, mock_room_service, user):
         room_id = uuid4()
         mock_room_service.get_room.side_effect = EntityNotFoundException(
             "Room", room_id
@@ -269,7 +293,9 @@ class TestLeaveRoom:
 
     @pytest.fixture
     def mock_user_repo(self):
-        return MagicMock(spec=UserRepository)
+        mock = MagicMock(spec=UserRepository)
+        mock.count_by_room.return_value = 1
+        return mock
 
     @pytest.fixture
     def mock_room_repo(self):

@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from backend.api.websocket import manager
-from backend.core.exceptions import EntityNotFoundException
+from backend.core.exceptions import EntityExistsException, EntityNotFoundException
 from backend.core.room_code import CHARSET, ROOM_CODE_LENGTH
 from backend.core.security import SecurityService
 from backend.db.models.room import Room
@@ -21,7 +21,10 @@ from backend.services.room_service import MAX_CODE_RETRIES, RoomService
 class TestRoomService:
     @pytest.fixture
     def mock_room_repo(self):
-        return MagicMock(spec=RoomRepository)
+        mock = MagicMock(spec=RoomRepository)
+        # By default the host owns no room yet, so create_room is allowed.
+        mock.get_by_host.return_value = None
+        return mock
 
     @pytest.fixture
     def mock_security_service(self):
@@ -111,6 +114,21 @@ class TestRoomService:
 
         assert result == mock_room
         mock_room_repo.create.assert_called_once()
+
+    def test_create_room_rejected_when_host_already_owns_one(
+        self, room_service, mock_room_repo
+    ):
+        # A user may only own one room at a time.
+        host_id = uuid4()
+        room_data = CreateRoom(
+            host_user_id=host_id, room_name="Second Room", is_private=False
+        )
+        mock_room_repo.get_by_host.return_value = MagicMock(spec=Room)
+
+        with pytest.raises(EntityExistsException):
+            room_service.create_room(room_data)
+
+        mock_room_repo.create.assert_not_called()
 
     def test_update_room_success(self, room_service, mock_room_repo):
         room_id = uuid4()
@@ -372,20 +390,20 @@ class TestRoomService:
 
         result = room_service.create_room(room_data)
 
-        assert result.settings == {"skip_threshold": 2}
+        assert result.settings == {"skip_threshold": 2, "max_members": 50}
 
     def test_create_room_custom_settings(self, room_service, mock_room_repo):
         room_data = CreateRoom(
             host_user_id=uuid4(),
             room_name="Custom",
             is_private=False,
-            settings=RoomSettings(skip_threshold=5),
+            settings=RoomSettings(skip_threshold=5, max_members=20),
         )
         mock_room_repo.create.side_effect = lambda room: room
 
         result = room_service.create_room(room_data)
 
-        assert result.settings == {"skip_threshold": 5}
+        assert result.settings == {"skip_threshold": 5, "max_members": 20}
 
     def test_settings_skip_threshold_too_low(self):
         with pytest.raises(ValueError):

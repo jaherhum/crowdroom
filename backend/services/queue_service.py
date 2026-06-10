@@ -4,11 +4,23 @@ from uuid import UUID
 
 from backend.api.websocket import manager
 from backend.core.exceptions import EntityNotFoundException
+from backend.db.models.enum import ItemStatus
 from backend.db.models.queue_item import QueueItem
 from backend.repositories.queue_repo import QueueRepository
 from backend.repositories.session_repo import SessionRepository
-from backend.schemas.queue_item import ReadQueueItem
+from backend.schemas.queue_item import ReadQueueItemDetail
 from backend.schemas.song import ReadSong
+
+# Playback states that mean a track is actively occupying the player. Adding a
+# song while any of these is set must NOT auto-start the new song.
+_ACTIVE_PLAYBACK_STATES = frozenset(
+    {
+        ItemStatus.NOW_PLAYING,
+        ItemStatus.PLAYING,
+        ItemStatus.PAUSED,
+        ItemStatus.BUFFERING,
+    }
+)
 
 
 class QueueService:
@@ -57,9 +69,32 @@ class QueueService:
             session_id, song_id, added_by_user_id, group
         )
         await self._broadcast_queue_updated(session_id, action="added")
-        if item.position == 0:
+        # Only announce a song_changed (which makes the host auto-start playback)
+        # when nothing is currently occupying the player. `item.position == 0` is
+        # NOT a reliable "queue was empty" signal because positions are scoped
+        # per-group: the first song added to an empty group always lands at
+        # position 0 even while another group's track is playing. Checking the
+        # session's live playback state prevents the player from jumping to a
+        # freshly-queued song.
+        if item.position == 0 and not self._is_playback_active(session_id):
             await self._broadcast_song_changed(session_id, item.song)
         return item
+
+    def _is_playback_active(self, session_id: UUID) -> bool:
+        """Return True if the session already has a track occupying the player.
+
+        Used to decide whether adding a song should auto-start it. A song should
+        only auto-start when the player is idle (no current song and no active
+        playback status).
+        """
+        if not self._session_repo:
+            return False
+        session_obj = self._session_repo.get_by_id(session_id)
+        if not session_obj:
+            return False
+        if session_obj.current_song_id:
+            return True
+        return session_obj.playback_status in _ACTIVE_PLAYBACK_STATES
 
     async def remove_from_queue(self, queue_item_id: UUID) -> None:
         """Remove a song from the queue.
@@ -151,7 +186,7 @@ class QueueService:
         room_id = session_obj.room_id
         queue_items = self.get_queue(session_id)
         queue_payload = [
-            ReadQueueItem.model_validate(item).model_dump(mode="json")
+            ReadQueueItemDetail.model_validate(item).model_dump(mode="json")
             for item in queue_items
         ]
 

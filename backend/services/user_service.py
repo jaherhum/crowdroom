@@ -81,8 +81,7 @@ class UserService:
         Returns:
             User | None: The user model if found, otherwise None.
         """
-        user = self._user_repo.get_by_identifier(identifier)
-        return UserRead.model_validate(user) if user else None
+        return self._user_repo.get_by_identifier(identifier)
 
     def create_user(self, user_data: UserCreate) -> UserRead:
         """Creates a new user in the system.
@@ -94,9 +93,14 @@ class UserService:
             UserRead: The newly created user schema.
         """
         data = user_data.model_dump()
-        plain_password = data.pop("password")
+        password_field = data.pop("password")
 
-        if plain_password:
+        if password_field is not None:
+            plain_password = (
+                password_field.get_secret_value()
+                if hasattr(password_field, "get_secret_value")
+                else password_field
+            )
             data["hashed_password"] = self._security_service.generate_password_hash(
                 password=plain_password
             )
@@ -140,6 +144,22 @@ class UserService:
 
         updated_user = self._user_repo.save(db_user)
         return UserRead.model_validate(updated_user)
+
+    def update_user_password(self, user_id: UUID, hashed_password: str) -> None:
+        """Set the hashed password on an existing user.
+
+        Args:
+            user_id: The user's unique identifier.
+            hashed_password: The pre-hashed password to store.
+
+        Raises:
+            EntityNotFoundException: If no user is found with the given ID.
+        """
+        db_user = self._user_repo.get_by_id(user_id)
+        if not db_user:
+            raise EntityNotFoundException("User", user_id)
+        db_user.hashed_password = hashed_password
+        self._user_repo.save(db_user)
 
     def delete_user(self, user_id: UUID) -> None:
         """Deletes a user from the system.

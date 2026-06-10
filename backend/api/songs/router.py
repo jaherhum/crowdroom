@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.songs.dependencies import get_song_service
 from backend.schemas.song import CreateSong, ReadSong, UpdateSong
@@ -24,6 +24,38 @@ async def get_songs(
         list[ReadSong]: A list of song schemas.
     """
     return song_service.get_all_songs()
+
+
+@router.get(
+    "/by-external/{external_id}",
+    response_model=ReadSong,
+    status_code=status.HTTP_200_OK,
+)
+async def get_song_by_external_id(
+    external_id: str,
+    platform: str = "spotify",
+    song_service: SongService = Depends(get_song_service),
+) -> ReadSong:
+    """Retrieve a song by its external platform ID.
+
+    Args:
+        external_id: The platform-specific track identifier.
+        platform: The streaming platform name (default: spotify).
+        song_service: The injected song service.
+
+    Returns:
+        ReadSong: The song schema.
+
+    Raises:
+        HTTPException: 404 if no song found with the given external_id.
+    """
+    song = song_service.get_by_external_id(external_id, platform)
+    if not song:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Song with external_id '{external_id}' not found.",
+        )
+    return song
 
 
 @router.get("/{song_id}", response_model=ReadSong, status_code=status.HTTP_200_OK)

@@ -2,9 +2,10 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.api.session.dependencies import get_playback_service, get_session_service
+from backend.core.exceptions import EntityNotFoundException
 from backend.schemas.playback import FinishResponse
 from backend.schemas.session import CreateSession, ReadSession, UpdateSession
 from backend.services.playback_service import PlaybackService
@@ -27,6 +28,29 @@ async def get_sessions(
     """
     sessions = session_service.get_all_sessions()
     return [ReadSession.model_validate(s) for s in sessions]
+
+
+@router.get(
+    "/by-room/{room_id}", response_model=ReadSession, status_code=status.HTTP_200_OK
+)
+async def get_session_by_room(
+    room_id: UUID,
+    session_service: SessionService = Depends(get_session_service),
+) -> ReadSession:
+    """Retrieves the session for a given room.
+
+    Args:
+        room_id: The unique identifier of the room.
+        session_service: The injected session service.
+
+    Returns:
+        ReadSession: The session schema.
+    """
+    try:
+        session = session_service.get_session_by_room(room_id)
+    except EntityNotFoundException as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ReadSession.model_validate(session)
 
 
 @router.get("/{session_id}", response_model=ReadSession, status_code=status.HTTP_200_OK)

@@ -40,6 +40,5 @@ class PlatformConnection(SQLModel, table=True):
     token_expires_at: datetime | None = Field(default=None)
     scopes: str | None = Field(default=None)
 
-
     # Relations
     user: "User" = Relationship(back_populates="platform_connections")

@@ -128,7 +128,7 @@ async def _receive_loop(websocket: WebSocket, room_id: str) -> None:
             msg = json.loads(data)
             if isinstance(msg, dict) and msg.get("type") == "pong":
                 manager.record_pong(websocket)
-        except (json.JSONDecodeError, AttributeError):
+        except json.JSONDecodeError, AttributeError:
             pass
 
 

@@ -55,6 +55,7 @@ def get_room_service(
     """
     return RoomService(room_repo, SecurityService(settings))
 
+
 def get_room_membership_service(
     room_service: RoomService = Depends(get_room_service),
     user_repo: UserRepository = Depends(get_user_repo),
@@ -74,6 +75,4 @@ def get_room_membership_service(
     """
     invite_repo = RoomInviteRepository(session)
     invite_service = RoomInviteService(invite_repo, room_repo, user_repo, room_service)
-    return RoomMembershipService(
-        room_service, invite_service, user_repo, room_repo
-    )
+    return RoomMembershipService(room_service, invite_service, user_repo, room_repo)

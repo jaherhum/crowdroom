@@ -29,6 +29,7 @@ class TestPlatformConnectionServiceConnect:
     def test_connect_success(self, mock_encrypt, mock_auth, service, mock_repo):
         mock_auth.validate_credentials = AsyncMock()
         mock_encrypt.return_value = "encrypted_blob"
+        mock_repo.get_by_user_and_platform.return_value = None
         mock_repo.create.return_value = MagicMock(spec=PlatformConnection)
 
         user_id = uuid4()

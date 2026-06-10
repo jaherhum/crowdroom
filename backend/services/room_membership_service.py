@@ -64,17 +64,24 @@ class RoomMembershipService:
         if user.room_id == room_id:
             return
         room = self._room_service.get_room(room_id)
+
+        max_members = room.settings.get("max_members", 50)
+        current_count = self._user_repo.count_by_room(room_id)
+        if current_count >= max_members:
+            raise ForbiddenException("Room is full")
+
         if room.is_private:
-            token_validation = (
-                self._room_invite_service.validate_and_consume_invite(
+            # The host always has access to their own room and never needs a
+            # PIN or invite to enter it.
+            if room.host_user_id != user.id:
+                token_ok = self._room_invite_service.validate_and_consume_invite(
                     invite_token, room_id
                 )
-            )
-            if not token_validation:
-                if pin and self._room_service.verify_pin(room_id, pin):
-                    pass
-                else:
-                    raise ForbiddenException()
+                if not token_ok:
+                    if pin and self._room_service.verify_pin(room_id, pin):
+                        pass
+                    else:
+                        raise ForbiddenException()
 
         user.room_id = room_id
         self._user_repo.save(user)
@@ -129,11 +136,9 @@ class RoomMembershipService:
         await manager.broadcast(
             {
                 "type": "room_closed",
-                "payload": {
-                    "reason": "host_left"
-                },
+                "payload": {"reason": "host_left"},
             },
-            str(room.id)
+            str(room.id),
         )
 
         for member in room.users:

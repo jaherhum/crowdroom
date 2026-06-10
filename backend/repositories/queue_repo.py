@@ -93,26 +93,49 @@ class QueueRepository:
             raise
 
     def delete(self, queue_item_id: UUID) -> bool:
-        """Delete a queue item by ID.
+        """Delete a queue item and shift subsequent positions down.
 
         Atomic under both SQLite and PostgreSQL via the configured locker.
         Returns True if deleted, False if item didn't exist.
 
         Raises:
-            EntityNotFoundException: If the queue item does not exist.
+            IntegrityError: If a constraint violation occurs during shift.
         """
         self._session.expire_on_commit = False
 
         with _make_lock(self._session):
             queue_item = self._session.get(QueueItem, queue_item_id)
-            if queue_item:
-                try:
-                    self._session.delete(queue_item)
-                    self._session.commit()
-                    return True
-                except IntegrityError:
-                    self._session.rollback()
-                    raise
+            if not queue_item:
+                return False
+
+            session_id = queue_item.session_id
+            group = queue_item.group
+            position = queue_item.position
+
+            try:
+                self._session.delete(queue_item)
+                self._session.flush()
+
+                subsequent = self._session.exec(
+                    select(QueueItem)
+                    .where(
+                        QueueItem.session_id == session_id,
+                        QueueItem.group == group,
+                        QueueItem.position > position,
+                    )
+                    .order_by(QueueItem.position)
+                ).all()
+
+                for item in subsequent:
+                    item.position -= 1
+                    self._session.add(item)
+                    self._session.flush()
+
+                self._session.commit()
+                return True
+            except IntegrityError:
+                self._session.rollback()
+                raise
 
         return False
 
@@ -194,17 +217,22 @@ class QueueRepository:
         return self._session.exec(stmt).one()
 
     def get_first_item(self, session_id: UUID) -> QueueItem | None:
-        """Retrieve the currently playing song (position 0) for a session.
+        """Retrieve the currently playing song (lowest position) for a session.
 
         Args:
             session_id: The session whose current song to retrieve.
 
         Returns:
-            The QueueItem at position 0, or None if no item exists.
+            The QueueItem at the lowest position, or None if queue is empty.
         """
-        stmt = select(QueueItem).where(
-            QueueItem.session_id == session_id,
-            QueueItem.position == 0,
+        stmt = (
+            select(QueueItem)
+            .where(QueueItem.session_id == session_id)
+            .order_by(
+                case((QueueItem.group == "manual", 0), else_=1),
+                QueueItem.position,
+            )
+            .limit(1)
         )
         return self._session.exec(stmt).first()
 

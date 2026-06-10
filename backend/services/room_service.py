@@ -5,7 +5,11 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 
 from backend.api.websocket import manager
-from backend.core.exceptions import EntityNotFoundException, ForbiddenException
+from backend.core.exceptions import (
+    EntityExistsException,
+    EntityNotFoundException,
+    ForbiddenException,
+)
 from backend.core.room_code import generate_room_code
 from backend.core.security import SecurityService
 from backend.db.models.room import Room
@@ -132,8 +136,13 @@ class RoomService:
             The newly created room.
 
         Raises:
+            EntityExistsException: If the host already owns a room (one room
+                per host).
             IntegrityError: If room code generation exhausts all retries.
         """
+        if self._room_repo.get_by_host(room_data.host_user_id) is not None:
+            raise EntityExistsException("Room")
+
         pin_hash = None
         if room_data.pin is not None:
             pin_hash = self._security_service.generate_password_hash(room_data.pin)

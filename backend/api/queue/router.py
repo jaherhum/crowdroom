@@ -12,7 +12,11 @@ from backend.api.queue.dependencies import (
 from backend.api.session.dependencies import get_queue_vote_service
 from backend.db.models.user import User
 from backend.schemas.queue_history import ReadQueueHistory
-from backend.schemas.queue_item import CreateQueueItem, ReadQueueItem
+from backend.schemas.queue_item import (
+    CreateQueueItem,
+    ReadQueueItem,
+    ReadQueueItemDetail,
+)
 from backend.schemas.queue_vote import CreateQueueVote, ReadQueueVote
 from backend.services.queue_service import QueueService
 from backend.services.queue_vote_service import QueueVoteService
@@ -22,51 +26,53 @@ router = APIRouter(prefix="/queue", tags=["queue"])
 
 @router.get(
     "/current",
-    response_model=ReadQueueItem | None,
+    response_model=ReadQueueItemDetail | None,
     status_code=status.HTTP_200_OK,
 )
 def get_current_song(
     session_id: UUID,
     queue_service: QueueService = Depends(get_queue_service),
-) -> ReadQueueItem | None:
+) -> ReadQueueItemDetail | None:
     """Retrieve the currently playing song for a session.
 
-    Returns the queue item at position 0 (the now-playing slot) and
-    validates it against the database before returning.
+    Returns the queue item at position 0 (the now-playing slot) with
+    nested song and user data.
 
     Args:
         session_id: The session whose current song to retrieve.
         queue_service: Dependency-injected queue service instance.
 
     Returns:
-        ReadQueueItem schema for the currently playing item, or None if
+        ReadQueueItemDetail with song and user info, or None if
         the session has no active playback.
     """
     item = queue_service.get_current_song(session_id)
     if item is None:
         return None
-    return ReadQueueItem.model_validate(item)
+    return ReadQueueItemDetail.model_validate(item)
 
 
-@router.get("/", response_model=list[ReadQueueItem], status_code=status.HTTP_200_OK)
+@router.get(
+    "/", response_model=list[ReadQueueItemDetail], status_code=status.HTTP_200_OK
+)
 def get_queue(
     session_id: UUID,
     queue_service: QueueService = Depends(get_queue_service),
-) -> list[ReadQueueItem]:
+) -> list[ReadQueueItemDetail]:
     """Retrieve the full queue for a session, ordered by position.
 
     Returns all queued items sorted by group priority (manual first) then
-    ascending position number.
+    ascending position number, with nested song and user data.
 
     Args:
         session_id: The session whose queue to retrieve.
         queue_service: Dependency-injected queue service instance.
 
     Returns:
-        A list of ReadQueueItem schemas ordered by playback position.
+        A list of ReadQueueItemDetail schemas ordered by playback position.
     """
     items = queue_service.get_queue(session_id)
-    return [ReadQueueItem.model_validate(item) for item in items]
+    return [ReadQueueItemDetail.model_validate(item) for item in items]
 
 
 @router.post("/", response_model=ReadQueueItem, status_code=status.HTTP_201_CREATED)
@@ -98,6 +104,59 @@ async def add_to_queue(
     return ReadQueueItem.model_validate(item)
 
 
+@router.post("/vote", response_model=ReadQueueVote, status_code=status.HTTP_201_CREATED)
+async def vote_skip(
+    data: CreateQueueVote,
+    queue_vote_service: QueueVoteService = Depends(get_queue_vote_service),
+    current_user: User = Depends(get_current_user),
+) -> ReadQueueVote:
+    """Cast a skip vote for a specific queue item.
+
+    A user may only vote once per queue item. If the vote count reaches
+    the room's skip threshold (configurable via room settings), the
+    song will automatically advance to the next track. The voting user
+    is taken from the authenticated request.
+
+    Args:
+        data: Schema containing the queue_item_id to vote on.
+        queue_vote_service: Dependency-injected queue vote service instance.
+        current_user: Authenticated user casting the vote.
+
+    Returns:
+        ReadQueueVote schema for the newly cast vote.
+
+    Raises:
+        EntityExistsException: If the user has already voted on this item.
+    """
+    vote = await queue_vote_service.cast_vote(
+        queue_item_id=data.queue_item_id,
+        user_id=current_user.id,
+    )
+    return ReadQueueVote.model_validate(vote)
+
+
+@router.delete("/vote", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_vote_skip(
+    queue_item_id: UUID,
+    queue_vote_service: QueueVoteService = Depends(get_queue_vote_service),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Retract a previously cast skip vote (undo).
+
+    Args:
+        queue_item_id: UUID of the queue item to retract the vote from.
+        queue_vote_service: Dependency-injected queue vote service instance.
+        current_user: Authenticated user retracting the vote.
+
+    Raises:
+        EntityNotFoundException: If no vote exists for this user/item pair.
+    """
+    await queue_vote_service.remove_vote(
+        queue_item_id=queue_item_id,
+        user_id=current_user.id,
+    )
+
+
 @router.delete("/{queue_item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_from_queue(
     queue_item_id: UUID,
@@ -116,34 +175,6 @@ async def remove_from_queue(
         EntityNotFoundException: If no queue item exists with the given ID.
     """
     await queue_service.remove_from_queue(queue_item_id)
-
-
-@router.post("/vote", response_model=ReadQueueVote, status_code=status.HTTP_201_CREATED)
-async def vote_skip(
-    data: CreateQueueVote,
-    queue_vote_service: QueueVoteService = Depends(get_queue_vote_service),
-) -> ReadQueueVote:
-    """Cast a skip vote for a specific queue item.
-
-    A user may only vote once per queue item. If the vote count reaches
-    the room's skip threshold (configurable via room settings), the
-    song will automatically advance to the next track.
-
-    Args:
-        data: Schema containing queue_item_id and user_id.
-        queue_vote_service: Dependency-injected queue vote service instance.
-
-    Returns:
-        ReadQueueVote schema for the newly cast vote.
-
-    Raises:
-        EntityExistsException: If the user has already voted on this item.
-    """
-    vote = await queue_vote_service.cast_vote(
-        queue_item_id=data.queue_item_id,
-        user_id=data.user_id,
-    )
-    return ReadQueueVote.model_validate(vote)
 
 
 @router.get(

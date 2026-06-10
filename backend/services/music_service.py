@@ -4,6 +4,7 @@ from uuid import UUID
 
 from backend.adapters.base import BaseAdapter
 from backend.adapters.factory import AdapterFactory
+from backend.db.models.enum import StreamingPlatforms
 from backend.repositories.room_repo import RoomRepository
 from backend.repositories.session_repo import SessionRepository
 from backend.schemas.song_metadata import ReadSongMetadata
@@ -24,21 +25,40 @@ class MusicService:
         self._session_repo = session_repo
 
     def _get_adapter(self, room_id: UUID) -> BaseAdapter:
-        """Resolve room to its host's configured adapter.
+        """Resolve room to its configured search adapter using host credentials.
 
         Args:
-            room_id: UUID of the room whose host credentials to use.
+            room_id: UUID of the room whose platform to use.
 
         Returns:
             Configured adapter for the session's current platform.
+
+        Raises:
+            EntityNotFoundException: If host has no app credentials for the platform.
         """
         session = self._session_repo.get_by_room(room_id)
         room = self._room_repo.get_by_id(room_id)
+
+        if session.current_platform == StreamingPlatforms.SPOTIFY:
+            user_creds = self._platform_connection_service.get_spotify_app_credentials(
+                room.host_user_id
+            )
+            if not user_creds:
+                from backend.core.exceptions import EntityNotFoundException
+
+                raise EntityNotFoundException(
+                    "Spotify credentials", str(room.host_user_id)
+                )
+            credentials = {
+                "client_id": user_creds["client_id"],
+                "client_secret": user_creds["client_secret"],
+            }
+            return AdapterFactory.create(session.current_platform, credentials)
+
         credentials = self._platform_connection_service.get_decrypted_credentials(
             room.host_user_id, session.current_platform
         )
-        adapter = AdapterFactory.create(session.current_platform, credentials)
-        return adapter
+        return AdapterFactory.create(session.current_platform, credentials)
 
     async def search(self, room_id: UUID, query: str) -> list[ReadSongMetadata]:
         """Search for tracks using the room's configured platform.

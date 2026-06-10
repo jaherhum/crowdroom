@@ -159,13 +159,12 @@ class TestWebSocketMultiClient:
         room_b = str(uuid4())
         with client.websocket_connect(f"/ws/{room_a}") as websocket_a:
             with client.websocket_connect(f"/ws/{room_b}") as websocket_b:
+
                 async def broadcast():
                     await manager.broadcast(
                         {"type": "for_room_a_only", "data": "secret"}, room_a
                     )
-                    await manager.broadcast(
-                        {"type": "sentinel"}, room_b
-                    )
+                    await manager.broadcast({"type": "sentinel"}, room_b)
 
                 anyio.run(broadcast)
 

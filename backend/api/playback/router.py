@@ -47,7 +47,7 @@ async def play(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(
@@ -67,9 +67,7 @@ async def pause(
             detail="User is not in any room",
         )
     try:
-        await service.pause(
-            room_id=current_user.room_id, user_id=current_user.id
-        )
+        await service.pause(room_id=current_user.room_id, user_id=current_user.id)
     except ForbiddenException as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
@@ -81,7 +79,7 @@ async def pause(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(
@@ -101,9 +99,7 @@ async def skip(
             detail="User is not in any room",
         )
     try:
-        await service.skip(
-            room_id=current_user.room_id, user_id=current_user.id
-        )
+        await service.skip(room_id=current_user.room_id, user_id=current_user.id)
     except ForbiddenException as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
@@ -115,7 +111,7 @@ async def skip(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(
@@ -149,7 +145,7 @@ async def get_current_playback(
     except InvalidPlatformCredentialsException as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No linked Spotify account. Connect your account first.",
+            detail=str(exc) or "No linked Spotify account. Connect your account first.",
         ) from exc
     except SpotifyUpstreamException as exc:
         raise HTTPException(

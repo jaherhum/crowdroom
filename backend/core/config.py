@@ -12,12 +12,13 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 logger = logging.getLogger(__name__)
 
+
 def validate_spotify_config() -> None:
     """Log warning if Spotify OAuth config is incomplete."""
     if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
         logger.warning(
             "SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not set. "
-            "All Spotify features (search, queue, playback) will be unavailable."
+            "Per-user Spotify app credentials will be required."
         )
         return
 
@@ -26,6 +27,7 @@ def validate_spotify_config() -> None:
             "SPOTIFY_REDIRECT_URI not set. "
             "Search will work but Spotify OAuth playback flow will fail."
         )
+
 
 class Settings(BaseSettings):
     """Manages global application configuration via environment variables.
@@ -56,9 +58,18 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Auth Cookie (httpOnly access token)
+    # COOKIE_SECURE must be True in production (HTTPS). Keep False for local http.
+    AUTH_COOKIE_NAME: str = "access_token"
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+
     # Metadata Cache
     METADATA_CACHE_TTL_SECONDS: int = 86400
     METADATA_CACHE_MAX_SIZE: int = 2048
+
+    # Vote Skip
+    VOTE_SKIP_COOLDOWN_SECONDS: int = 2
 
     # WebSocket Heartbeat
     WS_HEARTBEAT_INTERVAL_SECONDS: int = 30
@@ -70,7 +81,7 @@ class Settings(BaseSettings):
     SPOTIFY_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/spotify/callback"
     PLAYBACK_POLL_INTERVAL_SECONDS: int = 3
     SPOTIFY_OAUTH_STATE_TTL_SECONDS: int = 600
-    FRONTEND_URL: str = "http://localhost:5500"
+    FRONTEND_URL: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

@@ -11,6 +11,7 @@ from backend.api.rooms.dependencies import (
     get_room_service,
     get_session_repo,
 )
+from backend.api.users.dependencies import get_user_repo
 from backend.core.exceptions import (
     EntityNotFoundException,
     ForbiddenException,
@@ -18,8 +19,11 @@ from backend.core.exceptions import (
 )
 from backend.db.models.user import User
 from backend.repositories.queue_history_repo import QueueHistoryRepository
+from backend.repositories.session_repo import SessionRepository
+from backend.repositories.user_repo import UserRepository
 from backend.schemas.queue_history import ReadQueueHistory
 from backend.schemas.room import CreateRoom, JoinRoom, ReadRoom, UpdateRoom
+from backend.schemas.user import UserRead
 from backend.services.room_membership_service import RoomMembershipService
 from backend.services.room_service import RoomService
 
@@ -80,20 +84,53 @@ async def get_room(
     return room_service.get_room(room_id)
 
 
+@router.get(
+    "/{room_id}/members",
+    response_model=list[UserRead],
+    status_code=status.HTTP_200_OK,
+)
+async def get_room_members(
+    room_id: UUID,
+    room_service: RoomService = Depends(get_room_service),
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> list[UserRead]:
+    """Retrieve all users currently in a room.
+
+    Args:
+        room_id: The room whose members to list.
+        room_service: The injected room service (validates room exists).
+        user_repo: The injected user repository.
+
+    Returns:
+        List of users currently in the room.
+    """
+    room_service.get_room(room_id)
+    users = user_repo.get_by_room(room_id)
+    return [UserRead.model_validate(user) for user in users]
+
+
 @router.post("/", response_model=ReadRoom, status_code=status.HTTP_201_CREATED)
 async def create_room(
     room_data: CreateRoom,
+    current_user: User = Depends(get_current_user),
     room_service: RoomService = Depends(get_room_service),
 ) -> ReadRoom:
-    """Creates a new room.
+    """Creates a new room. Requires an authenticated user with a password.
 
     Args:
         room_data (CreateRoom): The schema containing room creation details.
+        current_user (User): The authenticated user (must have a password set).
         room_service (RoomService): The injected room service.
 
     Returns:
         ReadRoom: The newly created room schema.
     """
+    if not current_user.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password required to create a room. Set a password first.",
+        )
+    room_data.host_user_id = current_user.id
     return room_service.create_room(room_data)
 
 
@@ -240,3 +277,51 @@ async def get_my_rooms(
         The user's hosted rooms, regardless of visibility settings.
     """
     return room_service.get_host_rooms(current_user.id)
+
+
+@router.get("/{room_id}/playback")
+async def get_room_playback(
+    request: Request,
+    room_id: UUID,
+    current_user: User = Depends(get_current_user),
+    session_repo: SessionRepository = Depends(get_session_repo),
+) -> dict:
+    """Get playback timing info for syncing progress bars.
+
+    Also ensures the playback poller is running if session is active.
+
+    Args:
+        request: FastAPI request (for app state access).
+        room_id: The room whose playback state to retrieve.
+        current_user: Authenticated user.
+        session_repo: The injected session repository.
+
+    Returns:
+        Dictionary with playback timing fields.
+    """
+    session = session_repo.get_by_room(room_id)
+    if not session:
+        return {"status": "stopped"}
+
+    from datetime import datetime, timezone
+
+    poller = request.app.state.playback_poller
+    if poller and not poller.is_polling(room_id) and session.room:
+        await poller.start_polling(room_id, session.room.host_user_id)
+
+    playback_status = (
+        session.playback_status.value if session.playback_status else "stopped"
+    )
+    base_position = session.playback_position_ms or 0
+    elapsed_ms = base_position
+
+    if playback_status == "playing" and session.playback_started_at:
+        started = session.playback_started_at.replace(tzinfo=None)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        elapsed_ms = base_position + int((now - started).total_seconds() * 1000)
+
+    return {
+        "status": playback_status,
+        "elapsed_ms": elapsed_ms,
+        "current_song_id": session.current_song_id,
+    }

@@ -61,6 +61,23 @@ class SessionService:
         """
         return self._session_repo.get_all()
 
+    def get_session_by_room(self, room_id: UUID) -> SessionModel:
+        """Retrieve the session for a given room.
+
+        Args:
+            room_id: The unique identifier of the room.
+
+        Returns:
+            SessionModel: The session for the room.
+
+        Raises:
+            EntityNotFoundException: If no session exists for the room.
+        """
+        session = self._session_repo.get_by_room(room_id)
+        if session is None:
+            raise EntityNotFoundException("Session", str(room_id))
+        return session
+
     def create_session(self, session_data: CreateSession) -> SessionModel:
         """Create a new session.
 

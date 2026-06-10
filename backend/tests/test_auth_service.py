@@ -18,7 +18,7 @@ def test_auth_service_logic():
     mock_security_service = MagicMock(spec=SecurityService)
     auth_service = AuthService(mock_user_service, mock_security_service)
 
-    # 1. Test register_user - Success
+    # 1. Test register_user - Success (returns TokenResponse)
     user_data = RegisterRequest(
         username="testuser", email="test@example.com", password="secretpassword"
     )
@@ -26,11 +26,13 @@ def test_auth_service_logic():
     mock_user_service.get_by_email.return_value = None
 
     mock_user_read = MagicMock(spec=UserRead)
+    mock_user_read.id = uuid4()
     mock_user_service.create_user.return_value = mock_user_read
+    mock_security_service.create_token.return_value = "register_token"
 
     result = auth_service.register_user(user_data)
 
-    assert result == mock_user_read
+    assert result.access_token == "register_token"
     mock_user_service.create_user.assert_called_once()
     print("Test register_user (success) passed.")
 

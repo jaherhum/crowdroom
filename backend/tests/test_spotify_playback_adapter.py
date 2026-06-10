@@ -150,7 +150,7 @@ class TestSpotifyPlaybackAdapterGetCurrentPlayback:
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
             "is_playing": True,
-            "item": {"id": "track456"},
+            "item": {"id": "track456", "duration_ms": 240000},
             "progress_ms": 30000,
             "device": {"id": "device789"},
         }
@@ -169,6 +169,7 @@ class TestSpotifyPlaybackAdapterGetCurrentPlayback:
             is_playing=True,
             track_id="track456",
             progress_ms=30000,
+            duration_ms=240000,
             device_id="device789",
         )
 
@@ -198,5 +199,6 @@ class TestSpotifyPlaybackAdapterGetCurrentPlayback:
             is_playing=False,
             track_id=None,
             progress_ms=None,
+            duration_ms=None,
             device_id="device789",
         )

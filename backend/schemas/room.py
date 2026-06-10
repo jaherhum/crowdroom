@@ -25,18 +25,23 @@ class RoomSettings(BaseModel):
     """Room configuration settings."""
 
     skip_threshold: int = Field(default=2, ge=1, le=50, description="Skip threshold.")
+    max_members: int = Field(
+        default=50, ge=2, le=200, description="Maximum number of members allowed."
+    )
 
 
 class CreateRoom(BaseModel):
     """Schema for creating a new room.
 
     Attributes:
-        host_user_id (UUID): The unique identifier of the user creating the room.
+        host_user_id (UUID | None): Set by the server from JWT.
         room_name (str): The display name of the room.
         is_private (bool): Whether the room is hidden from public lists.
     """
 
-    host_user_id: UUID = Field(..., description="Host's user ID.")
+    host_user_id: UUID | None = Field(
+        None, description="Host's user ID (set by server from JWT)."
+    )
     room_name: str = Field(..., description="Room's name.", max_length=255)
     is_private: bool = Field(
         default=False, description="Whether if the room is private or public."

@@ -44,6 +44,18 @@ class SongService:
         """
         return self._song_repo.get_all()
 
+    def get_by_external_id(self, external_id: str, platform: str) -> Song | None:
+        """Retrieve a song by its external platform ID.
+
+        Args:
+            external_id: The platform-specific track identifier.
+            platform: The streaming platform name.
+
+        Returns:
+            Song if found, None otherwise.
+        """
+        return self._song_repo.get_by_external_id(external_id, platform)
+
     def get_or_create_song(self, song_data: CreateSong) -> Song:
         """Retrieve an existing song or create a new one.
 

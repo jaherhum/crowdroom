@@ -81,9 +81,25 @@ class InvalidCredentialsException(AppException):
         message (str): The error message.
     """
 
+    def __init__(self, message: str = "Invalid username/email or password."):
+        """Initializes the exception.
+
+        Args:
+            message: Human-readable error description.
+        """
+        super().__init__(message)
+
+
+class PasswordRequiredException(AppException):
+    """Exception raised when a password-protected user tries to login without one.
+
+    Attributes:
+        message (str): The error message.
+    """
+
     def __init__(self):
         """Initializes the exception."""
-        super().__init__("Invalid username/email or password.")
+        super().__init__("This account has a password. Please enter it to log in.")
 
 
 class InvalidPlatformCredentialsException(AppException):
@@ -136,6 +152,7 @@ class InviteExpiredException(AppException):
         """Initializes the exception."""
         super().__init__("Invite is expired or has reached its maximum uses")
 
+
 class UserAlreadyInRoomException(AppException):
     """Exception raised when a user tries to join a room while already in another.
 
@@ -157,6 +174,7 @@ class UserAlreadyInRoomException(AppException):
                 f"User is already in room {current_room_id}. Leave current room first."
             )
 
+
 class OAuthStateException(AppException):
     """Exception raised when an OAuth state parameter is invalid or expired."""
 
@@ -170,6 +188,41 @@ class OAuthStateException(AppException):
             super().__init__("OAuth state validation failed.")
         else:
             super().__init__(f"OAuth state validation failed: {reason}")
+
+
+class ProfileIncompleteException(AppException):
+    """Exception raised when an ONLINE-mode user lacks email or password.
+
+    Attributes:
+        missing_fields (list[str]): Fields the user still needs to provide.
+    """
+
+    def __init__(self, missing_fields: list[str]):
+        """Initializes the exception.
+
+        Args:
+            missing_fields: List of field names that are not yet set.
+        """
+        self.missing_fields = missing_fields
+        super().__init__("Profile incomplete. Please set your email and password.")
+
+
+class TooManyRequestsException(AppException):
+    """Exception raised when a user exceeds a rate limit.
+
+    Attributes:
+        retry_after (float): Seconds the client should wait before retrying.
+    """
+
+    def __init__(self, retry_after: float = 1.0):
+        """Initializes the exception.
+
+        Args:
+            retry_after: How many seconds until the action is allowed again.
+        """
+        self.retry_after = retry_after
+        super().__init__(f"Too many requests. Try again in {retry_after:.1f}s.")
+
 
 class SpotifyUpstreamException(AppException):
     """Exception raised when Spotify API returns an error response.

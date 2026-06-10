@@ -1,4 +1,5 @@
 """Schemas for playback lifecycle responses."""
+
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -16,6 +17,7 @@ class FinishResponse(BaseModel):
         description="The updated playback status after finishing the current song.",
     )
 
+
 class PlayRequest(BaseModel):
     """Request body for starting playback of a specific song.
 
@@ -24,7 +26,9 @@ class PlayRequest(BaseModel):
         device_id: Optional Spotify device ID to target.
     """
 
-    song_id: UUID = Field(..., description="Internal song UUID to play.")
+    song_id: UUID | None = Field(
+        None, description="Internal song UUID to play. Omit to resume current."
+    )
     device_id: str | None = Field(
         None, description="Spotify device ID. Uses active device if omitted."
     )

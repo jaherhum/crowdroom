@@ -1,14 +1,14 @@
 """Song API dependencies."""
 
 from fastapi import Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import Session as DBSession
 
 from backend.db.database import get_session
 from backend.repositories.song_repo import SongRepository
 from backend.services.song_service import SongService
 
 
-def get_song_repo(session: AsyncSession = Depends(get_session)) -> SongRepository:
+def get_song_repo(session: DBSession = Depends(get_session)) -> SongRepository:
     """Provide a SongRepository bound to the current database session.
 
     Args:
@@ -17,6 +17,7 @@ def get_song_repo(session: AsyncSession = Depends(get_session)) -> SongRepositor
     Returns:
         A SongRepository instance for song data access.
     """
+    return SongRepository(session)
 
 
 def get_song_service(
