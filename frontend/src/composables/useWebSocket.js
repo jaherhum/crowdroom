@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import router from '../router/index.js';
 
 let socket = null;
 let currentRoomId = null;
@@ -6,6 +7,10 @@ let reconnectAttempts = 0;
 let reconnectTimer = null;
 let heartbeatTimer = null;
 const HEARTBEAT_TIMEOUT_MS = 45000;
+// Server closes the handshake with 1008 (policy violation) when the connection
+// is unauthenticated or the user is not a member of the room. Reconnecting
+// would loop forever, so we stop and redirect instead.
+const WS_POLICY_VIOLATION = 1008;
 const listeners = new Map();
 const connected = ref(false);
 
@@ -50,10 +55,31 @@ function handleMessage(event) {
   }
 }
 
-function handleClose() {
+function handleClose(event) {
   connected.value = false;
   clearHeartbeatTimer();
+  // A 1008 close means the server rejected the handshake (no/invalid auth or
+  // not a room member). Do not reconnect in a loop — tear down and redirect.
+  if (event && event.code === WS_POLICY_VIOLATION) {
+    teardownAndRedirect();
+    return;
+  }
   scheduleReconnect();
+}
+
+// Stop all reconnect activity and send the user back to the rooms list after
+// the server refuses the WebSocket. The route guard there will bounce an
+// unauthenticated user on to /login, mirroring useApi.js's 401 handling.
+function teardownAndRedirect() {
+  currentRoomId = null;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  detachAndClose();
+  if (router.currentRoute.value.path !== '/rooms') {
+    router.push('/rooms');
+  }
 }
 
 function handleError() {
