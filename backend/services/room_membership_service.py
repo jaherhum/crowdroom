@@ -1,11 +1,14 @@
 """Service for managing room join and leave operations."""
 
+import time
 from uuid import UUID
 
 from backend.api.websocket import manager
+from backend.core.config import settings
 from backend.core.exceptions import (
     EntityNotFoundException,
     ForbiddenException,
+    TooManyRequestsException,
     UserAlreadyInRoomException,
 )
 from backend.db.models.room import Room
@@ -14,6 +17,8 @@ from backend.repositories.room_repo import RoomRepository
 from backend.repositories.user_repo import UserRepository
 from backend.services.room_invite_service import RoomInviteService
 from backend.services.room_service import RoomService
+
+_pin_attempt_cooldowns: dict[UUID, float] = {}
 
 
 class RoomMembershipService:
@@ -39,6 +44,33 @@ class RoomMembershipService:
         self._user_repo = user_repo
         self._room_repo = room_repo
 
+    def _check_pin_cooldown(self, user_id: UUID) -> None:
+        """Reject the request if the user is locked out from a recent wrong PIN.
+
+        Args:
+            user_id: UUID of the user attempting to join.
+
+        Raises:
+            TooManyRequestsException: If the cooldown window has not elapsed
+                since the last failed PIN attempt.
+        """
+        cooldown = settings.PIN_ATTEMPT_COOLDOWN_SECONDS
+        last = _pin_attempt_cooldowns.get(user_id)
+        if last is None:
+            return
+        elapsed = time.monotonic() - last
+        if elapsed < cooldown:
+            raise TooManyRequestsException(retry_after=cooldown - elapsed)
+        _pin_attempt_cooldowns.pop(user_id, None)
+
+    def _record_pin_failure(self, user_id: UUID) -> None:
+        """Stamp the user's most recent failed PIN attempt.
+
+        Args:
+            user_id: UUID of the user whose attempt failed.
+        """
+        _pin_attempt_cooldowns[user_id] = time.monotonic()
+
     async def join_room(
         self,
         room_id: UUID,
@@ -58,6 +90,8 @@ class RoomMembershipService:
             UserAlreadyInRoomException: If user is already in another room.
             EntityNotFoundException: If room does not exist.
             ForbiddenException: If room is private and no valid credentials.
+            TooManyRequestsException: If the user recently submitted a wrong
+                PIN and the cooldown window has not yet elapsed.
         """
         if user.room_id is not None and user.room_id != room_id:
             raise UserAlreadyInRoomException()
@@ -74,14 +108,18 @@ class RoomMembershipService:
             # The host always has access to their own room and never needs a
             # PIN or invite to enter it.
             if room.host_user_id != user.id:
+                self._check_pin_cooldown(user.id)
                 token_ok = self._room_invite_service.validate_and_consume_invite(
                     invite_token, room_id
                 )
-                if not token_ok:
+                if token_ok:
+                    _pin_attempt_cooldowns.pop(user.id, None)
+                else:
                     if pin and self._room_service.verify_pin(room_id, pin):
-                        pass
+                        _pin_attempt_cooldowns.pop(user.id, None)
                     else:
-                        raise ForbiddenException()
+                        self._record_pin_failure(user.id)
+                        raise ForbiddenException("The PIN you entered is not valid")
 
         user.room_id = room_id
         self._user_repo.save(user)

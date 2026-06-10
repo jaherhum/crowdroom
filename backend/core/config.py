@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     # Vote Skip
     VOTE_SKIP_COOLDOWN_SECONDS: int = 2
 
+    # Pin Attempt cooldown
+    PIN_ATTEMPT_COOLDOWN_SECONDS: int = 5
+
     # WebSocket Heartbeat
     WS_HEARTBEAT_INTERVAL_SECONDS: int = 30
     WS_HEARTBEAT_TIMEOUT_SECONDS: int = 10
