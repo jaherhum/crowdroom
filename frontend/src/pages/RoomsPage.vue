@@ -195,11 +195,15 @@
             class="input"
             placeholder="Room PIN"
             pattern="\d{4,6}"
+            :disabled="pinOnCooldown"
             required
           />
+          <p v-if="pinError" class="error-text">{{ pinError }}</p>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="closePinModal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Join</button>
+            <button type="submit" class="btn btn-primary" :disabled="pinOnCooldown">
+              {{ pinOnCooldown ? `Wait ${pinCooldownRemaining}s` : 'Join' }}
+            </button>
           </div>
         </form>
       </div>
@@ -208,7 +212,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiGet, apiPost } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
@@ -229,6 +233,12 @@ const joinTargetRoomId = ref(null);
 const newPassword = ref('');
 const confirmPassword = ref('');
 const passwordError = ref('');
+
+const PIN_COOLDOWN_MS = 5000;
+const pinOnCooldown = ref(false);
+const pinCooldownRemaining = ref(0);
+const pinError = ref('');
+let pinCooldownTimer = null;
 
 const newRoom = ref({
   name: '',
@@ -256,6 +266,10 @@ onMounted(async () => {
   await loadRooms();
 });
 
+onUnmounted(() => {
+  clearPinCooldownTimer();
+});
+
 async function loadRooms() {
   try {
     rooms.value = await apiGet('/rooms/');
@@ -269,12 +283,15 @@ async function handleLogout() {
   router.push('/login');
 }
 
-function handleJoin(room) {
+async function handleJoin(room) {
   if (room.is_private) {
     joinTargetRoomId.value = room.id;
     showPinModal.value = true;
   } else {
-    joinRoom(room.id, null);
+    const result = await joinRoom(room.id, null);
+    if (!result.ok) {
+      showToast(result.detail || 'Failed to join room');
+    }
   }
 }
 
@@ -284,8 +301,14 @@ async function joinRoom(targetRoomId, pin) {
     if (pin) body.pin = pin;
     await apiPost(`/rooms/${targetRoomId}/join`, body);
     router.push(`/room/${targetRoomId}`);
+    return { ok: true };
   } catch (err) {
-    showToast(err.detail || 'Failed to join room');
+    return {
+      ok: false,
+      status: err.status,
+      retryAfter: err.retryAfter,
+      detail: err.detail,
+    };
   }
 }
 
@@ -300,17 +323,59 @@ async function joinByCode() {
   }
 }
 
+function clearPinCooldownTimer() {
+  if (pinCooldownTimer !== null) {
+    clearInterval(pinCooldownTimer);
+    pinCooldownTimer = null;
+  }
+}
+
+function startPinCooldown(seconds) {
+  clearPinCooldownTimer();
+  pinOnCooldown.value = true;
+  pinCooldownRemaining.value = seconds;
+  pinCooldownTimer = setInterval(() => {
+    pinCooldownRemaining.value -= 1;
+    if (pinCooldownRemaining.value <= 0) {
+      clearPinCooldownTimer();
+      pinOnCooldown.value = false;
+      pinCooldownRemaining.value = 0;
+    }
+  }, 1000);
+}
+
 function closePinModal() {
   showPinModal.value = false;
   joinPin.value = '';
   joinTargetRoomId.value = null;
+  pinError.value = '';
+  clearPinCooldownTimer();
+  pinOnCooldown.value = false;
+  pinCooldownRemaining.value = 0;
 }
 
-function submitPin() {
-  if (joinTargetRoomId.value && joinPin.value) {
-    joinRoom(joinTargetRoomId.value, joinPin.value);
+async function submitPin() {
+  if (!joinTargetRoomId.value || !joinPin.value || pinOnCooldown.value) return;
+  const result = await joinRoom(joinTargetRoomId.value, joinPin.value);
+  if (result.ok) {
     closePinModal();
+    return;
   }
+  if (result.status === 403) {
+    pinError.value = 'The PIN you entered is not valid';
+    joinPin.value = '';
+    startPinCooldown(Math.ceil(PIN_COOLDOWN_MS / 1000));
+    return;
+  }
+  if (result.status === 429) {
+    const seconds = Math.ceil(result.retryAfter || PIN_COOLDOWN_MS / 1000) || 1;
+    pinError.value = `Too many attempts. Wait ${seconds}s before trying again.`;
+    joinPin.value = '';
+    startPinCooldown(seconds);
+    return;
+  }
+  showToast(result.detail || 'Failed to join room');
+  closePinModal();
 }
 
 function handleCreateRoom() {

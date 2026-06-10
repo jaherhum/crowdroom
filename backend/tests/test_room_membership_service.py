@@ -10,6 +10,7 @@ import pytest
 from backend.core.exceptions import (
     EntityNotFoundException,
     ForbiddenException,
+    TooManyRequestsException,
     UserAlreadyInRoomException,
 )
 from backend.db.models.room import Room
@@ -17,8 +18,18 @@ from backend.db.models.user import User
 from backend.repositories.room_repo import RoomRepository
 from backend.repositories.user_repo import UserRepository
 from backend.services.room_invite_service import RoomInviteService
-from backend.services.room_membership_service import RoomMembershipService
+from backend.services.room_membership_service import (
+    RoomMembershipService,
+    _pin_attempt_cooldowns,
+)
 from backend.services.room_service import RoomService
+
+
+@pytest.fixture(autouse=True)
+def _reset_pin_cooldowns():
+    _pin_attempt_cooldowns.clear()
+    yield
+    _pin_attempt_cooldowns.clear()
 
 
 class TestJoinRoom:
@@ -434,3 +445,207 @@ class TestLeaveRoom:
         anyio.run(_run)
 
         mock_room_repo.delete.assert_called_once_with(room.id)
+
+
+class TestPinCooldown:
+    @pytest.fixture
+    def mock_room_service(self):
+        return MagicMock(spec=RoomService)
+
+    @pytest.fixture
+    def mock_invite_service(self):
+        mock = MagicMock(spec=RoomInviteService)
+        mock.validate_and_consume_invite.return_value = False
+        return mock
+
+    @pytest.fixture
+    def mock_user_repo(self):
+        mock = MagicMock(spec=UserRepository)
+        mock.count_by_room.return_value = 1
+        return mock
+
+    @pytest.fixture
+    def mock_room_repo(self):
+        return MagicMock(spec=RoomRepository)
+
+    @pytest.fixture
+    def membership_service(
+        self,
+        mock_room_service,
+        mock_invite_service,
+        mock_user_repo,
+        mock_room_repo,
+    ):
+        return RoomMembershipService(
+            mock_room_service,
+            mock_invite_service,
+            mock_user_repo,
+            mock_room_repo,
+        )
+
+    @pytest.fixture
+    def user(self):
+        mock_user = MagicMock(spec=User)
+        mock_user.id = uuid4()
+        mock_user.username = "testuser"
+        mock_user.room_id = None
+        return mock_user
+
+    @pytest.fixture
+    def private_room(self):
+        mock_room = MagicMock(spec=Room)
+        mock_room.id = uuid4()
+        mock_room.host_user_id = uuid4()
+        mock_room.is_private = True
+        mock_room.settings = {"skip_threshold": 2, "max_members": 50}
+        return mock_room
+
+    def test_first_wrong_pin_records_cooldown(
+        self,
+        membership_service,
+        mock_room_service,
+        user,
+        private_room,
+    ):
+        mock_room_service.get_room.return_value = private_room
+        mock_room_service.verify_pin.return_value = False
+
+        async def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await membership_service.join_room(private_room.id, user, "0000", None)
+
+        with pytest.raises(ForbiddenException):
+            anyio.run(_run)
+
+        assert user.id in _pin_attempt_cooldowns
+
+    def test_retry_within_cooldown_raises_429(
+        self,
+        membership_service,
+        mock_room_service,
+        user,
+        private_room,
+    ):
+        mock_room_service.get_room.return_value = private_room
+        mock_room_service.verify_pin.return_value = False
+
+        async def _attempt(pin):
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await membership_service.join_room(private_room.id, user, pin, None)
+
+        with pytest.raises(ForbiddenException):
+            anyio.run(_attempt, "0000")
+
+        with pytest.raises(TooManyRequestsException) as exc_info:
+            anyio.run(_attempt, "0000")
+
+        assert exc_info.value.retry_after > 0
+        assert exc_info.value.retry_after <= 5
+
+    def test_retry_after_cooldown_elapsed_allows_attempt(
+        self,
+        membership_service,
+        mock_room_service,
+        user,
+        private_room,
+    ):
+        mock_room_service.get_room.return_value = private_room
+        mock_room_service.verify_pin.return_value = False
+
+        # Simulate a wrong attempt that happened 10 seconds ago.
+        _pin_attempt_cooldowns[user.id] = -10.0
+
+        async def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await membership_service.join_room(private_room.id, user, "0000", None)
+
+        with pytest.raises(ForbiddenException):
+            anyio.run(_run)
+
+    def test_correct_pin_clears_cooldown(
+        self,
+        membership_service,
+        mock_room_service,
+        mock_user_repo,
+        user,
+        private_room,
+    ):
+        mock_room_service.get_room.return_value = private_room
+        mock_room_service.verify_pin.return_value = True
+        # Stale failure from long ago: cooldown elapsed but entry not yet
+        # cleaned. The check helper should drop it.
+        _pin_attempt_cooldowns[user.id] = -10.0
+
+        async def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await membership_service.join_room(private_room.id, user, "1234", None)
+
+        anyio.run(_run)
+
+        assert user.id not in _pin_attempt_cooldowns
+        assert user.room_id == private_room.id
+        mock_user_repo.save.assert_called_once_with(user)
+
+    def test_valid_invite_clears_cooldown(
+        self,
+        membership_service,
+        mock_room_service,
+        mock_invite_service,
+        mock_user_repo,
+        user,
+        private_room,
+    ):
+        mock_room_service.get_room.return_value = private_room
+        mock_invite_service.validate_and_consume_invite.return_value = True
+        _pin_attempt_cooldowns[user.id] = -10.0
+
+        async def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await membership_service.join_room(private_room.id, user, None, "tok")
+
+        anyio.run(_run)
+
+        assert user.id not in _pin_attempt_cooldowns
+        assert user.room_id == private_room.id
+        mock_user_repo.save.assert_called_once_with(user)
+
+    def test_host_skips_cooldown(
+        self,
+        membership_service,
+        mock_room_service,
+        mock_user_repo,
+        user,
+        private_room,
+    ):
+        # Pre-populate a fresh failure for this user. The host short-circuit
+        # must run before the cooldown check, so the host can still enter.
+        private_room.host_user_id = user.id
+        _pin_attempt_cooldowns[user.id] = 1e9  # far in the future
+        mock_room_service.get_room.return_value = private_room
+
+        async def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                await membership_service.join_room(private_room.id, user)
+
+        anyio.run(_run)
+
+        assert user.room_id == private_room.id
+        mock_user_repo.save.assert_called_once_with(user)
