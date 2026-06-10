@@ -2,6 +2,7 @@
   <main class="page login-page">
     <div class="login-container">
       <header class="login-header">
+        <img :src="logoUrl" alt="CrowdRoom" class="login-logo" />
         <h1>CrowdRoom</h1>
         <p class="text-secondary">Collaborative music, together.</p>
       </header>
@@ -119,6 +120,7 @@ import { useRouter } from 'vue-router';
 import { apiGet, apiPost } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
+import logoUrl from '../assets/logo.svg';
 
 const router = useRouter();
 const { fetchMe } = useAuth();

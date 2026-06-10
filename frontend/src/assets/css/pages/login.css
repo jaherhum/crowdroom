@@ -14,6 +14,13 @@
   margin-bottom: var(--space-8);
 }
 
+.login-logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto var(--space-4);
+}
+
 .login-header p {
   margin-top: var(--space-2);
 }
