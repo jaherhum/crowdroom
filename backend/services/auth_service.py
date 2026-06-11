@@ -59,7 +59,7 @@ class AuthService:
 
         token = self._security_service.create_token(
             token_type=TokenType.ACCESS,
-            data={"sub": str(created_user.id)},
+            data={"sub": str(created_user.id), "ver": created_user.token_version},
         )
         return TokenResponse(access_token=token, token_type="bearer")
 
@@ -100,7 +100,7 @@ class AuthService:
 
         token = self._security_service.create_token(
             token_type=TokenType.ACCESS,
-            data={"sub": str(user.id)},
+            data={"sub": str(user.id), "ver": user.token_version},
         )
 
         return TokenResponse(access_token=token, token_type="bearer")
@@ -132,7 +132,7 @@ class AuthService:
 
         token = self._security_service.create_token(
             token_type=TokenType.ACCESS,
-            data={"sub": str(user.id)},
+            data={"sub": str(user.id), "ver": user.token_version},
         )
 
         return TokenResponse(access_token=token, token_type="bearer")
@@ -149,13 +149,20 @@ class AuthService:
 
     def change_password(
         self, user: User, current_password: str, new_password: str
-    ) -> None:
-        """Change a user's password after verifying the current one.
+    ) -> TokenResponse:
+        """Change a user's password and reissue an access token.
+
+        Verifies the current password, updates it, and bumps the user's
+        token_version so every other active session is invalidated. Issues
+        a fresh token bound to the new version so the caller stays logged in.
 
         Args:
             user: The authenticated user.
             current_password: The current password for verification.
             new_password: The new password to set.
+
+        Returns:
+            TokenResponse: A fresh access token bound to the bumped version.
 
         Raises:
             InvalidCredentialsException: If current password is incorrect.
@@ -171,6 +178,14 @@ class AuthService:
 
         hashed = self._security_service.generate_password_hash(new_password)
         self._user_service.update_user_password(user.id, hashed)
+        self._user_service.increment_token_version(user.id)
+
+        refreshed = self._user_service.get_by_id(user.id)
+        token = self._security_service.create_token(
+            token_type=TokenType.ACCESS,
+            data={"sub": str(refreshed.id), "ver": refreshed.token_version},
+        )
+        return TokenResponse(access_token=token, token_type="bearer")
 
     def complete_profile(self, user: User, email: str, plain_password: str) -> None:
         """Set email and password on an incomplete profile.
@@ -212,6 +227,9 @@ class AuthService:
                 token, expected_type=TokenType.ACCESS
             )
             user_id = payload.get("sub")
-            return self._user_service.get_by_id(UUID(user_id))
+            user = self._user_service.get_by_id(UUID(user_id))
+            if user is None or payload.get("ver") != user.token_version:
+                return None
+            return user
         except Exception:
             return None

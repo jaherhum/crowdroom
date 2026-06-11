@@ -63,11 +63,12 @@ async def authenticate_ws_connection(
         )
         user_id = UUID(payload["sub"])
         room_uuid = UUID(room_id)
+        token_ver = payload.get("ver")
     except Exception as exc:
         raise policy_violation from exc
 
     user = user_service.get_by_id(user_id)
-    if user is None or user.room_id != room_uuid:
+    if user is None or user.room_id != room_uuid or token_ver != user.token_version:
         raise policy_violation
 
     return user

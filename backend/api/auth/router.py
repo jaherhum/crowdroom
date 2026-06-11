@@ -263,24 +263,33 @@ def set_password(
     auth_service.set_password(current_user.id, body.password.get_secret_value())
 
 
-@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/change-password", response_model=TokenResponse)
 def change_password(
     body: ChangePasswordRequest,
+    response: Response,
     current_user: User = Depends(get_current_user_unchecked),
     auth_service: AuthService = Depends(get_auth_service),
-) -> None:
-    """Change the user's password.
+) -> TokenResponse:
+    """Change the user's password and reissue a fresh access token.
+
+    Bumps the user's token_version, invalidating every other active session,
+    and re-sets the auth cookie with a new token bound to the bumped version
+    so the caller's session survives.
 
     Args:
         body: The current and new password.
+        response: FastAPI response object for cookie attachment.
         current_user: The authenticated user from JWT.
         auth_service: The authentication service.
+
+    Returns:
+        TokenResponse: A fresh access token bound to the new token_version.
 
     Raises:
         HTTPException: 401 if current password is incorrect.
     """
     try:
-        auth_service.change_password(
+        token_response = auth_service.change_password(
             user=current_user,
             current_password=body.current_password.get_secret_value(),
             new_password=body.new_password.get_secret_value(),
@@ -290,6 +299,9 @@ def change_password(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect.",
         ) from exc
+
+    _set_auth_cookie(response, token_response.access_token)
+    return token_response
 
 
 @router.post("/complete-profile", status_code=status.HTTP_204_NO_CONTENT)

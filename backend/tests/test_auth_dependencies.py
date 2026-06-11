@@ -27,9 +27,10 @@ def test_get_current_user_unchecked_success():
     mock_user = MagicMock(spec=User)
     mock_user.id = user_id
     mock_user.email = "zelda_lover@example.com"
+    mock_user.token_version = 0
 
     mock_user_service.get_by_id.return_value = mock_user
-    mock_security_service.decode_token.return_value = {"sub": str(user_id)}
+    mock_security_service.decode_token.return_value = {"sub": str(user_id), "ver": 0}
 
     user = get_current_user_unchecked(
         user_service=mock_user_service,
@@ -43,6 +44,30 @@ def test_get_current_user_unchecked_success():
         "valid_token", expected_type=TokenType.ACCESS
     )
     mock_user_service.get_by_id.assert_called_once_with(user_id)
+
+
+def test_get_current_user_unchecked_stale_token_version():
+    """Tests get_current_user_unchecked rejects a token with a stale 'ver'."""
+    mock_user_service = MagicMock(spec=UserService)
+    mock_security_service = MagicMock(spec=SecurityService)
+
+    user_id = uuid4()
+    mock_user = MagicMock(spec=User)
+    mock_user.id = user_id
+    mock_user.token_version = 3
+
+    mock_user_service.get_by_id.return_value = mock_user
+    mock_security_service.decode_token.return_value = {"sub": str(user_id), "ver": 1}
+
+    with pytest.raises(HTTPException) as excinfo:
+        get_current_user_unchecked(
+            user_service=mock_user_service,
+            security_service=mock_security_service,
+            token="stale_token",
+            cookie_token=None,
+        )
+
+    assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_get_current_user_unchecked_invalid_token():

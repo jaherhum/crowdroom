@@ -27,6 +27,7 @@ def test_auth_service_logic():
 
     mock_user_read = MagicMock(spec=UserRead)
     mock_user_read.id = uuid4()
+    mock_user_read.token_version = 0
     mock_user_service.create_user.return_value = mock_user_read
     mock_security_service.create_token.return_value = "register_token"
 
@@ -49,6 +50,7 @@ def test_auth_service_logic():
     mock_user = MagicMock()
     mock_user.id = uuid4()
     mock_user.hashed_password = "hashed_val"
+    mock_user.token_version = 0
     mock_user_service.get_by_identifier.return_value = mock_user
     mock_security_service.verify_password.return_value = True
     mock_security_service.create_token.return_value = "mock_token"

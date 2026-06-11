@@ -39,6 +39,7 @@ class User(SQLModel, table=True):
     hashed_password: str | None = Field(default=None, max_length=255, nullable=True)
     avatar_path: str | None = Field(default=None, max_length=255, nullable=True)
     room_id: UUID | None = Field(default=None, foreign_key="rooms.id", nullable=True)
+    token_version: int = Field(default=0, nullable=False)
 
     # Relations
     room: "Room" = Relationship(
