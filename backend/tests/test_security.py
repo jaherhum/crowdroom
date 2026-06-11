@@ -39,9 +39,14 @@ def test_security():
     assert decoded_typed["sub"] == "hello@jaherhum.dev"
     print("Token type validation verified.")
 
-    # Test wrong expected_type raises
+    # Test wrong expected_type raises (forge a token with a foreign type claim)
+    foreign_token = jwt.encode(
+        {"sub": "hello@jaherhum.dev", "type": "foreign"},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
     try:
-        service.decode_token(token, expected_type=TokenType.REFRESH)
+        service.decode_token(foreign_token, expected_type=TokenType.ACCESS)
         assert False, "Should have raised InvalidTokenError"
     except jwt.InvalidTokenError:
         print("Wrong token type correctly rejected.")
