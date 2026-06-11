@@ -92,6 +92,8 @@ def get_current_user_unchecked(
 
         if not user:
             raise credentials_exception
+        if payload.get("ver") != user.token_version:
+            raise credentials_exception
         return user
     except HTTPException:
         raise

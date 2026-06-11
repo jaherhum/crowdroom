@@ -33,6 +33,7 @@ class TestAuthServiceLocalLogin:
         mock_user = MagicMock()
         mock_user.id = user_id
         mock_user.hashed_password = None
+        mock_user.token_version = 0
         mock_user_service.get_by_username.return_value = mock_user
         mock_security_service.create_token.return_value = "mock_token"
 
@@ -44,7 +45,7 @@ class TestAuthServiceLocalLogin:
         mock_user_service.create_user.assert_not_called()
         mock_security_service.create_token.assert_called_once_with(
             token_type=TokenType.ACCESS,
-            data={"sub": str(user_id)},
+            data={"sub": str(user_id), "ver": 0},
         )
 
     def test_local_login_creates_new_user(
@@ -53,6 +54,7 @@ class TestAuthServiceLocalLogin:
         mock_user_service.get_by_username.return_value = None
         new_user = MagicMock()
         new_user.id = uuid4()
+        new_user.token_version = 0
         mock_user_service.create_user.return_value = new_user
         mock_security_service.create_token.return_value = "new_token"
 
@@ -69,6 +71,7 @@ class TestAuthServiceLocalLogin:
         mock_user = MagicMock()
         mock_user.id = uuid4()
         mock_user.hashed_password = None
+        mock_user.token_version = 0
         mock_user_service.get_by_username.return_value = mock_user
         mock_security_service.create_token.return_value = "tok"
 
@@ -76,6 +79,39 @@ class TestAuthServiceLocalLogin:
         auth_service.local_login(request)
 
         mock_user_service.get_by_username.assert_called_once_with("myuser")
+
+    def test_change_password_bumps_version_and_reissues(
+        self, auth_service, mock_user_service, mock_security_service
+    ):
+        from backend.db.models.user import User
+
+        user_id = uuid4()
+        user = MagicMock(spec=User)
+        user.id = user_id
+        user.hashed_password = "old_hash"
+
+        bumped = MagicMock(spec=User)
+        bumped.id = user_id
+        bumped.token_version = 5
+
+        mock_user_service.get_by_id.return_value = bumped
+        mock_security_service.verify_password.return_value = True
+        mock_security_service.generate_password_hash.return_value = "new_hash"
+        mock_security_service.create_token.return_value = "fresh_token"
+
+        result = auth_service.change_password(
+            user=user, current_password="old", new_password="new"
+        )
+
+        assert result.access_token == "fresh_token"
+        mock_user_service.update_user_password.assert_called_once_with(
+            user_id, "new_hash"
+        )
+        mock_user_service.increment_token_version.assert_called_once_with(user_id)
+        mock_security_service.create_token.assert_called_once_with(
+            token_type=TokenType.ACCESS,
+            data={"sub": str(user_id), "ver": 5},
+        )
 
 
 class TestAuthRouterModeGuards:

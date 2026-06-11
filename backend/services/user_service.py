@@ -161,6 +161,21 @@ class UserService:
         db_user.hashed_password = hashed_password
         self._user_repo.save(db_user)
 
+    def increment_token_version(self, user_id: UUID) -> None:
+        """Bump the user's token_version, invalidating every issued token.
+
+        Args:
+            user_id: The user's unique identifier.
+
+        Raises:
+            EntityNotFoundException: If no user is found with the given ID.
+        """
+        db_user = self._user_repo.get_by_id(user_id)
+        if not db_user:
+            raise EntityNotFoundException("User", user_id)
+        db_user.token_version += 1
+        self._user_repo.save(db_user)
+
     def delete_user(self, user_id: UUID) -> None:
         """Deletes a user from the system.
 

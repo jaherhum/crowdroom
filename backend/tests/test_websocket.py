@@ -41,9 +41,9 @@ class _FakeUserService:
         return self._users.get(user_id)
 
 
-def _access_token(user_id: UUID) -> str:
+def _access_token(user: User) -> str:
     return SecurityService(settings).create_token(
-        TokenType.ACCESS, {"sub": str(user_id)}
+        TokenType.ACCESS, {"sub": str(user.id), "ver": user.token_version}
     )
 
 
@@ -80,7 +80,7 @@ class TestWebSocketAuth:
         app.dependency_overrides[get_user_service] = lambda: _FakeUserService(
             {non_member.id: non_member}
         )
-        client.cookies.set(settings.AUTH_COOKIE_NAME, _access_token(non_member.id))
+        client.cookies.set(settings.AUTH_COOKIE_NAME, _access_token(non_member))
         with pytest.raises(WebSocketDisconnect) as exc:
             with client.websocket_connect(f"/ws/{room_id}"):
                 pass
@@ -93,7 +93,7 @@ class TestWebSocketAuth:
         app.dependency_overrides[get_user_service] = lambda: _FakeUserService(
             {member.id: member}
         )
-        client.cookies.set(settings.AUTH_COOKIE_NAME, _access_token(member.id))
+        client.cookies.set(settings.AUTH_COOKIE_NAME, _access_token(member))
         with client.websocket_connect(f"/ws/{room_id}"):
             assert room_id in manager.active_connections
             assert len(manager.active_connections[room_id]) == 1
