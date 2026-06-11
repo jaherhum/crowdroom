@@ -67,8 +67,7 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY: str
 
     # Token Expiration
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30
 
     # Auth Cookie (httpOnly access token)
     # COOKIE_SECURE must be True in production (HTTPS). Keep False for local http.

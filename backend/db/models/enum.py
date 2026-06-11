@@ -30,7 +30,6 @@ class TokenType(str, Enum):
     """Represents the type of token that can be generated."""
 
     ACCESS = "access"
-    REFRESH = "refresh"
 
 
 class ConnectionType(str, Enum):

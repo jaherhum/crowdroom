@@ -16,7 +16,6 @@ class SecurityService:
         _secret_key (str): The secret key used for signing tokens.
         _algorithm (str): The algorithm used for token signing.
         _access_expire_min (int): The expiration time for access tokens in minutes.
-        _refresh_expire_days (int): The expiration time for refresh tokens in days.
         _pass_hash (PasswordHash): The password hashing utility.
     """
 
@@ -29,7 +28,6 @@ class SecurityService:
         self._secret_key = settings.SECRET_KEY
         self._algorithm = settings.ALGORITHM
         self._access_expire_min = settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        self._refresh_expire_days = settings.REFRESH_TOKEN_EXPIRE_DAYS
         self._pass_hash = PasswordHash.recommended()
 
     def create_token(self, token_type: TokenType, data: dict) -> str:
@@ -51,11 +49,7 @@ class SecurityService:
 
         to_encode = data.copy()
 
-        if token_type == TokenType.REFRESH:
-            expire = datetime.now(timezone.utc) + timedelta(
-                days=self._refresh_expire_days
-            )
-        elif token_type == TokenType.ACCESS:
+        if token_type == TokenType.ACCESS:
             expire = datetime.now(timezone.utc) + timedelta(
                 minutes=self._access_expire_min
             )
