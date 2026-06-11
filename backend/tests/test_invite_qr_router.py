@@ -109,7 +109,9 @@ class TestSendToDevice:
         response = self._send(client)
         assert response.status_code == 403
 
-    def test_422_when_url_malformed(self, client, mock_qr_service):
-        response = self._send(client, "not-a-url")
+    def test_422_when_device_url_empty(self, client, mock_qr_service):
+        # Schema enforces min_length=1; service validates URL shape itself
+        # so non-empty malformed inputs surface as 400 with a readable detail.
+        response = self._send(client, "")
         assert response.status_code == 422
         mock_qr_service.send_to_device.assert_not_called()

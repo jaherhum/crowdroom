@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     SPOTIFY_OAUTH_STATE_TTL_SECONDS: int = 600
     FRONTEND_URL: str = "http://localhost:8000"
 
+    # Shared secret sent as X-Device-Token to LAN QR display devices.
+    DEVICE_AUTH_TOKEN: str = ""
+
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",

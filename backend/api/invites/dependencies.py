@@ -34,6 +34,7 @@ def get_invite_service(
 
 def get_invite_qr_service(
     invite_service: RoomInviteService = Depends(get_invite_service),
+    room_service: RoomService = Depends(get_room_service),
 ) -> InviteQRService:
     """Provide an InviteQRService wired with its required dependencies."""
-    return InviteQRService(invite_service, settings)
+    return InviteQRService(invite_service, room_service, settings)

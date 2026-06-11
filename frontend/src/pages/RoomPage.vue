@@ -432,7 +432,7 @@ async function openQRModal() {
     await nextTick();
     if (qrCanvas.value) {
       await QRCode.toCanvas(qrCanvas.value, invite.url, {
-        width: 256,
+        width: 200,
         margin: 1,
       });
     }

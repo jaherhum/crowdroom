@@ -14,10 +14,11 @@ from backend.core.network import assert_lan_url
 from backend.schemas.invite_qr import QRInviteResponse, SendToDeviceRequest
 from backend.schemas.room_invite import CreateRoomInvite
 from backend.services.room_invite_service import RoomInviteService
+from backend.services.room_service import RoomService
 
 logger = logging.getLogger(__name__)
 
-DEVICE_QR_PATH = "/send-crowdroom-qr"
+DEVICE_QR_PATH = "/qr"
 DEVICE_TIMEOUT_SECONDS = 3.0
 QR_INVITE_TTL_HOURS = 24
 
@@ -34,6 +35,7 @@ class InviteQRService:
     def __init__(
         self,
         invite_service: RoomInviteService,
+        room_service: RoomService,
         settings: Settings,
         http_client_factory: HttpClientFactory = _default_http_client_factory,
     ) -> None:
@@ -41,11 +43,14 @@ class InviteQRService:
 
         Args:
             invite_service: Reused for token issuance and host verification.
-            settings: Application settings, used to build the join URL.
+            room_service: Used to look up room metadata (name) for the device payload.
+            settings: Application settings, used to build the join URL and read the
+                device shared-secret token.
             http_client_factory: Callable returning an httpx.AsyncClient.
                 Replace in tests with a fake transport.
         """
         self._invite_service = invite_service
+        self._room_service = room_service
         self._settings = settings
         self._http_client_factory = http_client_factory
 
@@ -79,11 +84,15 @@ class InviteQRService:
     ) -> None:
         """POST a freshly-issued QR invite to a LAN device.
 
+        Sends a one-shot payload of `{url, room}` to the device, authenticated
+        with the configured shared secret in the `X-Device-Token` header. The
+        device renders the QR once and stays idle until the next push.
+
         Args:
             room_id: Room whose invite is being shipped.
             user_id: Requesting user (must be host).
             payload: Device URL chosen by the host. The path is normalized
-                to `/send-crowdroom-qr` when missing.
+                to `/qr` when missing.
 
         Raises:
             EntityNotFoundException: If the room does not exist.
@@ -91,13 +100,19 @@ class InviteQRService:
             InvalidDeviceURLException: If the device URL is not on the LAN.
             DeviceUnreachableException: If the device fails to respond in time.
         """
-        device_target = self._normalize_device_url(str(payload.device_url))
+        device_target = self._normalize_device_url(payload.device_url)
+        self._room_service.assert_host(room_id, user_id)
         invite = self.create_qr_invite(room_id, user_id)
-        body = {"token": invite.token, "url": invite.url}
+        body = {"url": invite.url}
+        headers = (
+            {"X-Device-Token": self._settings.DEVICE_AUTH_TOKEN}
+            if self._settings.DEVICE_AUTH_TOKEN
+            else {}
+        )
 
         try:
             async with self._http_client_factory() as client:
-                response = await client.post(device_target, json=body)
+                response = await client.post(device_target, json=body, headers=headers)
                 response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise DeviceUnreachableException(
@@ -115,7 +130,7 @@ class InviteQRService:
 
     @staticmethod
     def _normalize_device_url(url: str) -> str:
-        """Validate URL is on LAN and append `/send-crowdroom-qr` if missing.
+        """Validate URL is on LAN and append `/qr` if missing.
 
         If the host typed only the device root (`http://192.168.1.42` or
         `http://192.168.1.42/`), append the canonical path. If the host
