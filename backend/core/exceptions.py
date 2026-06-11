@@ -243,3 +243,27 @@ class SpotifyUpstreamException(AppException):
             super().__init__(f"Spotify returned HTTP {status_code}")
         else:
             super().__init__(detail)
+
+
+class InvalidDeviceURLException(AppException):
+    """Exception raised when a device URL fails LAN-only validation."""
+
+    def __init__(self, detail: str = "Device URL must point to a private LAN address"):
+        """Initializes the exception.
+
+        Args:
+            detail: Human-readable explanation of why the URL was rejected.
+        """
+        super().__init__(detail)
+
+
+class DeviceUnreachableException(AppException):
+    """Exception raised when the LAN device cannot be reached."""
+
+    def __init__(self, detail: str = "Device did not respond"):
+        """Initializes the exception.
+
+        Args:
+            detail: Human-readable explanation of the failure (timeout, refused, etc.).
+        """
+        super().__init__(detail)

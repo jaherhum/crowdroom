@@ -1,11 +1,13 @@
 """Database models for the application."""
 
 from backend.db.models.enum import (
+    ConnectionType as ConnectionType,
+)
+from backend.db.models.enum import (
     ItemStatus as ItemStatus,
 )
 from backend.db.models.enum import (
     StreamingPlatforms as StreamingPlatforms,
-    ConnectionType as ConnectionType,
 )
 from backend.db.models.enum import (
     TokenType as TokenType,

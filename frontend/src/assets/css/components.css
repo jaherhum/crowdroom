@@ -178,6 +178,57 @@ select.input {
   margin-top: var(--space-5);
 }
 
+.qr-modal {
+  max-width: 360px;
+}
+
+.qr-canvas-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3) 0;
+}
+
+.qr-canvas-wrapper canvas {
+  background: #fff;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.qr-link {
+  font-size: var(--font-size-sm);
+  word-break: break-all;
+  text-align: center;
+}
+
+.qr-sep {
+  margin: var(--space-4) 0;
+  border: none;
+  border-top: 1px solid var(--border-primary);
+}
+
+.qr-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.qr-device-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.qr-device-row .input {
+  flex: 1;
+}
+
+.qr-help {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+}
+.qr-help code {
+  font-size: var(--font-size-xs);
+}
+
 .redirect-uri-display {
   display: block;
   padding: var(--space-2) var(--space-3);

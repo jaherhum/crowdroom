@@ -12,7 +12,7 @@
 
       <div v-else-if="error" class="error-text">{{ error }}</div>
 
-      <div v-else-if="isAuthenticated && preview" class="card">
+      <div v-else-if="preview" class="card">
         <h3>{{ preview.room_name }}</h3>
         <p class="text-secondary">{{ preview.is_private ? 'Private room' : 'Public room' }}</p>
         <button
@@ -22,24 +22,6 @@
         >
           Join Room
         </button>
-      </div>
-
-      <div v-else-if="!isAuthenticated && preview">
-        <p class="text-secondary" style="margin-bottom: var(--space-4)">
-          Login first to join this room.
-        </p>
-        <form class="login-form" @submit.prevent="loginAndJoin">
-          <input
-            v-model="inviteUsername"
-            type="text"
-            class="input"
-            placeholder="Pick a username"
-            maxlength="32"
-            autocomplete="off"
-            required
-          />
-          <button type="submit" class="btn btn-primary btn-full">Enter & Join</button>
-        </form>
       </div>
     </div>
 
@@ -56,12 +38,11 @@ import ThemeToggle from '../components/ThemeToggle.vue';
 
 const route = useRoute();
 const router = useRouter();
-const { isAuthenticated, fetchMe } = useAuth();
+const { isAuthenticated } = useAuth();
 
 const loading = ref(true);
 const error = ref('');
 const preview = ref(null);
-const inviteUsername = ref('');
 let inviteToken = '';
 
 onMounted(async () => {
@@ -69,6 +50,11 @@ onMounted(async () => {
   if (!inviteToken) {
     error.value = 'Invalid invite link';
     loading.value = false;
+    return;
+  }
+
+  if (!isAuthenticated.value) {
+    router.replace({ path: '/login', query: { invite: inviteToken } });
     return;
   }
 
@@ -85,19 +71,6 @@ async function joinInvite() {
   try {
     const result = await apiPost(`/rooms/invite/${inviteToken}/join`);
     router.push(`/room/${result.room_id}`);
-  } catch (err) {
-    error.value = err.detail || 'Failed to join';
-  }
-}
-
-async function loginAndJoin() {
-  const name = inviteUsername.value.trim();
-  if (!name) return;
-  try {
-    await apiPost('/auth/local-login', { username: name });
-    await fetchMe();
-    const joinResult = await apiPost(`/rooms/invite/${inviteToken}/join`);
-    router.push(`/room/${joinResult.room_id}`);
   } catch (err) {
     error.value = err.detail || 'Failed to join';
   }

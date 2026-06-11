@@ -4,6 +4,14 @@
       <h2>{{ roomName }}</h2>
       <div class="header-actions">
         <span class="badge">{{ roomCode }}</span>
+        <button
+          v-if="isHost"
+          class="btn btn-ghost"
+          title="Show invite QR"
+          @click="openQRModal"
+        >
+          <i class="ph ph-qr-code"></i>
+        </button>
         <ThemeToggle />
         <button class="btn btn-ghost btn-danger" @click="leaveRoom">Leave</button>
       </div>
@@ -206,12 +214,71 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-if="showQRModal"
+      class="modal-overlay"
+      @click.self="closeQRModal"
+      @keydown.esc="closeQRModal"
+    >
+      <div
+        class="modal qr-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qr-modal-title"
+      >
+        <h3 id="qr-modal-title">Invite via QR</h3>
+        <p v-if="qrLoading" class="text-tertiary">Generating invite&hellip;</p>
+        <template v-else-if="qrInvite">
+          <div class="qr-canvas-wrapper">
+            <canvas ref="qrCanvas" aria-label="Invite QR code"></canvas>
+          </div>
+          <p class="text-tertiary qr-link" :title="qrInvite.url">{{ qrInvite.url }}</p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="copyJoinLink">
+              <i class="ph ph-copy"></i> Copy link
+            </button>
+          </div>
+          <hr class="qr-sep" />
+          <label for="qr-device-url" class="qr-label">
+            Send to device on your network
+          </label>
+          <div class="qr-device-row">
+            <input
+              id="qr-device-url"
+              v-model="deviceUrl"
+              type="url"
+              class="input"
+              placeholder="http://192.168.1.42"
+              :disabled="qrSending"
+              @keydown.enter.prevent="sendQRToDevice"
+            />
+            <button
+              type="button"
+              class="btn btn-primary"
+              :disabled="qrSending || !deviceUrl.trim()"
+              @click="sendQRToDevice"
+            >
+              <i class="ph ph-paper-plane-tilt"></i>
+              {{ qrSending ? 'Sending&hellip;' : 'Send' }}
+            </button>
+          </div>
+          <p class="text-tertiary qr-help">
+            <code>/send-crowdroom-qr</code> is appended automatically when the path is empty.
+          </p>
+        </template>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" @click="closeQRModal">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter, onBeforeRouteLeave } from 'vue-router';
+import QRCode from 'qrcode';
 import { apiGet, apiPost, apiDelete } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useWebSocket } from '../composables/useWebSocket.js';
@@ -268,6 +335,13 @@ const showLeaveModal = ref(false);
 // Resolver for the pending leave confirmation. onBeforeRouteLeave awaits this
 // promise so navigation pauses until the user picks Cancel or Leave.
 let leaveResolver = null;
+
+const showQRModal = ref(false);
+const qrInvite = ref(null);
+const qrLoading = ref(false);
+const qrSending = ref(false);
+const qrCanvas = ref(null);
+const deviceUrl = ref('');
 
 const progressPercent = computed(() => {
   if (!currentSong.value) return 0;
@@ -345,6 +419,60 @@ function cancelLeave() {
 
 function confirmLeave() {
   resolveLeave(true);
+}
+
+async function openQRModal() {
+  showQRModal.value = true;
+  qrLoading.value = true;
+  qrInvite.value = null;
+  try {
+    const invite = await apiPost(`/rooms/${roomId.value}/invite-qr`);
+    qrInvite.value = invite;
+    qrLoading.value = false;
+    await nextTick();
+    if (qrCanvas.value) {
+      await QRCode.toCanvas(qrCanvas.value, invite.url, {
+        width: 256,
+        margin: 1,
+      });
+    }
+  } catch (err) {
+    qrLoading.value = false;
+    showToast(err.detail || 'Could not create QR invite');
+    showQRModal.value = false;
+  }
+}
+
+function closeQRModal() {
+  showQRModal.value = false;
+  qrInvite.value = null;
+  deviceUrl.value = '';
+}
+
+async function copyJoinLink() {
+  if (!qrInvite.value) return;
+  try {
+    await navigator.clipboard.writeText(qrInvite.value.url);
+    showToast('Link copied');
+  } catch {
+    showToast('Could not copy link');
+  }
+}
+
+async function sendQRToDevice() {
+  const target = deviceUrl.value.trim();
+  if (!target) return;
+  qrSending.value = true;
+  try {
+    await apiPost(`/rooms/${roomId.value}/invite-qr/send-to-device`, {
+      device_url: target,
+    });
+    showToast('Sent to device');
+  } catch (err) {
+    showToast(err.detail || 'Could not reach device');
+  } finally {
+    qrSending.value = false;
+  }
 }
 
 async function loadRoom() {

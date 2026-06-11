@@ -83,14 +83,14 @@ class UserService:
         """
         return self._user_repo.get_by_identifier(identifier)
 
-    def create_user(self, user_data: UserCreate) -> UserRead:
+    def create_user(self, user_data: UserCreate) -> User:
         """Creates a new user in the system.
 
         Args:
             user_data (UserCreate): The schema containing user creation details.
 
         Returns:
-            UserRead: The newly created user schema.
+            User: The newly created user record.
         """
         data = user_data.model_dump()
         password_field = data.pop("password")
@@ -113,8 +113,7 @@ class UserService:
             data["username"] = data["username"].lower()
 
         user_model = User(**data)
-        new_user = self._user_repo.save(user_model)
-        return UserRead.model_validate(new_user)
+        return self._user_repo.save(user_model)
 
     def update_user(self, user_id: UUID, user_data: UserUpdate) -> UserRead:
         """Updates an existing user's information.

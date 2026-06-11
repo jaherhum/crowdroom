@@ -1,6 +1,7 @@
 """Service for managing room invite links."""
 
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -69,7 +70,11 @@ class RoomInviteService:
             raise InviteExpiredException()
 
     def create_invite(
-        self, room_id: UUID, user_id: UUID, data: CreateRoomInvite
+        self,
+        room_id: UUID,
+        user_id: UUID,
+        data: CreateRoomInvite,
+        token_factory: Callable[[], str] = generate_invite_token,
     ) -> RoomInvite:
         """Create a new invite link for a room.
 
@@ -77,6 +82,9 @@ class RoomInviteService:
             room_id: The room to create an invite for.
             user_id: The requesting user (must be host).
             data: Invite creation parameters.
+            token_factory: Callable returning a token string. Defaults to
+                the standard 12-char generator. Pass `generate_long_invite_token`
+                for harder-to-guess QR invites.
 
         Returns:
             The created RoomInvite.
@@ -97,7 +105,7 @@ class RoomInviteService:
         for attempt in range(MAX_TOKEN_RETRIES + 1):
             invite = RoomInvite(
                 room_id=room_id,
-                token=generate_invite_token(),
+                token=token_factory(),
                 max_uses=data.max_uses,
                 expires_at=expires_at,
             )

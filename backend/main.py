@@ -23,10 +23,12 @@ from backend.api.websocket import router as websocket_router
 from backend.core.config import settings, validate_spotify_config
 from backend.core.exceptions import (
     AppException,
+    DeviceUnreachableException,
     EntityExistsException,
     EntityNotFoundException,
     ForbiddenException,
     InvalidCredentialsException,
+    InvalidDeviceURLException,
     InvalidPlatformCredentialsException,
     InviteExpiredException,
     PasswordRequiredException,
@@ -94,7 +96,9 @@ _APP_EXCEPTION_STATUS: dict[type[AppException], int] = {
     ForbiddenException: 403,
     InviteExpiredException: 410,
     InvalidPlatformCredentialsException: 400,
+    InvalidDeviceURLException: 400,
     SpotifyUpstreamException: 502,
+    DeviceUnreachableException: 502,
 }
 
 
