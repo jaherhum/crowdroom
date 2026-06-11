@@ -26,6 +26,9 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-3);
+  /* Reserve the badge's full height so private rooms (with badge) and public
+     rooms (without) keep identical card height. */
+  min-height: calc(var(--font-size-xs) * var(--line-height-normal) + var(--space-1) * 2);
 }
 
 .room-card-name {
@@ -59,6 +62,25 @@
   align-items: center;
 }
 
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.pagination .btn {
+  min-width: 40px;
+}
+
+.room-card-filler {
+  visibility: hidden;
+  cursor: default;
+  pointer-events: none;
+}
+
 /* On narrow screens (e.g. iPhone 15 Pro ~393px CSS px) the Rooms section
    header — title + room-code form + Create Room — overflows a single row and
    gets clipped. Stack it and let the actions wrap to full width. */
@@ -89,5 +111,14 @@
   .section-header .header-actions > .btn-primary {
     flex: 1 1 100%;
     justify-content: center;
+  }
+
+  .pagination {
+    gap: var(--space-1);
+  }
+
+  .pagination .btn {
+    min-width: 44px;
+    min-height: 44px;
   }
 }

@@ -37,7 +37,7 @@
         </div>
         <div class="rooms-grid">
           <div
-            v-for="room in otherRooms"
+            v-for="room in pagedRooms"
             :key="room.id"
             class="card room-card"
             @click="handleJoin(room)"
@@ -53,7 +53,28 @@
               <button class="btn btn-primary" @click.stop="handleJoin(room)">Join</button>
             </div>
           </div>
+          <div
+            v-for="filler in roomFillers"
+            :key="`filler-${filler}`"
+            class="card room-card room-card-filler"
+            aria-hidden="true"
+          >
+            <div class="room-card-header">
+              <span class="room-card-name">&nbsp;</span>
+            </div>
+            <div class="room-card-meta">
+              <span><i class="ph ph-hash"></i></span>
+            </div>
+            <div class="room-card-actions">
+              <button class="btn btn-primary" tabindex="-1">Join</button>
+            </div>
+          </div>
         </div>
+        <PaginationControls
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          @update:page="goToPage"
+        />
         <p v-if="otherRooms.length === 0" class="empty-state">
           <i class="ph ph-music-notes"></i>
           <span>No rooms available. Create one!</span>
@@ -217,7 +238,9 @@ import { useRouter } from 'vue-router';
 import { apiGet, apiPost } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
 import { useToast } from '../composables/useToast.js';
+import { usePagination } from '../composables/usePagination.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
+import PaginationControls from '../components/PaginationControls.vue';
 
 const router = useRouter();
 const { username, userId, hasPassword, avatarUrl, setHasPassword, fetchMe, logout } = useAuth();
@@ -252,6 +275,20 @@ const newRoom = ref({
 
 const myRooms = computed(() => rooms.value.filter((room) => room.host_user_id === userId.value));
 const otherRooms = computed(() => rooms.value.filter((room) => room.host_user_id !== userId.value));
+
+const {
+  currentPage,
+  totalPages,
+  pageSize,
+  pagedItems: pagedRooms,
+  goToPage,
+} = usePagination(otherRooms, 12);
+
+// On the last (short) page, pad the grid with invisible placeholder cards so
+// its height stays constant and the pagination control doesn't jump.
+const roomFillers = computed(() =>
+  totalPages.value > 1 ? Math.max(0, pageSize - pagedRooms.value.length) : 0,
+);
 
 onMounted(async () => {
   try {
