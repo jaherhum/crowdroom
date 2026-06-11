@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
-from backend.db.models.enum import StreamingPlatforms, ConnectionType
+from backend.db.models.enum import ConnectionType, StreamingPlatforms
 
 if TYPE_CHECKING:
     from backend.db.models.user import User

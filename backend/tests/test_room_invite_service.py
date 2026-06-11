@@ -370,3 +370,18 @@ class TestInviteTokenGeneration:
 
         tokens = {generate_invite_token() for _ in range(100)}
         assert len(tokens) == 100
+
+    def test_long_token_length(self):
+        from backend.core.invite_token import generate_long_invite_token
+
+        assert len(generate_long_invite_token()) == 32
+
+    def test_long_token_charset(self):
+        from backend.core.invite_token import (
+            INVITE_TOKEN_CHARSET,
+            generate_long_invite_token,
+        )
+
+        token = generate_long_invite_token()
+        for char in token:
+            assert char in INVITE_TOKEN_CHARSET

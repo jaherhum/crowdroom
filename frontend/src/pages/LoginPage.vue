@@ -116,12 +116,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { apiGet, apiPost } from '../composables/useApi.js';
 import { useAuth } from '../composables/useAuth.js';
 import ThemeToggle from '../components/ThemeToggle.vue';
 import logoUrl from '../assets/logo.svg';
 
+const route = useRoute();
 const router = useRouter();
 const { fetchMe } = useAuth();
 
@@ -137,7 +138,10 @@ const regUsername = ref('');
 const regEmail = ref('');
 const regPassword = ref('');
 
+const inviteToken = ref('');
+
 onMounted(async () => {
+  inviteToken.value = (route.query.invite || '').toString();
   try {
     const result = await apiGet('/auth/mode');
     mode.value = result.mode;
@@ -145,6 +149,20 @@ onMounted(async () => {
     mode.value = 'LOCAL';
   }
 });
+
+async function postAuthRedirect() {
+  if (inviteToken.value) {
+    try {
+      const join = await apiPost(`/rooms/invite/${inviteToken.value}/join`);
+      router.push(`/room/${join.room_id}`);
+      return;
+    } catch (err) {
+      error.value = err.detail || 'Failed to join invite';
+      return;
+    }
+  }
+  router.push('/rooms');
+}
 
 async function localLogin() {
   error.value = '';
@@ -155,7 +173,7 @@ async function localLogin() {
     }
     await apiPost('/auth/local-login', body);
     await fetchMe();
-    router.push('/rooms');
+    await postAuthRedirect();
   } catch (err) {
     error.value = err.detail || 'Login failed';
   }
@@ -169,7 +187,7 @@ async function onlineLogin() {
       password: password.value,
     });
     await fetchMe();
-    router.push('/rooms');
+    await postAuthRedirect();
   } catch (err) {
     error.value = err.detail || 'Invalid credentials';
   }
@@ -184,7 +202,7 @@ async function onlineRegister() {
       password: regPassword.value,
     });
     await fetchMe();
-    router.push('/rooms');
+    await postAuthRedirect();
   } catch (err) {
     error.value = err.detail || 'Registration failed';
   }

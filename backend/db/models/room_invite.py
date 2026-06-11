@@ -17,7 +17,7 @@ class RoomInvite(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     room_id: UUID = Field(foreign_key="rooms.id", nullable=False)
-    token: str = Field(max_length=12, unique=True, index=True, nullable=False)
+    token: str = Field(max_length=64, unique=True, index=True, nullable=False)
     max_uses: int | None = Field(default=None, nullable=True)
     use_count: int = Field(default=0, nullable=False)
     expires_at: datetime | None = Field(default=None, nullable=True)
