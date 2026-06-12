@@ -175,6 +175,18 @@ class UserAlreadyInRoomException(AppException):
             )
 
 
+class UserBannedException(AppException):
+    """Exception raised when a banned user attempts to enter a room."""
+
+    def __init__(self, message: str = "You are banned from this room"):
+        """Initializes the exception.
+
+        Args:
+            message: Human-readable description of the ban.
+        """
+        super().__init__(message)
+
+
 class OAuthStateException(AppException):
     """Exception raised when an OAuth state parameter is invalid or expired."""
 

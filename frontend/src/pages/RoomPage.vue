@@ -156,8 +156,73 @@
                 (member.username || '?')[0].toUpperCase()
               }}</span>
               <span>{{ member.username || 'Unknown' }}</span>
+              <span
+                v-if="isHost && member.id !== userId"
+                class="member-actions"
+              >
+                <button
+                  type="button"
+                  class="member-action-btn"
+                  :aria-label="`Kick ${member.username || 'user'}`"
+                  title="Kick"
+                  @click="kickMember(member)"
+                >
+                  <i class="ph ph-sign-out"></i>
+                </button>
+                <button
+                  type="button"
+                  class="member-action-btn member-action-ban"
+                  :aria-label="`Ban ${member.username || 'user'}`"
+                  title="Ban"
+                  @click="banMember(member)"
+                >
+                  <i class="ph ph-prohibit"></i>
+                </button>
+              </span>
             </li>
           </ul>
+        </details>
+      </aside>
+
+      <!-- Banned users (host only) -->
+      <aside v-if="isHost" class="panel members-panel">
+        <details @toggle="onBansToggle">
+          <summary>
+            <h3>
+              <i class="ph ph-prohibit"></i> Banned
+              <span class="badge">{{ bannedUsers.length }}</span>
+            </h3>
+          </summary>
+          <ul class="members-list">
+            <li
+              v-for="banned in bannedUsers"
+              :key="banned.user_id"
+              class="member-item"
+            >
+              <span class="member-avatar">{{
+                (banned.username || '?')[0].toUpperCase()
+              }}</span>
+              <span>{{ banned.username || 'Unknown' }}</span>
+              <span class="member-actions">
+                <button
+                  type="button"
+                  class="member-action-btn"
+                  :aria-label="`Unban ${banned.username || 'user'}`"
+                  title="Unban"
+                  @click="unbanUser(banned)"
+                >
+                  <i class="ph ph-arrow-counter-clockwise"></i>
+                </button>
+              </span>
+            </li>
+          </ul>
+          <p
+            v-if="bannedUsers.length === 0"
+            class="text-tertiary"
+            style="padding: var(--space-3)"
+          >
+            No banned users.
+          </p>
         </details>
       </aside>
 
@@ -211,6 +276,25 @@
           <button type="button" class="btn btn-danger" @click="confirmLeave">
             {{ isHost ? 'Close room' : 'Leave' }}
           </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="banTarget"
+      class="modal-overlay"
+      @click.self="cancelBan"
+      @keydown.esc="cancelBan"
+    >
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ban-modal-title">
+        <h3 id="ban-modal-title">Ban {{ banTarget.username || 'this user' }}?</h3>
+        <p class="text-tertiary">
+          They will be removed from the room and blocked from rejoining until you
+          unban them.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" @click="cancelBan">Cancel</button>
+          <button type="button" class="btn btn-danger" @click="confirmBan">Ban</button>
         </div>
       </div>
     </div>
@@ -305,6 +389,7 @@ const sessionId = ref(null);
 const currentSong = ref(null);
 const queueItems = ref([]);
 const members = ref([]);
+const bannedUsers = ref([]);
 const history = ref([]);
 const searchQuery = ref('');
 const searchResults = ref([]);
@@ -337,6 +422,7 @@ const showLeaveModal = ref(false);
 let leaveResolver = null;
 
 const showQRModal = ref(false);
+const banTarget = ref(null);
 const qrInvite = ref(null);
 const qrLoading = ref(false);
 const qrSending = ref(false);
@@ -371,8 +457,12 @@ onMounted(async () => {
   try {
     await loadRoom();
     await loadSession();
+    await syncPlaybackPosition();
     await Promise.all([loadQueue(), loadCurrentSong(), loadMembers(), loadHistory()]);
-    await loadPlaybackState();
+    if (isPlaying.value && !currentSong.value && currentExternalId) {
+      await loadExternalTrack();
+    }
+    if (isPlaying.value) startProgressAnimation();
     setupWebSocket();
     window.addEventListener('beforeunload', handleBeforeUnload);
   } catch (err) {
@@ -501,11 +591,7 @@ async function loadSession() {
 async function loadQueue() {
   if (!sessionId.value) return;
   const items = await apiGet(`/queue/?session_id=${sessionId.value}`);
-  // COUPLING: the backend returns the full queue with index 0 being the
-  // currently-playing track (see queue_repo.get_first_item ordering). The
-  // "up next" list must exclude it, so we drop index 0 here. If the backend
-  // ever stops putting the current song first, update this slice too.
-  queueItems.value = items.slice(1);
+  queueItems.value = stripCurrentSongFromQueue(items);
 }
 
 async function loadCurrentSong() {
@@ -514,8 +600,75 @@ async function loadCurrentSong() {
   currentSong.value = item?.song ? item : null;
 }
 
+function stripCurrentSongFromQueue(items) {
+  if (!items || items.length === 0) return [];
+  const first = items[0];
+  const cur = currentSong.value;
+  if (cur && cur.id && first.id === cur.id) {
+    return items.slice(1);
+  }
+  if (cur && cur.song && first.song && first.song.external_id === cur.song.external_id) {
+    return items.slice(1);
+  }
+  return items;
+}
+
 async function loadMembers() {
   members.value = await apiGet(`/rooms/${roomId.value}/members`);
+}
+
+async function loadBans() {
+  if (!isHost.value) return;
+  try {
+    bannedUsers.value = await apiGet(`/rooms/${roomId.value}/bans`);
+  } catch (err) {
+    showToast(err.detail || 'Could not load banned users');
+  }
+}
+
+function onBansToggle(event) {
+  if (event.target.open) loadBans();
+}
+
+async function kickMember(member) {
+  try {
+    await apiPost(`/rooms/${roomId.value}/kick/${member.id}`);
+    showToast(`${member.username || 'User'} kicked`);
+    await loadMembers();
+  } catch (err) {
+    showToast(err.detail || 'Could not kick user');
+  }
+}
+
+function banMember(member) {
+  banTarget.value = member;
+}
+
+function cancelBan() {
+  banTarget.value = null;
+}
+
+async function confirmBan() {
+  const member = banTarget.value;
+  banTarget.value = null;
+  if (!member) return;
+  try {
+    await apiPost(`/rooms/${roomId.value}/ban/${member.id}`);
+    showToast(`${member.username || 'User'} banned`);
+    await Promise.all([loadMembers(), loadBans()]);
+  } catch (err) {
+    showToast(err.detail || 'Could not ban user');
+  }
+}
+
+async function unbanUser(banned) {
+  try {
+    await apiDelete(`/rooms/${roomId.value}/ban/${banned.user_id}`);
+    showToast(`${banned.username || 'User'} unbanned`);
+    await loadBans();
+  } catch (err) {
+    showToast(err.detail || 'Could not unban user');
+  }
 }
 
 async function loadHistory() {
@@ -723,9 +876,7 @@ function setupWebSocket() {
 
   register('queue_updated', (msg) => {
     if (msg.queue) {
-      // COUPLING: mirror loadQueue() — index 0 is the current song, so the
-      // "up next" list drops it. Keep both slices in sync.
-      queueItems.value = msg.queue.slice(1);
+      queueItems.value = stripCurrentSongFromQueue(msg.queue);
     } else {
       loadQueue();
     }
@@ -763,7 +914,7 @@ function setupWebSocket() {
     loadQueue();
   });
 
-  register('skip_vote', (msg) => {
+  register('skip_vote', async (msg) => {
     if (currentSong.value && currentSong.value.id === msg.queue_item_id) {
       currentSong.value = { ...currentSong.value, votes_skip: msg.current_votes };
     }
@@ -771,8 +922,15 @@ function setupWebSocket() {
       hasVotedSkip.value = false;
       isPlaying.value = false;
       if (progressFrame) cancelAnimationFrame(progressFrame);
-      loadCurrentSong();
-      loadQueue();
+      // After vote-skip, session.current_song_id stays on the skipped track
+      // until the poller advances Spotify, so /queue/current returns null.
+      // Promote queue[0] locally so the player metadata and vote-skip button
+      // stay visible during the transition.
+      const items = sessionId.value
+        ? await apiGet(`/queue/?session_id=${sessionId.value}`)
+        : [];
+      currentSong.value = items && items.length > 0 ? items[0] : null;
+      queueItems.value = stripCurrentSongFromQueue(items);
       loadHistory();
     }
   });
@@ -805,6 +963,20 @@ function setupWebSocket() {
   };
   register('member_joined', refreshMembers);
   register('member_left', refreshMembers);
+
+  const handleRemoval = (label) => (msg) => {
+    if (msg.payload?.user_id !== userId.value) {
+      refreshMembers();
+      return;
+    }
+    if (leaving) return;
+    leaving = true;
+    showToast(label);
+    teardownWebSocket();
+    router.push('/rooms');
+  };
+  register('member_kicked', handleRemoval('You were kicked from this room'));
+  register('member_banned', handleRemoval('You were banned from this room'));
 
   register('room_closed', () => {
     if (leaving) return;

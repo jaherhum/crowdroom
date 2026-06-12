@@ -85,19 +85,24 @@ class ConnectionManager:
         """
         self.active_connections: dict[str, set[WebSocket]] = {}
         self._last_pong: dict[WebSocket, float] = {}
+        self._socket_user: dict[WebSocket, UUID] = {}
 
-    async def connect(self, websocket: WebSocket, room_id: str) -> None:
+    async def connect(
+        self, websocket: WebSocket, room_id: str, user_id: UUID
+    ) -> None:
         """Accept and register a new WebSocket connection for a room.
 
         Args:
             websocket: The WebSocket connection to accept.
             room_id: The identifier of the room to join.
+            user_id: The authenticated user owning this connection.
         """
         await websocket.accept()
         if room_id not in self.active_connections:
             self.active_connections[room_id] = set()
         self.active_connections[room_id].add(websocket)
         self._last_pong[websocket] = time.monotonic()
+        self._socket_user[websocket] = user_id
 
     async def disconnect(self, websocket: WebSocket, room_id: str) -> None:
         """Remove a WebSocket connection from its room.
@@ -111,6 +116,31 @@ class ConnectionManager:
             if not self.active_connections[room_id]:
                 del self.active_connections[room_id]
         self._last_pong.pop(websocket, None)
+        self._socket_user.pop(websocket, None)
+
+    async def disconnect_user(self, user_id: UUID, room_id: str) -> None:
+        """Force-close every socket a given user holds in a room.
+
+        Closes with policy-violation code 1008 so the frontend tears down and
+        redirects instead of reconnecting.
+
+        Args:
+            user_id: The user whose sockets should be closed.
+            room_id: The room the user is being removed from.
+        """
+        if room_id not in self.active_connections:
+            return
+        targets = [
+            connection
+            for connection in self.active_connections[room_id]
+            if self._socket_user.get(connection) == user_id
+        ]
+        for connection in targets:
+            try:
+                await connection.close(code=1008, reason="removed by host")
+            except Exception:
+                pass
+            await self.disconnect(connection, room_id)
 
     def record_pong(self, websocket: WebSocket) -> None:
         """Record that a pong was received from this connection.
@@ -234,7 +264,7 @@ async def websocket_endpoint(
         room_id: The identifier of the room to join.
         user: The authenticated, room-authorized user (injected).
     """
-    await manager.connect(websocket, room_id)
+    await manager.connect(websocket, room_id, user.id)
     try:
         async with asyncio.TaskGroup() as task_group:
             task_group.create_task(_receive_loop(websocket, room_id))

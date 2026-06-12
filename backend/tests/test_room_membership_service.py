@@ -12,9 +12,11 @@ from backend.core.exceptions import (
     ForbiddenException,
     TooManyRequestsException,
     UserAlreadyInRoomException,
+    UserBannedException,
 )
 from backend.db.models.room import Room
 from backend.db.models.user import User
+from backend.repositories.room_ban_repo import RoomBanRepository
 from backend.repositories.room_repo import RoomRepository
 from backend.repositories.user_repo import UserRepository
 from backend.services.room_invite_service import RoomInviteService
@@ -52,18 +54,26 @@ class TestJoinRoom:
         return MagicMock(spec=RoomRepository)
 
     @pytest.fixture
+    def mock_ban_repo(self):
+        mock = MagicMock(spec=RoomBanRepository)
+        mock.exists.return_value = False
+        return mock
+
+    @pytest.fixture
     def membership_service(
         self,
         mock_room_service,
         mock_invite_service,
         mock_user_repo,
         mock_room_repo,
+        mock_ban_repo,
     ):
         return RoomMembershipService(
             mock_room_service,
             mock_invite_service,
             mock_user_repo,
             mock_room_repo,
+            mock_ban_repo,
         )
 
     @pytest.fixture
@@ -120,6 +130,30 @@ class TestJoinRoom:
         call_args = mock_broadcast.call_args
         assert call_args[0][0]["type"] == "member_joined"
         assert call_args[0][0]["payload"]["user_id"] == str(user.id)
+
+    def test_join_banned_user_rejected(
+        self,
+        membership_service,
+        mock_room_service,
+        mock_ban_repo,
+        mock_user_repo,
+        user,
+        public_room,
+    ):
+        mock_room_service.get_room.return_value = public_room
+        mock_ban_repo.exists.return_value = True
+
+        def _run():
+            with patch(
+                "backend.services.room_membership_service.manager"
+            ) as mock_manager:
+                mock_manager.broadcast = AsyncMock()
+                anyio.run(membership_service.join_room, public_room.id, user)
+
+        with pytest.raises(UserBannedException):
+            _run()
+
+        mock_user_repo.save.assert_not_called()
 
     def test_join_private_room_with_valid_pin(
         self,
@@ -313,18 +347,26 @@ class TestLeaveRoom:
         return MagicMock(spec=RoomRepository)
 
     @pytest.fixture
+    def mock_ban_repo(self):
+        mock = MagicMock(spec=RoomBanRepository)
+        mock.exists.return_value = False
+        return mock
+
+    @pytest.fixture
     def membership_service(
         self,
         mock_room_service,
         mock_invite_service,
         mock_user_repo,
         mock_room_repo,
+        mock_ban_repo,
     ):
         return RoomMembershipService(
             mock_room_service,
             mock_invite_service,
             mock_user_repo,
             mock_room_repo,
+            mock_ban_repo,
         )
 
     @pytest.fixture
@@ -469,18 +511,26 @@ class TestPinCooldown:
         return MagicMock(spec=RoomRepository)
 
     @pytest.fixture
+    def mock_ban_repo(self):
+        mock = MagicMock(spec=RoomBanRepository)
+        mock.exists.return_value = False
+        return mock
+
+    @pytest.fixture
     def membership_service(
         self,
         mock_room_service,
         mock_invite_service,
         mock_user_repo,
         mock_room_repo,
+        mock_ban_repo,
     ):
         return RoomMembershipService(
             mock_room_service,
             mock_invite_service,
             mock_user_repo,
             mock_room_repo,
+            mock_ban_repo,
         )
 
     @pytest.fixture

@@ -516,3 +516,368 @@ class TestPollLoopSelfStop:
                 assert not poller.is_polling(room_id)
 
         anyio.run(_run)
+
+
+class TestQueueOwnsCurrentTrack:
+    def test_returns_true_when_external_id_matches(self):
+        session = MagicMock()
+        session.current_song_id = "abc"
+        item = MagicMock()
+        item.song.external_id = "abc"
+        assert PlaybackPollerService._queue_owns_current_track(session, item) is True
+
+    def test_returns_false_when_external_id_differs(self):
+        session = MagicMock()
+        session.current_song_id = "external_track"
+        item = MagicMock()
+        item.song.external_id = "queued_track"
+        assert PlaybackPollerService._queue_owns_current_track(session, item) is False
+
+    def test_returns_false_when_queue_item_is_none(self):
+        session = MagicMock()
+        session.current_song_id = "abc"
+        assert PlaybackPollerService._queue_owns_current_track(session, None) is False
+
+    def test_returns_false_when_session_has_no_current_song(self):
+        session = MagicMock()
+        session.current_song_id = None
+        item = MagicMock()
+        item.song.external_id = "abc"
+        assert PlaybackPollerService._queue_owns_current_track(session, item) is False
+
+
+class TestQueueItemSongEagerLoaded:
+    """Guard against DetachedInstanceError when accessing item.song after
+    the helper's DBSession closes. Without eager loading the poll loop
+    silently swallows the error and the queue stalls."""
+
+    def test_get_current_queue_item_song_accessible_after_session_close(self):
+        from sqlmodel import Session as DBSession
+        from sqlmodel import select
+
+        from backend.db.database import engine
+        from backend.db.models.queue_item import QueueItem
+
+        with DBSession(engine) as s:
+            row = s.exec(select(QueueItem).limit(1)).first()
+            session_id = row.session_id if row else None
+
+        if session_id is None:
+            pytest.skip("no QueueItem rows in DB to exercise relation load")
+
+        poller = PlaybackPollerService()
+        item = poller._get_current_queue_item(session_id)
+        assert item is not None
+        # Must not raise DetachedInstanceError.
+        assert item.song.external_id is not None
+
+    def test_get_next_queue_item_song_accessible_after_session_close(self):
+        from sqlmodel import Session as DBSession
+        from sqlmodel import func, select
+
+        from backend.db.database import engine
+        from backend.db.models.queue_item import QueueItem
+
+        with DBSession(engine) as s:
+            stmt = (
+                select(QueueItem.session_id)
+                .group_by(QueueItem.session_id)
+                .having(func.count(QueueItem.id) > 1)
+                .limit(1)
+            )
+            session_id = s.exec(stmt).first()
+
+        if session_id is None:
+            pytest.skip("no session with >=2 QueueItems to exercise next item")
+
+        poller = PlaybackPollerService()
+        item = poller._get_next_queue_item(session_id)
+        assert item is not None
+        assert item.song.external_id is not None
+
+
+class TestAdvanceQueueOwnership:
+    def test_owned_advance_finishes_and_plays_next(self):
+        poller = PlaybackPollerService()
+        session = MagicMock()
+        session.id = uuid4()
+        session.current_song_id = "track_a"
+        room_id = uuid4()
+        host_user_id = uuid4()
+
+        current_item = MagicMock()
+        current_item.song.external_id = "track_a"
+        next_item = MagicMock()
+        next_item.song.external_id = "track_b"
+
+        playback_service = MagicMock()
+        playback_service.finish_song = AsyncMock()
+        playback_service._broadcast_song_changed = AsyncMock()
+        queue_service = MagicMock()
+        queue_service.get_current_song = MagicMock(
+            side_effect=[current_item, next_item]
+        )
+
+        adapter = AsyncMock()
+
+        async def _run():
+            with (
+                patch.object(
+                    poller,
+                    "_build_playback_service_with_queue",
+                    return_value=(playback_service, queue_service),
+                ),
+                patch.object(poller, "_update_session_track") as mock_update,
+                patch.object(
+                    poller, "_broadcast_state_changed", new_callable=AsyncMock
+                ) as mock_state,
+            ):
+                await poller._advance_queue(session, room_id, host_user_id, adapter)
+
+            playback_service.finish_song.assert_awaited_once_with(session.id)
+            adapter.play.assert_awaited_once_with("spotify:track:track_b")
+            mock_update.assert_called_once_with(
+                session.id, "track_b", ItemStatus.PLAYING
+            )
+            mock_state.assert_awaited_once_with(room_id, "playing", "track_b")
+            playback_service._broadcast_song_changed.assert_not_called()
+
+        anyio.run(_run)
+
+    def test_not_owned_advance_skips_finish_and_plays_first_item(self):
+        poller = PlaybackPollerService()
+        session = MagicMock()
+        session.id = uuid4()
+        session.current_song_id = "external_x"
+        room_id = uuid4()
+        host_user_id = uuid4()
+
+        waiting_item = MagicMock()
+        waiting_item.song.external_id = "queued_y"
+
+        playback_service = MagicMock()
+        playback_service.finish_song = AsyncMock()
+        playback_service._broadcast_song_changed = AsyncMock()
+        queue_service = MagicMock()
+        queue_service.get_current_song = MagicMock(return_value=waiting_item)
+
+        adapter = AsyncMock()
+
+        async def _run():
+            with (
+                patch.object(
+                    poller,
+                    "_build_playback_service_with_queue",
+                    return_value=(playback_service, queue_service),
+                ),
+                patch.object(poller, "_update_session_track") as mock_update,
+                patch.object(
+                    poller, "_broadcast_state_changed", new_callable=AsyncMock
+                ) as mock_state,
+            ):
+                await poller._advance_queue(session, room_id, host_user_id, adapter)
+
+            playback_service.finish_song.assert_not_called()
+            adapter.play.assert_awaited_once_with("spotify:track:queued_y")
+            mock_update.assert_called_once_with(
+                session.id, "queued_y", ItemStatus.PLAYING
+            )
+            mock_state.assert_awaited_once_with(room_id, "playing", "queued_y")
+            playback_service._broadcast_song_changed.assert_awaited_once_with(
+                session.id, waiting_item.song
+            )
+
+        anyio.run(_run)
+
+    def test_not_owned_advance_with_empty_queue_stops_playback(self):
+        poller = PlaybackPollerService()
+        session = MagicMock()
+        session.id = uuid4()
+        session.current_song_id = "external_x"
+        room_id = uuid4()
+        host_user_id = uuid4()
+
+        playback_service = MagicMock()
+        playback_service.finish_song = AsyncMock()
+        playback_service._broadcast_song_changed = AsyncMock()
+        queue_service = MagicMock()
+        queue_service.get_current_song = MagicMock(return_value=None)
+
+        adapter = AsyncMock()
+
+        async def _run():
+            with (
+                patch.object(
+                    poller,
+                    "_build_playback_service_with_queue",
+                    return_value=(playback_service, queue_service),
+                ),
+                patch.object(poller, "_update_session_status") as mock_status,
+                patch.object(
+                    poller, "_broadcast_state_changed", new_callable=AsyncMock
+                ) as mock_state,
+            ):
+                await poller._advance_queue(session, room_id, host_user_id, adapter)
+
+            playback_service.finish_song.assert_not_called()
+            adapter.pause.assert_awaited_once()
+            mock_status.assert_called_once_with(session.id, ItemStatus.STOPPED)
+            mock_state.assert_awaited_once_with(room_id, "stopped")
+
+        anyio.run(_run)
+
+
+class TestPollLoopExternalEndsWithQueuedWaiting:
+    @patch("backend.services.playback_poller_service.SpotifyPlaybackAdapter")
+    @patch("backend.services.playback_poller_service.settings")
+    def test_external_track_replaced_takes_control_of_queue(
+        self, mock_settings, mock_adapter_cls
+    ):
+        mock_settings.PLAYBACK_POLL_INTERVAL_SECONDS = 0
+
+        poller = PlaybackPollerService()
+        room_id = uuid4()
+        host_user_id = uuid4()
+        session_id = uuid4()
+
+        mock_session = MagicMock()
+        mock_session.id = session_id
+        mock_session.current_song_id = "external_x"
+        mock_session.playback_status = ItemStatus.PLAYING
+
+        waiting_item = MagicMock()
+        waiting_item.song.external_id = "queued_y"
+
+        call_count = 0
+
+        def get_session_side_effect(rid):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 1:
+                return mock_session
+            return None
+
+        mock_adapter = AsyncMock()
+        mock_adapter.get_current_playback = AsyncMock(
+            return_value=SpotifyPlaybackState(
+                is_playing=True,
+                track_id="external_z",
+                progress_ms=1000,
+                duration_ms=200000,
+                device_id="device1",
+            )
+        )
+        mock_adapter_cls.return_value = mock_adapter
+
+        async def _run():
+            with (
+                patch.object(
+                    poller,
+                    "_get_session_state",
+                    side_effect=get_session_side_effect,
+                ),
+                patch.object(
+                    poller,
+                    "_get_valid_token",
+                    new_callable=AsyncMock,
+                    return_value="token",
+                ),
+                patch.object(poller, "_get_next_queue_item", return_value=None),
+                patch.object(
+                    poller, "_get_current_queue_item", return_value=waiting_item
+                ),
+                patch.object(poller, "_adopt_external_track") as mock_adopt,
+                patch.object(
+                    poller, "_advance_queue", new_callable=AsyncMock
+                ) as mock_advance,
+            ):
+                await poller._poll_loop(room_id, host_user_id)
+
+            mock_advance.assert_awaited_once_with(
+                mock_session, room_id, host_user_id, mock_adapter
+            )
+            mock_adopt.assert_not_called()
+
+        anyio.run(_run)
+
+
+class TestPollLoopAutoplayOverridesQueue:
+    @patch("backend.services.playback_poller_service.SpotifyPlaybackAdapter")
+    @patch("backend.services.playback_poller_service.settings")
+    def test_owned_song_ends_spotify_autoplay_unrelated_advances_to_next(
+        self, mock_settings, mock_adapter_cls
+    ):
+        """Queue-owned A ends, Spotify autoplay starts off-queue Z, queue has B.
+
+        Expect: take control with B (advance_queue), do NOT adopt Z. Otherwise
+        B never plays — symptom user reported as "se añade a la cola pero
+        cuando la canción termina no salta a la siguiente".
+        """
+        mock_settings.PLAYBACK_POLL_INTERVAL_SECONDS = 0
+
+        poller = PlaybackPollerService()
+        room_id = uuid4()
+        host_user_id = uuid4()
+        session_id = uuid4()
+
+        mock_session = MagicMock()
+        mock_session.id = session_id
+        mock_session.current_song_id = "queued_a"
+        mock_session.playback_status = ItemStatus.PLAYING
+
+        current_item = MagicMock()
+        current_item.song.external_id = "queued_a"
+        next_item = MagicMock()
+        next_item.song.external_id = "queued_b"
+
+        call_count = 0
+
+        def get_session_side_effect(rid):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 1:
+                return mock_session
+            return None
+
+        mock_adapter = AsyncMock()
+        mock_adapter.get_current_playback = AsyncMock(
+            return_value=SpotifyPlaybackState(
+                is_playing=True,
+                track_id="autoplay_z",
+                progress_ms=1000,
+                duration_ms=200000,
+                device_id="device1",
+            )
+        )
+        mock_adapter_cls.return_value = mock_adapter
+
+        async def _run():
+            with (
+                patch.object(
+                    poller,
+                    "_get_session_state",
+                    side_effect=get_session_side_effect,
+                ),
+                patch.object(
+                    poller,
+                    "_get_valid_token",
+                    new_callable=AsyncMock,
+                    return_value="token",
+                ),
+                patch.object(poller, "_get_next_queue_item", return_value=next_item),
+                patch.object(
+                    poller, "_get_current_queue_item", return_value=current_item
+                ),
+                patch.object(poller, "_adopt_external_track") as mock_adopt,
+                patch.object(
+                    poller, "_advance_queue", new_callable=AsyncMock
+                ) as mock_advance,
+            ):
+                await poller._poll_loop(room_id, host_user_id)
+
+            mock_advance.assert_awaited_once_with(
+                mock_session, room_id, host_user_id, mock_adapter
+            )
+            mock_adopt.assert_not_called()
+
+        anyio.run(_run)

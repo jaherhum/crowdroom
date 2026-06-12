@@ -105,17 +105,54 @@ class PlaybackPollerService:
             )
 
     def _get_current_queue_item(self, session_id: UUID):
-        """Get the current (position 0) queue item from a fresh DB session."""
+        """Get the current (position 0) queue item from a fresh DB session.
+
+        Eagerly resolves ``.song`` before the session closes; otherwise callers
+        accessing ``item.song`` outside the ``with`` block raise
+        ``DetachedInstanceError`` (silently swallowed by the poll loop's
+        catch-all and stalling the queue).
+        """
         with DBSession(engine) as db_session:
             queue_repo = QueueRepository(db_session)
-            return queue_repo.get_first_item(session_id)
+            item = queue_repo.get_first_item(session_id)
+            if item is not None:
+                _ = item.song
+            return item
 
     def _get_next_queue_item(self, session_id: UUID):
-        """Get the second queue item (next after current) from a fresh DB session."""
+        """Get the second queue item (next after current) from a fresh DB session.
+
+        Eagerly resolves ``.song`` before the session closes (see
+        :meth:`_get_current_queue_item`).
+        """
         with DBSession(engine) as db_session:
             queue_repo = QueueRepository(db_session)
             items = queue_repo.get_all_by_session(session_id)
-            return items[1] if len(items) > 1 else None
+            item = items[1] if len(items) > 1 else None
+            if item is not None:
+                _ = item.song
+            return item
+
+    @staticmethod
+    def _queue_owns_current_track(session, queue_item) -> bool:
+        """True iff the first queue item is the track Spotify is playing.
+
+        When False, an external track is occupying the player and the queue's
+        first item is a waiting song that must not be passed to ``finish_song``.
+
+        Args:
+            session: Current session object.
+            queue_item: The first queue item, or None.
+
+        Returns:
+            True when ``queue_item.song.external_id`` matches
+            ``session.current_song_id``; False otherwise.
+        """
+        if queue_item is None or queue_item.song is None:
+            return False
+        if not session.current_song_id:
+            return False
+        return queue_item.song.external_id == session.current_song_id
 
     def _build_playback_service_with_queue(
         self,
@@ -216,9 +253,18 @@ class PlaybackPollerService:
             adapter: Already-authenticated Spotify adapter.
         """
         playback_service, queue_service = self._build_playback_service_with_queue()
-        await playback_service.finish_song(session.id)
+        current_item = queue_service.get_current_song(session.id)
+        queue_owns_current = self._queue_owns_current_track(session, current_item)
 
-        next_item = queue_service.get_current_song(session.id)
+        if queue_owns_current:
+            await playback_service.finish_song(session.id)
+            next_item = queue_service.get_current_song(session.id)
+        else:
+            # External track was occupying the player; the first queue item is
+            # waiting and must NOT be passed through finish_song. Take control
+            # by playing it directly.
+            next_item = current_item
+
         next_uri = (
             f"spotify:track:{next_item.song.external_id}"
             if next_item and next_item.song
@@ -257,6 +303,12 @@ class PlaybackPollerService:
                 ItemStatus.PLAYING,
             )
             await self._broadcast_state_changed(room_id, "playing", track_id)
+            if not queue_owns_current:
+                # finish_song wasn't called, so emit the now-playing flip ourselves
+                # so clients move the queued song into the now-playing pane.
+                await playback_service._broadcast_song_changed(
+                    session.id, next_item.song
+                )
         else:
             try:
                 await adapter.pause()
@@ -380,11 +432,39 @@ class PlaybackPollerService:
                             if next_item and next_item.song
                             else None
                         )
-                        if state.track_id == next_external_id:
+                        current_item = self._get_current_queue_item(session.id)
+                        queue_owns_current = self._queue_owns_current_track(
+                            session, current_item
+                        )
+
+                        should_advance_with_next = (
+                            state.track_id == next_external_id
+                            or (queue_owns_current and next_item is not None)
+                        )
+                        should_take_over_with_current = (
+                            current_item is not None and not queue_owns_current
+                        )
+
+                        if should_advance_with_next:
                             logger.info(
-                                "Room %s: next queue item %s, advancing",
+                                "Room %s: queue advance triggered "
+                                "(spotify=%s, queue_next=%s, queue_owns=%s)",
                                 room_id,
                                 state.track_id,
+                                next_external_id,
+                                queue_owns_current,
+                            )
+                            await self._advance_queue(
+                                session, room_id, host_user_id, adapter
+                            )
+                        elif should_take_over_with_current:
+                            logger.info(
+                                "Room %s: external track ended, taking "
+                                "control with queued item %s",
+                                room_id,
+                                current_item.song.external_id
+                                if current_item.song
+                                else None,
                             )
                             await self._advance_queue(
                                 session, room_id, host_user_id, adapter
@@ -395,8 +475,7 @@ class PlaybackPollerService:
                                 room_id,
                                 state.track_id,
                             )
-                            current_item = self._get_current_queue_item(session.id)
-                            if current_item:
+                            if queue_owns_current:
                                 svc, _ = self._build_playback_service_with_queue()
                                 await svc.finish_song(session.id)
                             await asyncio.to_thread(

@@ -8,9 +8,11 @@ from backend.api.auth.dependencies import get_current_user
 from backend.api.queue.dependencies import (
     get_queue_history_repo,
     get_queue_service,
+    get_session_repo,
 )
 from backend.api.session.dependencies import get_queue_vote_service
 from backend.db.models.user import User
+from backend.repositories.session_repo import SessionRepository
 from backend.schemas.queue_history import ReadQueueHistory
 from backend.schemas.queue_item import (
     CreateQueueItem,
@@ -32,23 +34,32 @@ router = APIRouter(prefix="/queue", tags=["queue"])
 def get_current_song(
     session_id: UUID,
     queue_service: QueueService = Depends(get_queue_service),
+    session_repo: SessionRepository = Depends(get_session_repo),
 ) -> ReadQueueItemDetail | None:
-    """Retrieve the currently playing song for a session.
+    """Return the queue item that is actually being played.
 
-    Returns the queue item at position 0 (the now-playing slot) with
-    nested song and user data.
+    Returns the queue item at position 0 only when its song's external_id
+    matches the session's current_song_id (i.e. the queue owns the
+    currently-playing track). When an external/off-script track is playing
+    while a queued song waits at position 0, returns None so callers know
+    to resolve the playing track elsewhere.
 
     Args:
         session_id: The session whose current song to retrieve.
         queue_service: Dependency-injected queue service instance.
+        session_repo: Dependency-injected session repository.
 
     Returns:
-        ReadQueueItemDetail with song and user info, or None if
-        the session has no active playback.
+        ReadQueueItemDetail when the first queue item is the playing
+        track, otherwise None.
     """
     item = queue_service.get_current_song(session_id)
-    if item is None:
+    if item is None or item.song is None:
         return None
+    session = session_repo.get_by_id(session_id)
+    if session and session.current_song_id:
+        if item.song.external_id != session.current_song_id:
+            return None
     return ReadQueueItemDetail.model_validate(item)
 
 

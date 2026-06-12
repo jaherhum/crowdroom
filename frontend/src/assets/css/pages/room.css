@@ -193,6 +193,35 @@
   margin-left: auto;
 }
 
+.member-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.member-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  color: var(--text-tertiary);
+  background: none;
+  cursor: pointer;
+}
+
+.member-action-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+}
+
+.member-action-ban:hover {
+  color: var(--danger, #e5484d);
+  border-color: var(--danger, #e5484d);
+}
+
 .skip-btn {
   font-size: var(--font-size-xs);
   color: var(--text-tertiary);

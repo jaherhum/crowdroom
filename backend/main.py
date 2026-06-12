@@ -36,6 +36,7 @@ from backend.core.exceptions import (
     SpotifyUpstreamException,
     TooManyRequestsException,
     UserAlreadyInRoomException,
+    UserBannedException,
 )
 from backend.db.database import create_db_and_tables
 from backend.services.playback_poller_service import PlaybackPollerService
@@ -91,6 +92,7 @@ _APP_EXCEPTION_STATUS: dict[type[AppException], int] = {
     EntityNotFoundException: 404,
     EntityExistsException: 409,
     UserAlreadyInRoomException: 409,
+    UserBannedException: 403,
     InvalidCredentialsException: 401,
     PasswordRequiredException: 401,
     ForbiddenException: 403,
