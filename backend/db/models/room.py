@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from backend.db.models.room_ban import RoomBan
     from backend.db.models.room_invite import RoomInvite
     from backend.db.models.session import Session
     from backend.db.models.user import User
@@ -48,6 +49,10 @@ class Room(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "[User.room_id]"},
     )
     invites: Mapped[list["RoomInvite"]] = Relationship(
+        back_populates="room",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    bans: Mapped[list["RoomBan"]] = Relationship(
         back_populates="room",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )

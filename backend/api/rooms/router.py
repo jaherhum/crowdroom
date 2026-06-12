@@ -8,6 +8,7 @@ from backend.api.auth.dependencies import get_current_user
 from backend.api.queue.dependencies import get_queue_history_repo
 from backend.api.rooms.dependencies import (
     get_room_membership_service,
+    get_room_moderation_service,
     get_room_service,
     get_session_repo,
 )
@@ -22,9 +23,16 @@ from backend.repositories.queue_history_repo import QueueHistoryRepository
 from backend.repositories.session_repo import SessionRepository
 from backend.repositories.user_repo import UserRepository
 from backend.schemas.queue_history import ReadQueueHistory
-from backend.schemas.room import CreateRoom, JoinRoom, ReadRoom, UpdateRoom
+from backend.schemas.room import (
+    BannedUserRead,
+    CreateRoom,
+    JoinRoom,
+    ReadRoom,
+    UpdateRoom,
+)
 from backend.schemas.user import UserRead
 from backend.services.room_membership_service import RoomMembershipService
+from backend.services.room_moderation_service import RoomModerationService
 from backend.services.room_service import RoomService
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
@@ -260,6 +268,91 @@ async def leave_room(
         return {"message": "Left room successfully"}
     except EntityNotFoundException as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/{room_id}/kick/{user_id}", status_code=status.HTTP_200_OK)
+async def kick_user(
+    room_id: UUID,
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    moderation_service: RoomModerationService = Depends(get_room_moderation_service),
+) -> dict:
+    """Kick a member from a room. The host only; kicked users may rejoin.
+
+    Args:
+        room_id: The room to kick from.
+        user_id: The member being kicked.
+        current_user: The authenticated host.
+        moderation_service: The injected moderation service.
+
+    Returns:
+        Confirmation message.
+    """
+    await moderation_service.kick_user(room_id, current_user.id, user_id)
+    return {"message": "User kicked"}
+
+
+@router.post("/{room_id}/ban/{user_id}", status_code=status.HTTP_200_OK)
+async def ban_user(
+    room_id: UUID,
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    moderation_service: RoomModerationService = Depends(get_room_moderation_service),
+) -> dict:
+    """Ban a user from a room. The host only; banned users cannot rejoin.
+
+    Args:
+        room_id: The room to ban from.
+        user_id: The user being banned.
+        current_user: The authenticated host.
+        moderation_service: The injected moderation service.
+
+    Returns:
+        Confirmation message.
+    """
+    await moderation_service.ban_user(room_id, current_user.id, user_id)
+    return {"message": "User banned"}
+
+
+@router.delete("/{room_id}/ban/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unban_user(
+    room_id: UUID,
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    moderation_service: RoomModerationService = Depends(get_room_moderation_service),
+) -> None:
+    """Unban a user from a room. The host only.
+
+    Args:
+        room_id: The room to unban in.
+        user_id: The user being unbanned.
+        current_user: The authenticated host.
+        moderation_service: The injected moderation service.
+    """
+    moderation_service.unban_user(room_id, current_user.id, user_id)
+
+
+@router.get(
+    "/{room_id}/bans",
+    response_model=list[BannedUserRead],
+    status_code=status.HTTP_200_OK,
+)
+async def list_bans(
+    room_id: UUID,
+    current_user: User = Depends(get_current_user),
+    moderation_service: RoomModerationService = Depends(get_room_moderation_service),
+) -> list[BannedUserRead]:
+    """List users banned from a room. The host only.
+
+    Args:
+        room_id: The room whose bans to list.
+        current_user: The authenticated host.
+        moderation_service: The injected moderation service.
+
+    Returns:
+        The banned users with usernames and ban timestamps.
+    """
+    return moderation_service.list_bans(room_id, current_user.id)
 
 
 @router.get("/mine", response_model=list[ReadRoom], status_code=status.HTTP_200_OK)

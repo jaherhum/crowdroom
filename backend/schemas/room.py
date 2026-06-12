@@ -1,6 +1,7 @@
 """Room schemas for the API."""
 
 import re
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -151,3 +152,11 @@ class JoinRoom(BaseModel):
 
     pin: str | None = Field(None, description="Pin of the room.")
     invite_token: str | None = Field(None, description="Invite token for the room.")
+
+
+class BannedUserRead(BaseModel):
+    """A banned user as shown to the host in the ban-management panel."""
+
+    user_id: UUID = Field(..., description="The banned user's ID.")
+    username: str = Field(..., description="The banned user's username.")
+    banned_at: datetime = Field(..., description="When the ban was issued.")

@@ -10,9 +10,11 @@ from backend.core.exceptions import (
     ForbiddenException,
     TooManyRequestsException,
     UserAlreadyInRoomException,
+    UserBannedException,
 )
 from backend.db.models.room import Room
 from backend.db.models.user import User
+from backend.repositories.room_ban_repo import RoomBanRepository
 from backend.repositories.room_repo import RoomRepository
 from backend.repositories.user_repo import UserRepository
 from backend.services.room_invite_service import RoomInviteService
@@ -30,6 +32,7 @@ class RoomMembershipService:
         room_invite_service: RoomInviteService,
         user_repo: UserRepository,
         room_repo: RoomRepository,
+        ban_repo: RoomBanRepository,
     ) -> None:
         """Initialize the RoomMembershipService with its dependencies.
 
@@ -38,11 +41,13 @@ class RoomMembershipService:
             room_invite_service: Service for invite token validation.
             user_repo: Repository for persisting user changes.
             room_repo: Repository for room data access.
+            ban_repo: Repository for checking room bans.
         """
         self._room_service = room_service
         self._room_invite_service = room_invite_service
         self._user_repo = user_repo
         self._room_repo = room_repo
+        self._ban_repo = ban_repo
 
     def _check_pin_cooldown(self, user_id: UUID) -> None:
         """Reject the request if the user is locked out from a recent wrong PIN.
@@ -89,6 +94,7 @@ class RoomMembershipService:
         Raises:
             UserAlreadyInRoomException: If user is already in another room.
             EntityNotFoundException: If room does not exist.
+            UserBannedException: If the user is banned from this room.
             ForbiddenException: If room is private and no valid credentials.
             TooManyRequestsException: If the user recently submitted a wrong
                 PIN and the cooldown window has not yet elapsed.
@@ -98,6 +104,9 @@ class RoomMembershipService:
         if user.room_id == room_id:
             return
         room = self._room_service.get_room(room_id)
+
+        if self._ban_repo.exists(room_id, user.id):
+            raise UserBannedException()
 
         max_members = room.settings.get("max_members", 50)
         current_count = self._user_repo.count_by_room(room_id)
