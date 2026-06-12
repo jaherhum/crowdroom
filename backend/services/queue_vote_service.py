@@ -117,6 +117,15 @@ class QueueVoteService:
         queue_item.votes_skip = current_votes
         skip_triggered = current_votes >= threshold
 
+        # Run finish_song BEFORE the skip_vote broadcast so the queue has
+        # already advanced when clients receive skip_triggered=true. The
+        # skip_vote handler reads queue[0] to restore currentSong, and a
+        # stale queue[0] would point at the song just skipped.
+        if skip_triggered and self._playback_service:
+            await self._playback_service.finish_song(
+                session_obj.id, expected_item_id=vote_obj.queue_item_id
+            )
+
         await manager.broadcast(
             {
                 "type": "skip_vote",
@@ -129,11 +138,6 @@ class QueueVoteService:
             },
             str(room_obj.id),
         )
-
-        if skip_triggered and self._playback_service:
-            await self._playback_service.finish_song(
-                session_obj.id, expected_item_id=vote_obj.queue_item_id
-            )
 
     async def remove_vote(self, queue_item_id: UUID, user_id: UUID) -> None:
         """Remove a previously cast skip vote (undo).
