@@ -49,11 +49,15 @@ def upgrade() -> None:
                 break
 
     # Phase 3: Set NOT NULL and add unique index
-    op.alter_column("rooms", "room_code", nullable=False)
-    op.create_index(op.f("ix_rooms_room_code"), "rooms", ["room_code"], unique=True)
+    with op.batch_alter_table("rooms", schema=None) as batch_op:
+        batch_op.alter_column("room_code", nullable=False)
+        batch_op.create_index(
+            batch_op.f("ix_rooms_room_code"), ["room_code"], unique=True
+        )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index(op.f("ix_rooms_room_code"), table_name="rooms")
-    op.drop_column("rooms", "room_code")
+    with op.batch_alter_table("rooms", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_rooms_room_code"))
+        batch_op.drop_column("room_code")
