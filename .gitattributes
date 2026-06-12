@@ -1,0 +1,25 @@
+# Keep develop-only / dev-facing files OUT of the main (release) branch.
+#
+# Mechanism: the custom `ours` merge driver makes a develop->main merge
+# keep MAIN's version of these paths. On main these paths are absent
+# (deleted), so the merge resolves to "still absent".
+#
+# REQUIRED one-time setup in every clone that merges into main (incl. CI):
+#     git config merge.ours.driver true
+#
+# Limitation: a path that exists ONLY on develop and was never present on
+# main is a pure addition; the driver cannot suppress a pure add. Keep a
+# tombstone (path deleted in a commit) on main so the merge becomes a
+# modify/delete that the driver can resolve to main's deleted side.
+
+# Docs not wanted on release branch
+README.md            merge=ours
+CONTRIBUTING.md      merge=ours
+
+# Tests
+backend/tests/**     merge=ours
+
+# Dev tooling / agent + local config
+AGENTS.md            merge=ours
+CLAUDE.md            merge=ours
+.claude/**           merge=ours
