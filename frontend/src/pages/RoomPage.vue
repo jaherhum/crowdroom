@@ -281,6 +281,25 @@
     </div>
 
     <div
+      v-if="banTarget"
+      class="modal-overlay"
+      @click.self="cancelBan"
+      @keydown.esc="cancelBan"
+    >
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ban-modal-title">
+        <h3 id="ban-modal-title">Ban {{ banTarget.username || 'this user' }}?</h3>
+        <p class="text-tertiary">
+          They will be removed from the room and blocked from rejoining until you
+          unban them.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" @click="cancelBan">Cancel</button>
+          <button type="button" class="btn btn-danger" @click="confirmBan">Ban</button>
+        </div>
+      </div>
+    </div>
+
+    <div
       v-if="showQRModal"
       class="modal-overlay"
       @click.self="closeQRModal"
@@ -403,6 +422,7 @@ const showLeaveModal = ref(false);
 let leaveResolver = null;
 
 const showQRModal = ref(false);
+const banTarget = ref(null);
 const qrInvite = ref(null);
 const qrLoading = ref(false);
 const qrSending = ref(false);
@@ -620,10 +640,18 @@ async function kickMember(member) {
   }
 }
 
-async function banMember(member) {
-  if (!window.confirm(`Ban ${member.username || 'this user'} from the room?`)) {
-    return;
-  }
+function banMember(member) {
+  banTarget.value = member;
+}
+
+function cancelBan() {
+  banTarget.value = null;
+}
+
+async function confirmBan() {
+  const member = banTarget.value;
+  banTarget.value = null;
+  if (!member) return;
   try {
     await apiPost(`/rooms/${roomId.value}/ban/${member.id}`);
     showToast(`${member.username || 'User'} banned`);
