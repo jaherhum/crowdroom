@@ -4,8 +4,10 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from backend.core.network import IPNetwork, parse_ip_networks
 
 # Base directory for the backend (the folder where config.py resides is backend/core/)
 # So parent.parent is the 'backend' directory itself.
@@ -100,11 +102,42 @@ class Settings(BaseSettings):
     # Shared secret sent as X-Device-Token to LAN QR display devices.
     DEVICE_AUTH_TOKEN: str = ""
 
+    # API documentation access control.
+    # Comma-separated IPs/CIDRs (IPv4 and IPv6) allowed to reach /docs, /redoc
+    # and /openapi.json. Empty falls back to localhost only. Other clients get
+    # a 404 (not 403) so the endpoints' existence is not disclosed.
+    DOCS_ALLOWED_HOSTS: str = "127.0.0.1,::1"
+    # When True, the client IP is taken from the first X-Forwarded-For entry
+    # instead of the socket peer. Only enable behind a TRUSTED reverse proxy:
+    # X-Forwarded-For is client-controlled and trivially spoofed otherwise.
+    DOCS_TRUST_PROXY: bool = False
+
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    # Parsed form of DOCS_ALLOWED_HOSTS, populated after validation.
+    _docs_allowed_networks: list[IPNetwork] = PrivateAttr(default_factory=list)
+
+    @property
+    def docs_allowed_networks(self) -> list[IPNetwork]:
+        """Networks allowed to reach the API docs (parsed once at startup)."""
+        return self._docs_allowed_networks
+
+    @model_validator(mode="after")
+    def _resolve_docs_allowed_networks(self) -> "Settings":
+        """Parse DOCS_ALLOWED_HOSTS, falling back to localhost when empty.
+
+        An empty or fully-invalid allowlist must NOT allow everyone; it is
+        narrowed to loopback only (127.0.0.1 and ::1).
+        """
+        networks = parse_ip_networks(self.DOCS_ALLOWED_HOSTS)
+        if not networks:
+            networks = parse_ip_networks("127.0.0.1,::1")
+        self._docs_allowed_networks = networks
+        return self
 
     @model_validator(mode="after")
     def _resolve_database_url(self) -> "Settings":

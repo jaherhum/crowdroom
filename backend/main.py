@@ -3,7 +3,8 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -38,6 +39,7 @@ from backend.core.exceptions import (
     UserAlreadyInRoomException,
     UserBannedException,
 )
+from backend.core.network import is_ip_allowed
 from backend.db.database import create_db_and_tables
 from backend.services.playback_poller_service import PlaybackPollerService
 
@@ -54,7 +56,74 @@ async def lifespan(app: FastAPI):
     print("App closed.")
 
 
-app = FastAPI(lifespan=lifespan)
+# Documentation endpoints are served by gated routes below, so the
+# auto-generated ones are disabled here. Setting these to None also prevents the
+# SPA catch-all from masking them.
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+
+
+# --- API docs access control ----------------------------------------------
+# /docs, /redoc and /openapi.json are restricted to DOCS_ALLOWED_HOSTS. The
+# real openapi spec is exposed at an internal path that the gated routes proxy
+# to, so it is never reachable directly.
+_INTERNAL_OPENAPI_PATH = "/openapi.json"
+
+
+def _docs_client_ip(request: Request) -> str | None:
+    """Resolve the client IP used for docs access control.
+
+    Honors X-Forwarded-For only when DOCS_TRUST_PROXY is set, which must only
+    be enabled behind a trusted reverse proxy (the header is client-spoofable).
+    """
+    if settings.DOCS_TRUST_PROXY:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            # First entry is the original client when set by a trusted proxy.
+            return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+def _require_docs_access(request: Request) -> None:
+    """Raise 404 unless the request originates from an allowed host.
+
+    404 (not 403) is used deliberately so the endpoints' existence is not
+    disclosed to disallowed clients.
+    """
+    client_ip = _docs_client_ip(request)
+    if not is_ip_allowed(client_ip, settings.docs_allowed_networks):
+        raise HTTPException(status_code=404)
+
+
+@app.get(_INTERNAL_OPENAPI_PATH, include_in_schema=False)
+async def gated_openapi(request: Request) -> JSONResponse:
+    """Serve the OpenAPI schema only to allowed hosts."""
+    _require_docs_access(request)
+    return JSONResponse(app.openapi())
+
+
+@app.get("/docs", include_in_schema=False)
+async def gated_swagger_ui(request: Request):
+    """Serve Swagger UI only to allowed hosts."""
+    _require_docs_access(request)
+    return get_swagger_ui_html(
+        openapi_url=_INTERNAL_OPENAPI_PATH,
+        title=f"{settings.PROJECT_NAME} - Swagger UI",
+    )
+
+
+@app.get("/redoc", include_in_schema=False)
+async def gated_redoc(request: Request):
+    """Serve ReDoc only to allowed hosts."""
+    _require_docs_access(request)
+    return get_redoc_html(
+        openapi_url=_INTERNAL_OPENAPI_PATH,
+        title=f"{settings.PROJECT_NAME} - ReDoc",
+    )
 
 
 @app.exception_handler(ProfileIncompleteException)

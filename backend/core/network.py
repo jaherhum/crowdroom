@@ -1,11 +1,70 @@
 """Network helpers — LAN-only URL validation for SSRF protection."""
 
 import ipaddress
+import logging
 from urllib.parse import ParseResult, urlparse
 
 from backend.core.exceptions import InvalidDeviceURLException
 
 ALLOWED_SCHEMES = ("http", "https")
+
+logger = logging.getLogger(__name__)
+
+# A parsed allowlist entry: any IPv4/IPv6 network (a plain IP is a /32 or /128).
+IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+
+def parse_ip_networks(raw: str) -> list[IPNetwork]:
+    """Parse a comma-separated list of IPs/CIDRs into network objects.
+
+    Plain IPs are treated as single-host networks (/32 or /128). Invalid
+    entries are skipped with a warning rather than raising, so a single
+    typo in the allowlist cannot take the whole app down.
+
+    Args:
+        raw: Comma-separated IPs and/or CIDR ranges (IPv4 and IPv6).
+
+    Returns:
+        The successfully parsed networks, in input order.
+    """
+    networks: list[IPNetwork] = []
+    for token in raw.split(","):
+        entry = token.strip()
+        if not entry:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:
+            logger.warning("Ignoring invalid IP/CIDR in allowlist: %r", entry)
+    return networks
+
+
+def is_ip_allowed(client_ip: str | None, allowed_networks: list[IPNetwork]) -> bool:
+    """Return True if ``client_ip`` falls within any allowed network.
+
+    IPv4-mapped IPv6 addresses (e.g. ``::ffff:127.0.0.1``) are normalised to
+    their IPv4 form before matching, so an IPv4 allowlist entry still matches a
+    client reported in IPv4-mapped form. A missing or malformed address is
+    never allowed.
+
+    Args:
+        client_ip: The client address as a string, or None.
+        allowed_networks: Networks parsed by :func:`parse_ip_networks`.
+
+    Returns:
+        True if the address is in the allowlist, False otherwise.
+    """
+    if not client_ip:
+        return False
+    try:
+        ip = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return False
+
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+
+    return any(ip in network for network in allowed_networks)
 
 
 def assert_lan_url(url: str) -> ParseResult:
