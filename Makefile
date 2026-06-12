@@ -1,16 +1,13 @@
-.PHONY: up up-sqlite down logs ps shell migrate
+.PHONY: up down down-clean logs ps shell migrate
 
 up:
-	docker compose --profile postgres up --build -d --wait
-
-up-sqlite:
-	docker compose --profile sqlite up --build -d --wait
+	docker compose up --build -d --wait
 
 down:
-	docker compose --profile postgres --profile sqlite down
+	docker compose down
 
 down-clean:
-	docker compose --profile postgres --profile sqlite down -v
+	docker compose down -v
 
 logs:
 	docker compose logs -f app
