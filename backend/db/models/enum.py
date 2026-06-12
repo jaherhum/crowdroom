@@ -7,7 +7,7 @@ class StreamingPlatforms(str, Enum):
     """Enumeration of supported music streaming platforms."""
 
     SPOTIFY = "spotify"
-    TIDAL = "tidal"
+    # TIDAL = "tidal"  # pending implementation; re-enable when Tidal adapter lands
 
 
 class ItemStatus(str, Enum):

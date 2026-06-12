@@ -52,6 +52,7 @@ class TestCacheGetSet:
         assert result.external_id == "abc"
         assert result.title == "Test Song"
 
+    @pytest.mark.skip(reason="Tidal pending implementation; re-enable with adapter")
     def test_different_platforms_cached_separately(self):
         meta_spotify = _make_metadata("same_id")
         meta_tidal = ReadSongMetadata(

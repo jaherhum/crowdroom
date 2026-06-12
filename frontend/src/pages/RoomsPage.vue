@@ -138,7 +138,6 @@
           </div>
           <select v-model="newRoom.platform" class="input">
             <option value="spotify">Spotify</option>
-            <option value="tidal">Tidal</option>
           </select>
           <div class="form-row">
             <label class="input-label">
