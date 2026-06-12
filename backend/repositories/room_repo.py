@@ -1,0 +1,150 @@
+"""Repository for Room data access."""
+
+from uuid import UUID
+
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session as DBSession
+from sqlmodel import or_, select
+
+from backend.db.models.room import Room
+
+
+class RoomRepository:
+    """Handles database operations for Rooms."""
+
+    def __init__(self, session: DBSession):
+        """Initialize the RoomRepository with a database session.
+
+        Args:
+            session: Database session for all CRUD operations on rooms.
+        """
+        self._session = session
+
+    def create(self, room: Room) -> Room:
+        """Creates a new room in the database.
+
+        Args:
+            room (Room): The room instance to create.
+
+        Returns:
+            Room: The created room.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
+        """
+        try:
+            self._session.add(room)
+            self._session.commit()
+            self._session.refresh(room)
+            return room
+        except IntegrityError:
+            self._session.rollback()
+            raise
+
+    def get_by_id(self, room_id: UUID) -> Room | None:
+        """Retrieves a room by its ID.
+
+        Args:
+            room_id (UUID): The unique identifier of the room.
+
+        Returns:
+            Room | None: The room instance if found, otherwise None.
+        """
+        return self._session.get(Room, room_id)
+
+    def get_all(self) -> list[Room]:
+        """Retrieves all rooms in the database.
+
+        Returns:
+            list[Room]: A list of all rooms.
+        """
+        return self._session.exec(select(Room)).all()
+
+    def get_by_host(self, host_user_id: UUID) -> Room | None:
+        """Retrieves the room owned by a specific host.
+
+        Args:
+            host_user_id (UUID): The unique identifier of the host user.
+
+        Returns:
+            Room | None: The room instance if found, otherwise None.
+        """
+        return self._session.exec(
+            select(Room).where(Room.host_user_id == host_user_id)
+        ).first()
+
+    def delete(self, room_id: UUID) -> None:
+        """Deletes a room from the database.
+
+        Args:
+            room_id (UUID): The unique identifier of the room to delete.
+        """
+        room = self._session.get(Room, room_id)
+        if room:
+            try:
+                self._session.delete(room)
+                self._session.commit()
+            except IntegrityError:
+                self._session.rollback()
+                raise
+
+    def update(self, room_id: UUID, update_data: dict) -> Room | None:
+        """Updates an existing room with the provided data.
+
+        Args:
+            room_id (UUID): The unique identifier of the room.
+            update_data (dict): A dictionary containing the fields to update.
+
+        Returns:
+            Room | None: The updated room instance if found, otherwise None.
+
+        Raises:
+            IntegrityError: If a unique constraint is violated.
+        """
+        room = self._session.get(Room, room_id)
+        if room:
+            for key, value in update_data.items():
+                if hasattr(room, key):
+                    setattr(room, key, value)
+            try:
+                self._session.add(room)
+                self._session.commit()
+                self._session.refresh(room)
+                return room
+            except IntegrityError:
+                self._session.rollback()
+                raise
+        return None
+
+    def get_by_code(self, room_code: str) -> Room | None:
+        """Retrieve a room by its unique room code.
+
+        Args:
+            room_code: The 6-character room sharing code.
+
+        Returns:
+            The matching room, or None if not found.
+        """
+        return self._session.exec(
+            select(Room).where(Room.room_code == room_code)
+        ).first()
+
+    def get_listed_rooms(self) -> list[Room]:
+        """Retrieve all rooms eligible for public listing.
+
+        Returns rooms that are public or private-but-visible.
+        Excludes private rooms with is_visible=False.
+
+        Returns:
+            All publicly listable rooms, ordered by name.
+        """
+        return self._session.exec(
+            select(Room)
+            .where(
+                or_(
+                    Room.is_private == False,  # noqa: E712
+                    Room.is_visible == True,  # noqa: E712
+                )
+            )
+            .order_by(Room.room_name)
+        ).all()

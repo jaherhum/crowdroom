@@ -1,0 +1,155 @@
+"""Session management routes for the API."""
+
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+
+from backend.api.session.dependencies import get_playback_service, get_session_service
+from backend.core.exceptions import EntityNotFoundException
+from backend.schemas.playback import FinishResponse
+from backend.schemas.session import CreateSession, ReadSession, UpdateSession
+from backend.services.playback_service import PlaybackService
+from backend.services.session_service import SessionService
+
+router = APIRouter(prefix="/session", tags=["session"])
+
+
+@router.get("/", response_model=list[ReadSession], status_code=status.HTTP_200_OK)
+async def get_sessions(
+    session_service: SessionService = Depends(get_session_service),
+) -> list[ReadSession]:
+    """Retrieves a list of all sessions.
+
+    Args:
+        session_service (SessionService): The injected session service.
+
+    Returns:
+        list[ReadSession]: A list of session schemas.
+    """
+    sessions = session_service.get_all_sessions()
+    return [ReadSession.model_validate(s) for s in sessions]
+
+
+@router.get(
+    "/by-room/{room_id}", response_model=ReadSession, status_code=status.HTTP_200_OK
+)
+async def get_session_by_room(
+    room_id: UUID,
+    session_service: SessionService = Depends(get_session_service),
+) -> ReadSession:
+    """Retrieves the session for a given room.
+
+    Args:
+        room_id: The unique identifier of the room.
+        session_service: The injected session service.
+
+    Returns:
+        ReadSession: The session schema.
+    """
+    try:
+        session = session_service.get_session_by_room(room_id)
+    except EntityNotFoundException as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ReadSession.model_validate(session)
+
+
+@router.get("/{session_id}", response_model=ReadSession, status_code=status.HTTP_200_OK)
+async def get_session(
+    session_id: UUID,
+    session_service: SessionService = Depends(get_session_service),
+) -> ReadSession:
+    """Retrieves a specific session by its ID.
+
+    Args:
+        session_id (UUID): The unique identifier of the session.
+        session_service (SessionService): The injected session service.
+
+    Returns:
+        ReadSession: The session schema.
+    """
+    session = session_service.get_session(session_id)
+    return ReadSession.model_validate(session)
+
+
+@router.post("/", response_model=ReadSession, status_code=status.HTTP_201_CREATED)
+async def create_session(
+    session_data: CreateSession,
+    session_service: SessionService = Depends(get_session_service),
+) -> ReadSession:
+    """Creates a new session.
+
+    Args:
+        session_data (CreateSession): The schema containing session creation details.
+        session_service (SessionService): The injected session service.
+
+    Returns:
+        ReadSession: The newly created session schema.
+    """
+    session = session_service.create_session(session_data)
+    return ReadSession.model_validate(session)
+
+
+@router.patch(
+    "/{session_id}", response_model=ReadSession, status_code=status.HTTP_200_OK
+)
+async def update_session(
+    session_id: UUID,
+    session_data: UpdateSession,
+    session_service: SessionService = Depends(get_session_service),
+) -> ReadSession:
+    """Updates an existing session.
+
+    Args:
+        session_id (UUID): The unique identifier of the session to update.
+        session_data (UpdateSession): The schema containing the fields to update.
+        session_service (SessionService): The injected session service.
+
+    Returns:
+        ReadSession: The updated session schema.
+    """
+    session = session_service.update_session(session_id, session_data)
+    return ReadSession.model_validate(session)
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session(
+    session_id: UUID,
+    request: Request,
+    session_service: SessionService = Depends(get_session_service),
+) -> None:
+    """Deletes a session from the system.
+
+    Args:
+        session_id (UUID): The unique identifier of the session to delete.
+        request (Request): The incoming request (used to access app state).
+        session_service (SessionService): The injected session service.
+    """
+    session = session_service.get_session(session_id)
+    room_id = session.room_id
+    session_service.delete_session(session_id)
+    await request.app.state.playback_poller.stop_polling(room_id)
+
+
+@router.post(
+    "/{session_id}/finish",
+    response_model=FinishResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def finish_current_song(
+    session_id: UUID,
+    playback_service: PlaybackService = Depends(get_playback_service),
+) -> FinishResponse:
+    """Advance to the next song by finishing the current one.
+
+    Records the current song in history, removes it from the queue, and updates
+    session status to STOPPED.
+
+    Args:
+        session_id (UUID): The unique identifier of the session.
+        playback_service (PlaybackService): The injected playback service.
+
+    Returns:
+        FinishResponse: Confirmation of the finished state.
+    """
+    new_status = await playback_service.finish_song(session_id)
+    return FinishResponse(status=new_status)

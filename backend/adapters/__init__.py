@@ -1,0 +1,1 @@
+"""Streaming platform adapter implementations."""
