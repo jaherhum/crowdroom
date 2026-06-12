@@ -440,14 +440,6 @@ let searchController = null;
 const wsHandlers = [];
 let leaving = false;
 
-function handleBeforeUnload() {
-  if (leaving || !roomId.value) return;
-  navigator.sendBeacon(
-    `/api/v1/rooms/${roomId.value}/leave`,
-    new Blob([], { type: 'application/json' })
-  );
-}
-
 onMounted(async () => {
   if (!roomId.value) {
     router.push('/rooms');
@@ -464,14 +456,12 @@ onMounted(async () => {
     }
     if (isPlaying.value) startProgressAnimation();
     setupWebSocket();
-    window.addEventListener('beforeunload', handleBeforeUnload);
   } catch (err) {
     showToast(err.detail || 'Failed to load room');
   }
 });
 
 onUnmounted(() => {
-  window.removeEventListener('beforeunload', handleBeforeUnload);
   teardownWebSocket();
   clearTimeout(searchTimeout);
   if (searchController) searchController.abort();
