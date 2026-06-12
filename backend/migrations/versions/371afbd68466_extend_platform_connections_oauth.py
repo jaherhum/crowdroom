@@ -26,55 +26,59 @@ def upgrade() -> None:
     )
     connectiontype_enum.create(op.get_bind(), checkfirst=True)
 
-    op.add_column(
-        "platform_connections",
-        sa.Column(
-            "connection_type",
-            connectiontype_enum,
-            server_default="CLIENT_CREDENTIALS",
-            nullable=False,
-        ),
-    )
-    op.add_column(
-        "platform_connections",
-        sa.Column(
-            "access_token_encrypted", sqlmodel.sql.sqltypes.AutoString(), nullable=True
-        ),
-    )
-    op.add_column(
-        "platform_connections",
-        sa.Column(
-            "refresh_token_encrypted", sqlmodel.sql.sqltypes.AutoString(), nullable=True
-        ),
-    )
-    op.add_column(
-        "platform_connections",
-        sa.Column("token_expires_at", sa.DateTime(), nullable=True),
-    )
-    op.add_column(
-        "platform_connections",
-        sa.Column("scopes", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    )
-    op.alter_column(
-        "platform_connections",
-        "credentials_encrypted",
-        existing_type=sa.String(),
-        nullable=True,
-    )
+    with op.batch_alter_table("platform_connections", schema=None) as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "connection_type",
+                sa.Enum(
+                    "CLIENT_CREDENTIALS",
+                    "AUTHORIZATION_CODE",
+                    name="connectiontype",
+                    create_type=False,
+                ),
+                server_default="CLIENT_CREDENTIALS",
+                nullable=False,
+            )
+        )
+        batch_op.add_column(
+            sa.Column(
+                "access_token_encrypted",
+                sqlmodel.sql.sqltypes.AutoString(),
+                nullable=True,
+            )
+        )
+        batch_op.add_column(
+            sa.Column(
+                "refresh_token_encrypted",
+                sqlmodel.sql.sqltypes.AutoString(),
+                nullable=True,
+            )
+        )
+        batch_op.add_column(
+            sa.Column("token_expires_at", sa.DateTime(), nullable=True)
+        )
+        batch_op.add_column(
+            sa.Column("scopes", sqlmodel.sql.sqltypes.AutoString(), nullable=True)
+        )
+        batch_op.alter_column(
+            "credentials_encrypted",
+            existing_type=sa.String(),
+            nullable=True,
+        )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.alter_column(
-        "platform_connections",
-        "credentials_encrypted",
-        existing_type=sa.String(),
-        nullable=False,
-    )
-    op.drop_column("platform_connections", "scopes")
-    op.drop_column("platform_connections", "token_expires_at")
-    op.drop_column("platform_connections", "refresh_token_encrypted")
-    op.drop_column("platform_connections", "access_token_encrypted")
-    op.drop_column("platform_connections", "connection_type")
+    with op.batch_alter_table("platform_connections", schema=None) as batch_op:
+        batch_op.alter_column(
+            "credentials_encrypted",
+            existing_type=sa.String(),
+            nullable=False,
+        )
+        batch_op.drop_column("scopes")
+        batch_op.drop_column("token_expires_at")
+        batch_op.drop_column("refresh_token_encrypted")
+        batch_op.drop_column("access_token_encrypted")
+        batch_op.drop_column("connection_type")
 
     sa.Enum(name="connectiontype").drop(op.get_bind(), checkfirst=True)

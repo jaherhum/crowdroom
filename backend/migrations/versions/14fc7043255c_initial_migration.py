@@ -70,7 +70,6 @@ def upgrade() -> None:
             ["users.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("host_user_id"),
     )
     op.create_table(
         "sessions",
@@ -82,18 +81,6 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("current_song_id", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-        sa.Column(
-            "playback_status",
-            sa.Enum(
-                "BUFFERING",
-                "PLAYING",
-                "PAUSED",
-                "STOPPED",
-                "ERROR",
-                name="playbackstatus",
-            ),
-            nullable=False,
-        ),
         sa.Column("last_updated", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(
             ["room_id"],

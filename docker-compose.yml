@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crowdroom:latest
+    container_name: crowdroom-app
+    profiles: ["postgres", "sqlite"]
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    volumes:
+      - avatars:/app/backend/static/avatars
+      - sqlite_data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/', timeout=2).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
+  db:
+    image: postgres:16-alpine
+    container_name: crowdroom-db
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crowdroom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crowdroom}
+      POSTGRES_DB: ${POSTGRES_DB:-crowdroom}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crowdroom} -d ${POSTGRES_DB:-crowdroom}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+      start_interval: 1s
+    restart: unless-stopped
+
+volumes:
+  avatars:
+  sqlite_data:
+  pgdata:

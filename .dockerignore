@@ -1,0 +1,54 @@
+# VCS / IDE
+.git
+.gitignore
+.github
+.idea
+.vscode
+.claude
+
+# Python
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+
+# Node / frontend
+node_modules
+**/node_modules
+frontend/dist
+
+# Local DB / runtime data
+backend/*.db
+backend/*.db-journal
+backend/*.db-wal
+backend/*.db-shm
+backend/static/avatars/*
+!backend/static/avatars/.gitkeep
+
+# Secrets / env
+.env
+.env.*
+!.env.docker.example
+backend/.env
+backend/.env.*
+!backend/.env.dev.example
+!backend/.env.prod.example
+
+# Logs / docs / misc
+*.log
+README.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+LICENSE
+
+# Docker artifacts (avoid cache busts on edits)
+Dockerfile
+docker-compose*.yml
+.dockerignore
