@@ -6,7 +6,7 @@ services:
     image: crowdroom:latest
     container_name: crowdroom-app
     ports:
-      - "${BIND_IP:-0.0.0.0}:8000:8000"
+      - "${BIND_IP:-0.0.0.0}:${HOST_PORT:-8000}:8000"
     env_file:
       - .env
     volumes:
