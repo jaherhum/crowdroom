@@ -33,6 +33,10 @@ Streaming providers are integrated through adapters (auth, search, playback).
 
 Spotify is the only provider currently implemented. The adapter layer (`backend/adapters/`) is built to host additional providers as they land.
 
+## Companion hardware
+
+[esp32-crowdroom](https://github.com/jaherhum/esp32-crowdroom) is an optional ESP32 firmware that receives a room's QR code and displays it on a physical device, so guests can scan and join the room without sharing a screen.
+
 ## Tech stack
 
 ### Backend
