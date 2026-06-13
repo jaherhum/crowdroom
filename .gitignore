@@ -136,7 +136,6 @@ celerybeat.pid
 
 # Environments
 backend/.env
-.env.docker
 .envrc
 .env
 .claude/
