@@ -5,18 +5,15 @@ services:
       dockerfile: Dockerfile
     image: crowdroom:latest
     container_name: crowdroom-app
-    profiles: ["postgres", "sqlite"]
     ports:
       - "${BIND_IP:-0.0.0.0}:8000:8000"
     env_file:
-      - .env.docker
+      - .env
     volumes:
       - avatars:/app/backend/static/avatars
-      - sqlite_data:/app/data
     depends_on:
       db:
         condition: service_healthy
-        required: false
     restart: unless-stopped
     healthcheck:
       test:
@@ -33,7 +30,6 @@ services:
   db:
     image: postgres:16-alpine
     container_name: crowdroom-db
-    profiles: ["postgres"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-crowdroom}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crowdroom}
@@ -51,5 +47,4 @@ services:
 
 volumes:
   avatars:
-  sqlite_data:
   pgdata:
