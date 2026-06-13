@@ -138,6 +138,7 @@ celerybeat.pid
 backend/.env
 .envrc
 .env
+.claude/
 .venv
 env/
 venv/
