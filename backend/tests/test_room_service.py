@@ -212,6 +212,18 @@ class TestRoomService:
         with pytest.raises(ValueError, match="private room needs a PIN"):
             CreateRoom(host_user_id=uuid4(), room_name="Bad", is_private=True)
 
+    def test_create_private_room_empty_pin_rejected(self):
+        with pytest.raises(ValueError, match="private room needs a PIN"):
+            CreateRoom(
+                host_user_id=uuid4(), room_name="Bad", is_private=True, pin=""
+            )
+
+    def test_create_public_room_empty_pin_coerced_to_none(self):
+        room = CreateRoom(
+            host_user_id=uuid4(), room_name="Open", is_private=False, pin=""
+        )
+        assert room.pin is None
+
     def test_create_public_room_with_pin_rejected(self):
         with pytest.raises(ValueError, match="public room can't have a PIN"):
             CreateRoom(
