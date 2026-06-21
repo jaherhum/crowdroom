@@ -131,6 +131,7 @@
               placeholder="PIN (4-6 digits)"
               pattern="\d{4,6}"
             />
+            <p v-if="createPinError" class="error-text">{{ createPinError }}</p>
             <label class="checkbox-label">
               <input v-model="newRoom.isVisible" type="checkbox" />
               List this room publicly (uncheck to hide it; joinable only by code, PIN or invite)
@@ -271,6 +272,7 @@ const newRoom = ref({
   maxMembers: 50,
   skipThreshold: 2,
 });
+const createPinError = ref('');
 
 const myRooms = computed(() => rooms.value.filter((room) => room.host_user_id === userId.value));
 const otherRooms = computed(() => rooms.value.filter((room) => room.host_user_id !== userId.value));
@@ -419,6 +421,7 @@ function handleCreateRoom() {
     showPasswordModal.value = true;
     return;
   }
+  createPinError.value = '';
   newRoom.value.name = `${username.value}'s Room`;
   showCreateModal.value = true;
 }
@@ -443,11 +446,23 @@ async function submitPassword() {
 }
 
 async function createRoom() {
+  createPinError.value = '';
+  const trimmedPin = newRoom.value.pin.trim();
+  if (newRoom.value.isPrivate) {
+    if (!trimmedPin) {
+      createPinError.value = 'A private room requires a PIN';
+      return;
+    }
+    if (!/^\d{4,6}$/.test(trimmedPin)) {
+      createPinError.value = 'PIN must be 4-6 digits';
+      return;
+    }
+  }
   try {
     const room = await apiPost('/rooms/', {
       room_name: newRoom.value.name,
       is_private: newRoom.value.isPrivate,
-      pin: newRoom.value.isPrivate ? newRoom.value.pin : null,
+      pin: newRoom.value.isPrivate ? trimmedPin : null,
       // Public rooms are always listed; only private rooms honor the toggle.
       is_visible: newRoom.value.isPrivate ? newRoom.value.isVisible : true,
       settings: {

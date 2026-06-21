@@ -58,8 +58,8 @@ class CreateRoom(BaseModel):
     @classmethod
     def validate_pin(cls, value: str | None) -> str | None:
         """Validate PIN format: must be 4-6 digits if provided."""
-        if value is None:
-            return value
+        if value is None or value == "":
+            return None
         if not re.match(r"^\d{4,6}$", value):
             raise ValueError("PIN must be 4-6 digits.")
         return value
@@ -125,8 +125,8 @@ class UpdateRoom(BaseModel):
     @classmethod
     def validate_pin(cls, value: str | None) -> str | None:
         """Validate PIN format: must be 4-6 digits if provided."""
-        if value is None:
-            return value
+        if value is None or value == "":
+            return None
         if not re.match(r"^\d{4,6}$", value):
             raise ValueError("PIN must be 4-6 digits.")
         return value
