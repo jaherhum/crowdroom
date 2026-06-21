@@ -33,5 +33,7 @@ class TokenType(str, Enum):
 
 
 class ConnectionType(str, Enum):
+    """OAuth grant type used to obtain a streaming-provider access token."""
+
     CLIENT_CREDENTIALS = "client_credentials"
     AUTHORIZATION_CODE = "authorization_code"
