@@ -78,6 +78,18 @@ This starts the full stack:
 
 The application container waits for PostgreSQL to become healthy before starting.
 
+#### Build locally vs. run the published image
+
+`docker compose up --build -d` builds the `app` image locally via `docker-compose.override.yml` (auto-merged by Compose) — this is the default for development.
+
+To run the **published** image instead of building, ignore the override and use only the base file:
+
+```bash
+docker compose -f docker-compose.yml up -d
+```
+
+This pulls `ghcr.io/jaherhum/crowdroom:latest` from GitHub Container Registry. Publishing the image to GHCR is handled by CI (issue #151); until then the pull flow requires a manually pushed image.
+
 Open the app at:
 
 - `http://localhost:8000` on the same machine
