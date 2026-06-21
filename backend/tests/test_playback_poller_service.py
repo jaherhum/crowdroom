@@ -154,6 +154,11 @@ class TestPollLoopTrackChanged:
                 ),
                 patch.object(
                     poller,
+                    "_get_current_queue_item",
+                    return_value=None,
+                ),
+                patch.object(
+                    poller,
                     "_advance_queue",
                     new_callable=AsyncMock,
                 ) as mock_advance,
@@ -551,47 +556,84 @@ class TestQueueItemSongEagerLoaded:
     the helper's DBSession closes. Without eager loading the poll loop
     silently swallows the error and the queue stalls."""
 
-    def test_get_current_queue_item_song_accessible_after_session_close(self):
+    @pytest.fixture
+    def seeded_engine(self):
+        import tempfile
+
         from sqlmodel import Session as DBSession
-        from sqlmodel import select
+        from sqlmodel import SQLModel, create_engine
 
-        from backend.db.database import engine
+        from backend.db.models import (  # noqa: F401
+            queue_history,
+            queue_vote,
+            room,
+            session,
+            song,
+            user,
+        )
         from backend.db.models.queue_item import QueueItem
+        from backend.db.models.room import Room
+        from backend.db.models.session import Session
+        from backend.db.models.song import Song
+        from backend.db.models.user import User
 
-        with DBSession(engine) as s:
-            row = s.exec(select(QueueItem).limit(1)).first()
-            session_id = row.session_id if row else None
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        tmp.close()
+        engine = create_engine(f"sqlite:///{tmp.name}")
+        SQLModel.metadata.create_all(engine)
 
-        if session_id is None:
-            pytest.skip("no QueueItem rows in DB to exercise relation load")
+        session_id = uuid4()
+        with DBSession(engine) as db_session:
+            host = User(username=f"host-{uuid4().hex[:8]}")
+            db_session.add(host)
+            db_session.flush()
+            room_row = Room(
+                host_user_id=host.id,
+                room_name="test-room",
+                room_code=uuid4().hex[:6],
+            )
+            db_session.add(room_row)
+            db_session.flush()
+            db_session.add(
+                Session(id=session_id, room_id=room_row.id)
+            )
+            for position in range(2):
+                song_row = Song(
+                    external_id=f"track_{position}",
+                    title=f"Song {position}",
+                    artist="Artist",
+                    duration=200.0,
+                )
+                db_session.add(song_row)
+                db_session.flush()
+                db_session.add(
+                    QueueItem(
+                        session_id=session_id,
+                        song_id=song_row.id,
+                        position=position,
+                    )
+                )
+            db_session.commit()
 
+        with patch(
+            "backend.services.playback_poller_service.engine", engine
+        ):
+            yield session_id
+
+    def test_get_current_queue_item_song_accessible_after_session_close(
+        self, seeded_engine
+    ):
         poller = PlaybackPollerService()
-        item = poller._get_current_queue_item(session_id)
+        item = poller._get_current_queue_item(seeded_engine)
         assert item is not None
         # Must not raise DetachedInstanceError.
         assert item.song.external_id is not None
 
-    def test_get_next_queue_item_song_accessible_after_session_close(self):
-        from sqlmodel import Session as DBSession
-        from sqlmodel import func, select
-
-        from backend.db.database import engine
-        from backend.db.models.queue_item import QueueItem
-
-        with DBSession(engine) as s:
-            stmt = (
-                select(QueueItem.session_id)
-                .group_by(QueueItem.session_id)
-                .having(func.count(QueueItem.id) > 1)
-                .limit(1)
-            )
-            session_id = s.exec(stmt).first()
-
-        if session_id is None:
-            pytest.skip("no session with >=2 QueueItems to exercise next item")
-
+    def test_get_next_queue_item_song_accessible_after_session_close(
+        self, seeded_engine
+    ):
         poller = PlaybackPollerService()
-        item = poller._get_next_queue_item(session_id)
+        item = poller._get_next_queue_item(seeded_engine)
         assert item is not None
         assert item.song.external_id is not None
 
