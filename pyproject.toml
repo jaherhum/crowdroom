@@ -1,6 +1,6 @@
 [project]
 name = "CrowdRoom"
-version = "0.1.0"
+version = "0.1.1"
 description = "A real-time collaborative music streaming platform built with FastAPI and SQLModel."
 readme = "README.md"
 authors = [
