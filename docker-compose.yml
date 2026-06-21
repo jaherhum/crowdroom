@@ -1,9 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: crowdroom:latest
+    image: ghcr.io/jaherhum/crowdroom:latest
     container_name: crowdroom-app
     ports:
       - "${BIND_IP:-0.0.0.0}:${HOST_PORT:-8000}:8000"
