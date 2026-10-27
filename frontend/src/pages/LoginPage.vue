@@ -171,7 +171,7 @@ async function localLogin() {
     if (localPassword.value) {
       body.password = localPassword.value;
     }
-    await apiPost('/auth/local-login', body);
+    await apiPost('/auth/local-login', body, { throwOn401: true });
     await fetchMe();
     await postAuthRedirect();
   } catch (err) {
@@ -182,10 +182,14 @@ async function localLogin() {
 async function onlineLogin() {
   error.value = '';
   try {
-    await apiPost('/auth/login', {
-      identifier: identifier.value.trim(),
-      password: password.value,
-    });
+    await apiPost(
+      '/auth/login',
+      {
+        identifier: identifier.value.trim(),
+        password: password.value,
+      },
+      { throwOn401: true },
+    );
     await fetchMe();
     await postAuthRedirect();
   } catch (err) {

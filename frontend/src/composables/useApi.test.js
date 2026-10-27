@@ -81,6 +81,37 @@ describe('apiRequest', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('throws with the API detail on 401 when throwOn401 is set', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({ status: 401, ok: false, body: { detail: 'Invalid credentials' } }),
+    );
+    await expect(apiPost('/auth/login', {}, { throwOn401: true })).rejects.toMatchObject({
+      message: 'Invalid credentials',
+      status: 401,
+      detail: 'Invalid credentials',
+    });
+    expect(clearAuth).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('throws a fallback error on 401 with a non-JSON body when throwOn401 is set', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        status: 401,
+        ok: false,
+        json: vi.fn().mockRejectedValue(new Error('Unexpected token')),
+      }),
+    );
+    await expect(apiPost('/auth/login', {}, { throwOn401: true })).rejects.toMatchObject({
+      message: 'Request failed',
+      status: 401,
+    });
+    expect(clearAuth).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('returns null on 204 No Content', async () => {
     vi.stubGlobal('fetch', mockFetch({ status: 204, ok: true }));
     const result = await apiPost('/rooms/x/leave');
