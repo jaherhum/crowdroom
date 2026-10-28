@@ -26,6 +26,15 @@ export async function apiRequest(method, path, body = null, options = {}) {
   });
 
   if (response.status === 401) {
+    if (options.throwOn401) {
+      const data = await response.json().catch(() => ({}));
+      const error = new Error(data.detail || 'Request failed');
+      error.status = 401;
+      error.detail = data.detail;
+      error.code = data.code;
+      error.retryAfter = data.retry_after;
+      throw error;
+    }
     clearAuth();
     if (router.currentRoute.value.path !== '/login') {
       router.push('/login');
