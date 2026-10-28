@@ -8,6 +8,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-supported-003B57?logo=sqlite&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-AGPL%203.0-E44BC2?logo=gnu&logoColor=white)
+[![Donate](https://img.shields.io/badge/Donate-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/jaherhum)
 
 CrowdRoom is a real-time room-based music app built with FastAPI and Vue 3. It lets hosts manage shared rooms, invites, playback, queue interactions, and live updates over WebSockets.
 
@@ -254,6 +255,12 @@ Examples:
 - `feat(queue): add vote weight calculation`
 - `fix(auth): prevent token reuse after invalidation`
 - `chore(deps): bump fastapi to 0.115`
+
+## Support
+
+If CrowdRoom is useful to you, you can support development on Ko-fi:
+
+[![Donate](https://img.shields.io/badge/Donate-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/jaherhum)
 
 ## License
 
